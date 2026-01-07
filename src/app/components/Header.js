@@ -4,7 +4,7 @@ import { UserCircle } from 'lucide-react';
 
 const Header = () => {
     return (
-        <header className="bg-[#8da070] text-white px-4 py-3 flex items-center justify-between shadow-sm">
+        <header className="sticky top-0 z-50 bg-[#8da070] text-white px-4 py-3 flex items-center justify-between shadow-sm">
             <div className="flex items-center space-x-3 group cursor-pointer">
 
                 <div className="bg-white/20 p-1 rounded-md transition-all duration-500 group-hover:rotate-12 group-hover:scale-110">

@@ -2,7 +2,8 @@ import React from 'react';
 import { 
   LayoutDashboard, User, CheckSquare, Package, 
   ShoppingCart, CloudSun, BarChart3, Bell, Settings, ChevronRight, PanelLeftClose,
-  Leaf
+  Leaf,
+  BookAIcon
 } from 'lucide-react';
 
 const Sidebar = ({ activeMenu, setActiveMenu }) => {
@@ -19,7 +20,7 @@ const Sidebar = ({ activeMenu, setActiveMenu }) => {
   ];
 
   return (
-    <aside className="bg-white border-r flex flex-col h-screen shrink-0 shadow-md xl:w-64 sm:w-200">
+    <aside className="bg-white border-r flex flex-col h-full shrink-0 shadow-md xl:w-64 sm:w-200">
       <nav className="flex-1 py-1 overflow-y-auto">
         {menuItems.map((item) => (
           <button 
@@ -41,8 +42,21 @@ const Sidebar = ({ activeMenu, setActiveMenu }) => {
           </button>
         ))}
       </nav>
-      <div>
-        
+
+      <div className="border-t pb-4">
+        <button 
+          onClick={() => setActiveMenu('Getting Started')}
+          className="w-full flex items-center justify-between px-4 py-4 text-gray-500 hover:bg-gray-50"
+        >
+          <div className="flex items-center gap-3">
+            <Settings size={18} className="text-gray-400" />
+            <span className="text-[13px] font-medium">Getting Started</span>
+          </div>
+          <ChevronRight size={14} className="text-gray-300" />
+        </button>
+        <div className="px-4 py-2 border-t hover:bg-blue-50 ">
+          <PanelLeftClose size={18} className="text-gray-400 cursor-pointer hover:text-gray-600" />
+        </div>
       </div>
     </aside>
   );

@@ -9,10 +9,10 @@ import {
 const Sidebar = ({ activeMenu, setActiveMenu, isCollapsed, toggleSidebar }) => {
   const menuItems = [
     { name: 'Dashboard', icon: <LayoutDashboard size={18} /> },
-    { name: 'Profil', icon: <User size={18} /> },
+    { name: 'Staff', icon: <User size={18} /> },
     { name: 'Tasks', icon: <CheckSquare size={18} /> },
     { name: 'Plants', icon: <Leaf size={18} /> },
-    { name: 'Stock/Inventory', icon: <Package size={18} /> },
+    { name: 'Stock', icon: <Package size={18} /> },
     { name: 'Purchasing', icon: <ShoppingCart size={18} /> },
     { name: 'Cuaca', icon: <CloudSun size={18} /> },
     { name: 'Report', icon: <BarChart3 size={18} /> },

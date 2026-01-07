@@ -5,6 +5,15 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
+import Dashboard from './Dashboard/Dashboard';
+import StaffManager from './Staff/StaffManager';
+import Tasks from './Tasks/Tasks';
+import Plants from './Plants/Plants';
+import Stock from './Stock/Stock';
+import Purchasing from './Purchasing/Purchasing';
+import Report from './Report/Report';
+import Cuaca from './Cuaca/Weather';
+import Notification from './Notifications/Notification';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -27,13 +36,23 @@ export default function Layout({ children }) {
   const renderContent = () => {
     switch (activeMenu) {
       case 'Dashboard':
-        return <div>Ini Halaman Dashboard</div>; // Ganti dengan <Dashboard />
-      case 'Profil':
-        return <div>Ini Halaman Profil</div>;
+        return <Dashboard />; 
+      case 'Staff':
+        return <StaffManager />
       case 'Tasks':
-        return <div>Ini Halaman Daftar Tugas</div>;
+        return <Tasks />; 
       case 'Plants':
-        return <div>Ini Halaman Tanaman</div>;
+        return <Plants />;
+      case 'Stock':
+        return <Stock />; 
+      case 'Purchasing':
+        return <Purchasing />;
+      case 'Report':
+        return <Report />; 
+      case 'Cuaca':
+        return <Cuaca />;
+      case 'Notifications':
+        return <Notification />;
       default:
         return children; // Menampilkan isi dari page.js bawaan Next.js
     }

@@ -18,6 +18,11 @@ const geistMono = Geist_Mono({
 
 export default function Layout({ children }) {
   const [activeMenu, setActiveMenu] = useState('Dashboard');
+  const [isCollapsed, setIsCollapsed] = useState(false); 
+
+  const toggleSidebar = () => {
+    setIsCollapsed((prev) => !prev);
+  };
 
   const renderContent = () => {
     switch (activeMenu) {
@@ -40,7 +45,7 @@ export default function Layout({ children }) {
         <div className="flex flex-col h-screen">
           <Header />
           <div className="flex flex-1 h-[calc(100vh-60px)] overflow-hidden">
-            <Sidebar activeMenu={activeMenu} setActiveMenu={setActiveMenu} />
+            <Sidebar activeMenu={activeMenu} setActiveMenu={setActiveMenu} isCollapsed={isCollapsed} toggleSidebar={toggleSidebar}/>
             <main className="flex-1 overflow-y-auto bg-white">
               {renderContent()}
             </main>

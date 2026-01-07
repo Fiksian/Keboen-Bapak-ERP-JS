@@ -1,5 +1,4 @@
 import React from 'react';
-import { Button } from 'react';
 import { UserCircle } from 'lucide-react';
 
 const Header = () => {

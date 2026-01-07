@@ -2,11 +2,11 @@ import React from 'react';
 import { 
   LayoutDashboard, User, CheckSquare, Package, 
   ShoppingCart, CloudSun, BarChart3, Bell, Settings, ChevronRight, PanelLeftClose,
-  Leaf,
-  BookAIcon
+  PanelLeftOpen,
+  Leaf
 } from 'lucide-react';
 
-const Sidebar = ({ activeMenu, setActiveMenu }) => {
+const Sidebar = ({ activeMenu, setActiveMenu, isCollapsed, toggleSidebar }) => {
   const menuItems = [
     { name: 'Dashboard', icon: <LayoutDashboard size={18} /> },
     { name: 'Profil', icon: <User size={18} /> },
@@ -20,13 +20,13 @@ const Sidebar = ({ activeMenu, setActiveMenu }) => {
   ];
 
   return (
-    <aside className="bg-white border-r flex flex-col h-full shrink-0 shadow-md xl:w-64 sm:w-200">
-      <nav className="flex-1 py-1 overflow-y-auto">
+    <aside className={`bg-white border-r flex flex-col h-full shrink-0 shadow-md transition-all duration-300 ${isCollapsed ? 'w-20' : 'xl:w-64 sm:w-64'}`}>
+      <nav className="flex-1 py-1 overflow-y-auto overflow-x-hidden">
         {menuItems.map((item) => (
           <button 
             key={item.name}
             onClick={() => setActiveMenu(item.name)}
-            className={`w-full flex items-center justify-between px-4 py-3 transition-colors hover:shadow-md hover:shadow-green-300/80 ${
+            className={`w-full flex items-center justify-between px-4 py-3 transition-colors hover:shadow-md hover:shadow-green-300 ${
               activeMenu === item.name 
                 ? 'text-green-700/80 bg-blue-50/40 border-l-4 border-green-500/80 font-semibold ' 
                 : 'text-gray-500 hover:bg-gray-50'
@@ -36,26 +36,34 @@ const Sidebar = ({ activeMenu, setActiveMenu }) => {
               <span className={activeMenu === item.name ? 'text-green-700' : 'text-gray-600'}>
                 {item.icon}
               </span>
-              <span className="text-[13px]">{item.name}</span>
+              {!isCollapsed && <span className="text-[13px] whitespace-nowrap">{item.name}</span>}
             </div>
             <ChevronRight size={14} className={activeMenu === item.name ? 'text-green-700/50' : 'text-gray-400'} />
           </button>
         ))}
       </nav>
 
-      <div className="border-t pb-4">
+      <div className="border-t pb-4 bg-white shrink-0">
         <button 
           onClick={() => setActiveMenu('Getting Started')}
-          className="w-full flex items-center justify-between px-4 py-4 text-gray-500 hover:bg-gray-50"
+          className="group w-full flex items-center justify-between px-4 py-4 text-gray-500 hover:bg-gray-50  transition-colors hover:shadow-md hover:shadow-green-300"
         >
-          <div className="flex items-center gap-3">
-            <Settings size={18} className="text-gray-400" />
-            <span className="text-[13px] font-medium">Getting Started</span>
+          <div className="flex items-center gap-3 group-hover:text-green-600/80 ">
+            <Settings size={18} className="text-gray-600 group-hover:text-green-600/80" />
+            {!isCollapsed && <span className="text-[13px] font-medium">Getting Started</span>}
           </div>
-          <ChevronRight size={14} className="text-gray-300" />
+          <ChevronRight size={14} className="text-gray-600 group-hover:text-green-600/80" />
         </button>
-        <div className="px-4 py-2 border-t hover:bg-blue-50 ">
-          <PanelLeftClose size={18} className="text-gray-400 cursor-pointer hover:text-gray-600" />
+        
+        <div className="group px-4 py-4 border-t hover:bg-blue-50 transition-colors hover:shadow-md hover:shadow-green-300 " onClick={toggleSidebar}>
+          <button  
+            className="w-full flex items-center justify-start focus:outline-none group-hover:text-green-600 "
+          />
+            {isCollapsed ? (
+              <PanelLeftOpen size={18} className="text-gray-600 cursor-pointer group-hover:text-green-600/80" />
+            ) : (
+              <PanelLeftClose size={18} className="text-gray-600 cursor-pointer group-hover:text-green-600/80" />
+            )}
         </div>
       </div>
     </aside>

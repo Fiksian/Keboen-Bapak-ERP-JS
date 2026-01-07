@@ -6,7 +6,7 @@ import "./globals.css";
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import Dashboard from './Dashboard/Dashboard';
-import StaffManager from './Staff/StaffManager';
+import StaffManager from './Staff/AddStaff';
 import Tasks from './Tasks/Tasks';
 import Plants from './Plants/Plants';
 import Stock from './Stock/Stock';
@@ -26,7 +26,7 @@ const geistMono = Geist_Mono({
 });
 
 export default function Layout({ children }) {
-  const [activeMenu, setActiveMenu] = useState('Dashboard');
+  const [activeMenu, setActiveMenu] = useState('Staff');
   const [isCollapsed, setIsCollapsed] = useState(false); 
 
   const toggleSidebar = () => {

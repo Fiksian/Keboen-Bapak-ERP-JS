@@ -18,7 +18,7 @@ const Header = () => {
             </div>
 
             <div className="flex items-center space-x-6">
-                <button className="hover:scale-120 transition-transform duration-300">
+                <button className="hover:scale-120 transition-transform duration-300 cursor-pointer">
                     <UserCircle className="w-8 h-8 text-gray-400 hover:text-gray-800 bg-white rounded-full" size={30}/>
                 </button>
             </div>

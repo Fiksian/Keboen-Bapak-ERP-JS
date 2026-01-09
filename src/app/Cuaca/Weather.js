@@ -10,7 +10,8 @@ const Weather = () => {
         </div>
 
       </div>
-    </div>  )
+    </div>  
+    )
 }
 
 export default Weather

@@ -1,4 +1,6 @@
-import React from 'react'
+import React, {useState} from 'react'
+import AddStaff from './AddStaff';
+import { Plus } from 'lucide-react';
 
 const StaffManager = () => {
 
@@ -11,17 +13,29 @@ const StaffManager = () => {
     { sn: '05', firstName: 'Fatimah', lastName: 'Nasir', gender: 'Female', staffId: '0226ACS', phone: '08130000000', role: 'Admin', designation: 'Customer Service' },
     { sn: '06', firstName: 'Hauwa', lastName: 'Lateef', gender: 'Female', staffId: '0124HR', phone: '08130000000', role: 'I.T', designation: 'Human Resources' },
   ];
-
+  
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  
   return (
-    <div className="w-full bg-gray-50 min-h-full p-5 md:p-10 lg:p-20">
-      <div className="bg-white rounded-xl md:rounded-3xl shadow-sm p-4 md:p-8 w-full max-w-7xl mx-auto border border-gray-500/30">
+    <div className="w-full bg-gray-50 min-h-full p-4 md:p-8 lg:p-10">
+      <div className="bg-white rounded-xl md:rounded-3xl shadow-sm p-4 md:p-8 w-full max-w-7xl mx-auto border border-gray-100">
         
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 md:mb-10">
           <h2 className="text-lg md:text-xl font-bold text-gray-800">All Staff</h2>
           {/* Tombol Tambah Staff */}
-          <button className='flex items-center py-3 px-3 rounded-lg text-md text-white shadow-md bg-blue-600 hover:shadow-blue-800/40 hover:bg-blue-600/90 hover:text-red-600/50'> + Tambah Staff</button>
-        </div>
+          <button
+            onClick={()=>setIsModalOpen(true)}
+            className="w-12 h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl flex items-center justify-center shadow-md shadow-blue-100 transition-all active:scale-95 cursor-pointer">
+            <Plus size={24} strokeWidth={3} />
+          </button>        </div>
+
+      {/* Render Modal */}
+      <AddStaff 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+      />
       
+      {/* Tabel */}
        <div className="w-full overflow-x-auto rounded-lg border border-gray-50 custom-scrollbar">
           <table className="w-full min-w-[800px] text-left text-xs md:text-sm">
           {/* Judul Tabel */}

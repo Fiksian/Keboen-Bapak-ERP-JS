@@ -6,9 +6,9 @@ import "./globals.css";
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import Dashboard from './Dashboard/Dashboard';
-import StaffManager from './Staff/AddStaff';
+import StaffManager from './Staff/StaffManager';
 import Tasks from './Tasks/Tasks';
-import Plants from './Plants/Plants';
+import Kandang from './Kandang/Kandang';
 import Stock from './Stock/Stock';
 import Purchasing from './Purchasing/Purchasing';
 import Report from './Report/Report';
@@ -26,7 +26,7 @@ const geistMono = Geist_Mono({
 });
 
 export default function Layout({ children }) {
-  const [activeMenu, setActiveMenu] = useState('Staff');
+  const [activeMenu, setActiveMenu] = useState('Kandang');
   const [isCollapsed, setIsCollapsed] = useState(false); 
 
   const toggleSidebar = () => {
@@ -41,8 +41,8 @@ export default function Layout({ children }) {
         return <StaffManager />
       case 'Tasks':
         return <Tasks />; 
-      case 'Plants':
-        return <Plants />;
+      case 'Kandang':
+        return <Kandang />;
       case 'Stock':
         return <Stock />; 
       case 'Purchasing':

@@ -6,10 +6,10 @@ const UpcomingTasks = () => {
   const [taskList, setTaskList] = useState([
     {
       id: 1,
-      title: "Pemberian Nutrisi AB Mix Pot A",
+      title: "Pemberian Vaksin AB Mix",
       time: "09:00 AM",
       priority: "HIGH",
-      category: "Nutrisi",
+      category: "Vaksin",
       assignee: "Budi",
       completed: false
     },
@@ -33,10 +33,10 @@ const UpcomingTasks = () => {
     },
     {
       id: 4,
-      title: "Panen Selada Instalasi 02",
+      title: "Cek Kandang A",
       time: "04:00 PM",
       priority: "HIGH",
-      category: "Harvest",
+      category: "Maintenance",
       assignee: "Siti",
       completed: false
     }

@@ -63,7 +63,7 @@ const UpcomingTasks = () => {
   
   return (
     <div className="p-6 bg-gray-50 min-h-full">
-      <div className="bg-white rounded-[32px] shadow-sm border border-gray-100 p-8 max-w-5xl mx-auto">        
+      <div className="bg-white rounded-[32px] shadow-sm border border-gray-100 p-8 max-w-full mx-auto">        
         {/* Header Section */}
         <div className='pb-3 flex justify-between items-start mb-10 border-b border-gray-100'>
           <div>

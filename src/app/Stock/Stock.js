@@ -4,9 +4,17 @@ import {
   Plus, Search, Filter, MoreHorizontal, Package,
   ChevronRight, Database
 } from 'lucide-react';
+import AddStock from './AddStock';
 
 const StockInventory = () => {
   const [activeTab, setActiveTab] = useState('stocks'); // 'stocks' or 'inventory'
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  // ... data state ...
+
+  const handleAddNewItem = (newItem) => {
+    // Logika push data ke state stockData atau inventoryData
+    console.log("Item Baru:", newItem);
+  };
 
   // Data Dummy Peternakan Sapi
   const stockData = [
@@ -36,6 +44,13 @@ const StockInventory = () => {
   return (
     <div className="p-6 bg-[#f8f9fa] min-h-full space-y-8">
       
+      <AddStock 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        activeTab={activeTab}
+        onAdd={handleAddNewItem}
+      />
+
       {/* Tab Navigation */}
       <div className="flex gap-8 border-b border-gray-200">
         <button 
@@ -70,7 +85,7 @@ const StockInventory = () => {
           </h2>
           <p className="text-gray-400 text-sm mt-1">Kelola data operasional perternakan Anda dengan mudah.</p>
         </div>
-        <button className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl shadow-lg shadow-blue-200 transition-all active:scale-95 font-bold text-sm">
+        <button onClick={() => setIsModalOpen(true)} className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl shadow-lg shadow-blue-200 transition-all active:scale-95 font-bold text-sm">
           <Plus size={18} strokeWidth={3} />
           Update {activeTab === 'stocks' ? 'Stok Jual' : 'Inventaris'}
         </button>

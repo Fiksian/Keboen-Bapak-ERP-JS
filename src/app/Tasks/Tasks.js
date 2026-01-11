@@ -1,5 +1,7 @@
 import React, {useState} from 'react';
 import { Plus, Clock, Tag, User, CheckCircle2, Circle, Calendar } from 'lucide-react';
+import AddTask from './AddTasks';
+
 
 const UpcomingTasks = () => {
   
@@ -61,8 +63,23 @@ const UpcomingTasks = () => {
 
   const completedCount = taskList.filter(t => t.completed).length;
   
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const addTask = (newValues) => {
+    setTaskList(prev => [newValues, ...prev]);
+  };
+
+
+  
   return (
     <div className="p-6 bg-gray-50 min-h-full">
+
+      <AddTask 
+      isOpen={isModalOpen} 
+      onClose={() => setIsModalOpen(false)} 
+      onAddTask={addTask} 
+    />
+
       <div className="bg-white rounded-[32px] shadow-sm border border-gray-100 p-8 max-w-full mx-auto">        
         {/* Header Section */}
         <div className='pb-3 flex justify-between items-start mb-10 border-b border-gray-100'>
@@ -73,7 +90,7 @@ const UpcomingTasks = () => {
               HARI INI, 6 JAN 2006
             </p>
           </div>
-          <button className="w-12 h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-blue-200 transition-all active:scale-95 duration-75 cursor-pointer">
+          <button onClick={() => setIsModalOpen(true)} className="w-12 h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-blue-200 transition-all active:scale-95 duration-75 cursor-pointer">
             <Plus size={24} strokeWidth={3} />
           </button>
         </div>    

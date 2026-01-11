@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useState} from 'react';
 import { 
   ShoppingCart, 
   Wallet, 
@@ -10,6 +10,7 @@ import {
   ChevronRight,
   FileText
 } from 'lucide-react';
+import AddPurchasing from './AddPurchasing';
 
 const Purchasing = () => {
   // Data Placeholder: ERP Peternakan Sapi
@@ -83,9 +84,23 @@ const Purchasing = () => {
     }
   ];
 
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [requests, setRequests] = useState(recentRequests); // Inisialisasi dengan data dummy Anda
+
+  const handleAddRequest = (newData) => {
+    setRequests([newData, ...requests]);
+  };
+
+
   return (
     <div className="p-6 bg-[#f8f9fa] min-h-full space-y-8">
       
+      <AddPurchasing 
+      isOpen={isModalOpen} 
+      onClose={() => setIsModalOpen(false)} 
+      onAdd={handleAddRequest} 
+    />
+
       {/* 4 Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {purchasingStats.map((stat, index) => (
@@ -114,7 +129,7 @@ const Purchasing = () => {
           </h2>
           <p className="text-gray-400 text-sm mt-1 font-medium">Manage and track all purchase orders for farm supplies.</p>
         </div>
-        <button className="flex items-center gap-2 px-6 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl shadow-lg shadow-blue-200 transition-all active:scale-95 font-bold text-sm">
+        <button onClick={() => setIsModalOpen(true)} className="flex items-center gap-2 px-6 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl shadow-lg shadow-blue-200 transition-all active:scale-95 font-bold text-sm">
           <Plus size={18} strokeWidth={3} />
           Make Procurement Request
         </button>

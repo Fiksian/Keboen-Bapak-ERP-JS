@@ -1,9 +1,9 @@
 import React, {useState} from 'react'
 import AddStaff from './AddStaff';
+import StaffProfil from './StaffProfil';
 import { Plus } from 'lucide-react';
 
 const StaffManager = () => {
-
   // Dummy Data
   const staffData = [
     { sn: '01', firstName: 'Sandra', lastName: 'Williams', gender: 'Female', staffId: '0246AHR', phone: '08130000000', role: 'Admin', designation: 'Human Resources' },
@@ -15,7 +15,42 @@ const StaffManager = () => {
   ];
   
   const [isModalOpen, setIsModalOpen] = useState(false);
-  
+  const [selectedStaff, setSelectedStaff] = useState(null);
+    const [viewState, setViewState] = useState('LIST');
+
+
+  const handleSave = (updatedData) => {
+    console.log("Data diperbarui:", updatedData);
+    // Logika simpan data ke database/API di sini
+    setViewState('DETAILS'); 
+  };
+
+  if (viewState === 'DETAILS') {
+    return <StaffProfile 
+              staff={selectedStaff} 
+              onBack={() => setViewState('LIST')} 
+              onEdit={() => setViewState('EDIT')} // Tambahkan prop ini ke StaffProfile
+           />;
+  }
+
+  if (selectedStaff) {
+      return (
+        <StaffProfil
+          staff={selectedStaff} 
+          onBack={() => setSelectedStaff(null)} 
+        />
+      );
+    }
+
+  if (viewState === 'EDIT') {
+    return <EditStaffProfile 
+              staff={selectedStaff} 
+              onSave={handleSave} 
+              onCancel={() => setViewState('DETAILS')} 
+           />;
+  }
+
+
   return (
     <div className="bg-gray-50 min-h-full p-4 md:p-8 lg:p-10">
       <div className="bg-white rounded-xl md:rounded-3xl shadow-sm p-4 md:p-8 w-full max-w-full mx-auto border border-gray-100">
@@ -70,6 +105,7 @@ const StaffManager = () => {
                   <td className="px-4 py-4 text-gray-500">{staff.designation}</td>
                   <td className="px-4 py-4 text-center sticky right-0 bg-white group-hover:bg-blue-50/20">
                     <button 
+                      onClick={() => setSelectedStaff(staff)} // Panggil fungsi ini
                       className="text-blue-600 hover:text-blue-800 font-bold text-xs whitespace-nowrap cursor-pointer transition-all hover:underline active:scale-95"
                     >
                       View more

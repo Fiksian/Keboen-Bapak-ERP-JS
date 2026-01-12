@@ -24,23 +24,32 @@
 
 ## Referensi
 - Dashboard
-  ![Dashboard](public/Referensi Images/Dashboard.png)
+  ![Dashboard](public/Referensi_Images/Dashboard.png)
 
 - Staff
+  ![StaffManager](public/Referensi_Images/Staff_Management.png)
 
 - Tasks
+  ![UpcomingTasks](public/Referensi_Images/Upcoming_Tasks.png)
 
 - Kandang
+  ![Kandang](public/Referensi_Images/Kandang.png)
 
 - Stock
+  ![Stock](public/Referensi_Images/Stock.png)
 
 - Purchasing
+  ![Purchasing](public/Referensi_Images/Purchasing.png)
 
 - Cuaca
+  ![Cuaca](public/Referensi_Images/Cuaca.png)
 
 - Report
+  ![Report-1](public/Referensi_Images/Report-1.png)
+  ![Report-2](public/Referensi_Images/Report-2.png)
 
 - Notifications
+  ![Notifications](public/Referensi_Images/Notifications.png)
 
 
 

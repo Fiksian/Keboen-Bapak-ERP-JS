@@ -1,36 +1,37 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Keboen Bapak ERP (JavaScript Version) 🌿
 
-## Getting Started
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Node.js Version](https://img.shields.io/badge/node-%3E%3D%2014.0.0-brightgreen)](https://nodejs.org/)
 
-First, run the development server:
+**Keboen Bapak ERP** adalah sistem manajemen sumber daya perusahaan (ERP) yang dirancang khusus untuk digitalisasi operasional pertanian atau perkebunan. Proyek ini dibangun menggunakan ekosistem JavaScript untuk memberikan performa yang cepat dan kemudahan pengembangan.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+---
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🚀 Fitur Utama
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+- **Dashboard Real-time**: Visualisasi data statistik kebun.
+- **Manajemen Inventaris**: Pantau stok pupuk, bibit, dan peralatan secara akurat.
+- **Pencatatan Keuangan**: Catat arus kas masuk dan keluar dari hasil panen atau biaya operasional.
+- **Manajemen Produksi/Panen**: Lacak jadwal panen dan hasil produksi per blok lahan.
+- **Manajemen SDM/Pegawai**: Kelola data pekerja harian dan absensi.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
+## 🛠️ Teknologi yang Digunakan
 
-To learn more about Next.js, take a look at the following resources:
+- **Runtime**: Node.js
+- **Frontend**: [Sebutkan Framework, misal: React / Vue / Vanilla JS]
+- **Backend**: [Sebutkan, misal: Express.js]
+- **Database**: [Sebutkan, misal: MongoDB / PostgreSQL]
+- **Styling**: [Sebutkan, misal: Tailwind CSS / Bootstrap]
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 📦 Instalasi
 
-## Deploy on Vercel
+Ikuti langkah-langkah berikut untuk menjalankan proyek ini di mesin lokal Anda:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. **Clone repositori ini:**
+   ```bash
+   git clone [https://github.com/Fiksian/Keboen-Bapak-ERP-JS.git](https://github.com/Fiksian/Keboen-Bapak-ERP-JS.git)
+   cd Keboen-Bapak-ERP-JS

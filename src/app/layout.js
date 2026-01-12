@@ -26,7 +26,7 @@ const geistMono = Geist_Mono({
 });
 
 export default function Layout({ children }) {
-  const [activeMenu, setActiveMenu] = useState('Kandang');
+  const [activeMenu, setActiveMenu] = useState('Dashboard');
   const [isCollapsed, setIsCollapsed] = useState(false); 
 
   const toggleSidebar = () => {

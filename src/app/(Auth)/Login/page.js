@@ -1,23 +1,45 @@
-'use client'
+'use client';
+// Ini Masih Placeholder
+
 
 import { useState } from 'react';
 import { User, Lock } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { signIn } from 'next-auth/react';
 
 const Login = () => {
   const router = useRouter();
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     username: '',
     password: '',
     remember: true
   });
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Login sukses");
+    setLoading(true);
 
-    router.push('/Dashboard'); 
+    try {
+      const res = await signIn('credentials', {
+        username: formData.username,
+        password: formData.password,
+        redirect: false, // Kita handle redirect manual
+      });
+
+      if (res?.error) {
+        alert(res.error);
+      } else {
+        alert("✅ Login Berhasil! Selamat Datang.");
+        router.replace('/Dashboard'); 
+      }
+    } catch (error) {
+      console.error("Login error:", error);
+      alert("Terjadi kesalahan sistem.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -52,6 +74,7 @@ const Login = () => {
                 type="text"
                 required
                 placeholder="Username"
+                value={formData.username}
                 className="w-full py-3 pl-10 pr-4 bg-gray-50 border border-gray-300 rounded-md outline-none focus:border-blue-500 focus:bg-white transition-all text-sm text-gray-900 placeholder:text-gray-500 font-medium"
                 onChange={(e) => setFormData({...formData, username: e.target.value})}
               />
@@ -66,6 +89,7 @@ const Login = () => {
                 type="password"
                 required
                 placeholder="Password"
+                value={formData.password}
                 className="w-full py-3 pl-10 pr-4 bg-gray-50 border border-gray-300 rounded-md outline-none focus:border-blue-500 focus:bg-white transition-all text-sm text-gray-900 placeholder:text-gray-500 font-medium"
                 onChange={(e) => setFormData({...formData, password: e.target.value})}
               />
@@ -93,9 +117,10 @@ const Login = () => {
 
             <button 
               type="submit" 
-              className="w-full py-3 bg-[#1890ff] hover:bg-[#40a9ff] text-white rounded-md font-bold shadow-md transition-all active:scale-95"
+              disabled={loading}
+              className={`w-full py-3 ${loading ? 'bg-gray-400' : 'bg-[#1890ff] hover:bg-[#40a9ff]'} text-white rounded-md font-bold shadow-md transition-all active:scale-95`}
             >
-              Sign In
+              {loading ? 'Processing...' : 'Sign In'}
             </button>
 
             <div className="text-center pt-2">

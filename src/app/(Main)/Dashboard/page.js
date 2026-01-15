@@ -5,6 +5,8 @@ import DashboardChart from './DashboardChart';
 import UpcomingTasks from '@/app/(Main)/Tasks/page';
 
 export default function DashboardPage() {
+
+  
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-end mb-6">

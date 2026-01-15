@@ -7,7 +7,9 @@ import { useRouter } from 'next/navigation';
 
 const Register = () => { 
   const router = useRouter();
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
+    username: '',
     email: '',
     password: '',
     confirmPassword: '',
@@ -15,17 +17,50 @@ const Register = () => {
     phoneNumber: ''
   });
 
-  const handleSubmit = (e) => {
+  // LOGIKA HARUS DI DALAM FUNGSI INI
+  const handleRegister = async (e) => {
     e.preventDefault();
-    if(formData.password !== formData.confirmPassword) {
-      alert("Password tidak cocok!");
+    
+    // 1. Validasi Minimal Password
+    if (formData.password.length < 6) {
+      alert("Password minimal 6 karakter!");
       return;
     }
-    console.log("Registering User:", formData);
-    alert("Registrasi Berhasil! Silahkan Login.");
-    
-    // Perbaikan: Gunakan router.push untuk kembali ke login setelah sukses
-    router.push('/Login'); 
+
+    if (formData.password !== formData.confirmPassword) {
+      alert("Password konfirmasi tidak cocok!");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          username: formData.username, 
+          email: formData.email, 
+          password: formData.password,
+          phone: formData.phonePrefix + formData.phoneNumber
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        alert("✅ Akun berhasil dibuat! Silakan Login.");
+        router.push('/Login');
+      } else {
+        // Menampilkan pesan error spesifik dari API (misal: "User sudah terdaftar")
+        alert(data.message || "Gagal mendaftar");
+      }
+    } catch (error) {
+      console.error("Register error:", error);
+      alert("❌ Terjadi kesalahan koneksi ke server.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -44,18 +79,27 @@ const Register = () => {
           <Link 
             href="/Login" 
             className="p-1 hover:bg-gray-100 rounded-full transition-colors text-gray-500"
-            title="Kembali ke Login"
           >
             <ChevronLeft size={20} />
           </Link>
           <h2 className="text-xl font-bold text-gray-800">Create Account</h2>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleRegister} className="space-y-4">
+          <input
+            type="text"
+            placeholder="Username"
+            required
+            value={formData.username}
+            className="w-full py-3.5 px-4 bg-[#f8f9fb] border border-gray-200 rounded-lg outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all text-sm text-gray-800 placeholder:text-gray-500 font-bold"
+            onChange={(e) => setFormData({...formData, username: e.target.value})}
+          />
+
           <input
             type="email"
             placeholder="Email Address"
             required
+            value={formData.email}
             className="w-full py-3.5 px-4 bg-[#f8f9fb] border border-gray-200 rounded-lg outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all text-sm text-gray-800 placeholder:text-gray-500 font-bold"
             onChange={(e) => setFormData({...formData, email: e.target.value})}
           />
@@ -64,6 +108,7 @@ const Register = () => {
             type="password"
             placeholder="Password (min. 6 characters)"
             required
+            value={formData.password}
             className="w-full py-3.5 px-4 bg-[#f8f9fb] border border-gray-200 rounded-lg outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all text-sm text-gray-800 placeholder:text-gray-500 font-bold"
             onChange={(e) => setFormData({...formData, password: e.target.value})}
           />
@@ -72,11 +117,12 @@ const Register = () => {
             type="password"
             placeholder="Confirm Password"
             required
+            value={formData.confirmPassword}
             className="w-full py-3.5 px-4 bg-[#f8f9fb] border border-gray-200 rounded-lg outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all text-sm text-gray-800 placeholder:text-gray-500 font-bold"
             onChange={(e) => setFormData({...formData, confirmPassword: e.target.value})}
           />
           
-          <div className="flex items-center w-full group">
+          <div className="flex items-center w-full">
             <div className="relative">
               <select 
                 className="appearance-none h-[52px] w-[100px] pl-4 pr-6 bg-[#f8f9fb] border border-gray-200 border-r-0 rounded-l-lg text-sm text-gray-800 font-bold outline-none cursor-pointer focus:border-blue-500 transition-all"
@@ -87,18 +133,14 @@ const Register = () => {
                 <option value="+1">🇺🇸 +1</option>
                 <option value="+86">🇨🇳 +86</option>
               </select>
-              <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                <svg width="10" height="6" viewBox="0 0 10 6" fill="none">
-                  <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </div>
             </div>
 
             <input
               type="tel"
               placeholder="Phone Number"
               required
-              className="flex-1 h-[52px] px-4 bg-[#f8f9fb] border border-gray-200 rounded-r-lg outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all text-sm text-gray-800 placeholder:text-gray-500 font-bold border-l-gray-300"
+              value={formData.phoneNumber}
+              className="flex-1 h-[52px] px-4 bg-[#f8f9fb] border border-gray-200 rounded-r-lg outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all text-sm text-gray-800 font-bold"
               onChange={(e) => setFormData({...formData, phoneNumber: e.target.value})}
             />
           </div>
@@ -106,27 +148,14 @@ const Register = () => {
           <div className="pt-4">
             <button 
               type="submit" 
-              className="w-full py-4 bg-[#1890ff] hover:bg-[#40a9ff] text-white rounded-lg font-bold shadow-lg shadow-blue-500/20 transition-all active:scale-[0.98]"
+              disabled={loading}
+              className={`w-full py-4 ${loading ? 'bg-gray-400' : 'bg-[#1890ff] hover:bg-[#40a9ff]'} text-white rounded-lg font-bold shadow-lg transition-all active:scale-[0.98]`}
             >
-              Register Now
+              {loading ? 'Registering...' : 'Register Now'}
             </button>
-          </div>
-          
-          <div className="text-center pt-2">
-            <Link 
-              href="/Login" 
-              className="text-[#1890ff] hover:underline text-sm font-bold transition-colors"
-            >
-              Already have an account? Sign In
-            </Link>
           </div>
         </form>
       </div>
-
-      <button className="fixed bottom-8 right-8 w-12 h-12 bg-white shadow-xl rounded-full flex items-center justify-center text-gray-600 hover:bg-gray-50 transition-all border border-gray-100 group">
-        <HelpCircle size={24} />
-      </button>
-
     </div>
   );
 };

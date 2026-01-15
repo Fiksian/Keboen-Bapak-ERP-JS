@@ -35,7 +35,7 @@ const ForgetPassword = () => {
               <div className="flex items-center gap-2 mb-6">
                 {/* Perbaikan: Gunakan Link untuk kembali ke Login */}
                 <Link 
-                  href="/(Login)" 
+                  href="/Login" 
                   className="p-1 hover:bg-gray-100 rounded-full transition-colors text-gray-600"
                 >
                   <ChevronLeft size={24} />

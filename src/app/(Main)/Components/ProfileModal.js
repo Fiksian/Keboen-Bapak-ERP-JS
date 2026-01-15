@@ -1,27 +1,29 @@
-'use client'; // Pastikan ada directive ini karena menggunakan router
+'use client';
 
 import React from 'react';
 import { X, LogOut, User, Mail, ShieldCheck } from 'lucide-react';
-import { useRouter } from 'next/navigation'; // Import useRouter
+import { useRouter } from 'next/navigation';
+import { signOut, useSession } from "next-auth/react"; // Tambahkan useSession
 
 const ProfileModal = ({ isOpen, onClose }) => {
-    const router = useRouter(); // Inisialisasi router
+    const router = useRouter();
+    const { data: session } = useSession(); // Ambil data user yang sedang login
 
     if (!isOpen) return null;
 
-    const handleLogout = () => {
-        console.log("User logged out");
-
-        router.push('/'); 
-        
-        onClose();
+    const handleLogout = async () => {
+        // NextAuth signOut akan menghapus session cookie secara otomatis
+        await signOut({ 
+            callbackUrl: '/Login', // Setelah logout, user diarahkan ke halaman Login
+            redirect: true 
+        });
     };
 
     return (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
             <div className="bg-white w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
                 <div className="relative h-24 bg-[#8da070]">
-                    <button onClick={onClose} className="absolute right-4 top-4 text-white hover:bg-white/20 rounded-full p-1">
+                    <button onClick={onClose} className="absolute right-4 top-4 text-white hover:bg-white/20 rounded-full p-1 transition-colors">
                         <X size={20} />
                     </button>
                 </div>
@@ -33,13 +35,18 @@ const ProfileModal = ({ isOpen, onClose }) => {
                         </div>
                     </div>
                     
-                    <h3 className="text-xl font-bold text-gray-900">Admin Keboen</h3>
+                    {/* Menggunakan data dinamis dari session */}
+                    <h3 className="text-xl font-bold text-gray-900 uppercase">
+                        {session?.user?.name || "Admin Keboen"}
+                    </h3>
                     <p className="text-sm text-gray-500 font-medium mb-6">Manager Operasional</p>
 
                     <div className="space-y-3 text-left mb-8">
                         <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
                             <Mail size={18} className="text-gray-400" />
-                            <span className="text-sm text-gray-700 font-bold">admin@keboenbapak.com</span>
+                            <span className="text-sm text-gray-700 font-bold">
+                                {session?.user?.email || "admin@keboenbapak.com"}
+                            </span>
                         </div>
                         <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
                             <ShieldCheck size={18} className="text-gray-400" />
@@ -48,8 +55,8 @@ const ProfileModal = ({ isOpen, onClose }) => {
                     </div>
 
                     <button 
-                        onClick={handleLogout} // Panggil fungsi handleLogout
-                        className="w-full flex items-center justify-center gap-2 py-3 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl font-bold transition-colors border border-red-100"
+                        onClick={handleLogout}
+                        className="w-full flex items-center justify-center gap-2 py-3 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl font-bold transition-colors border border-red-100 active:scale-95"
                     >
                         <LogOut size={18} />
                         Keluar Aplikasi

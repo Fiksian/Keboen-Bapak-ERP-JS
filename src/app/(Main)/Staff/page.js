@@ -1,138 +1,168 @@
 'use client'
 
-import React, {useState} from 'react'
+import React, { useState, useEffect } from 'react'
 import AddStaff from './AddStaff';
-import StaffProfil from './StaffProfil';
-import { Plus } from 'lucide-react';
+import StaffProfile from './StaffProfile';
+import { Plus, Loader2 } from 'lucide-react';
 
 const StaffManager = () => {
-  // Dummy Data
-  const staffData = [
-    { sn: '01', firstName: 'Sandra', lastName: 'Williams', gender: 'Female', staffId: '0246AHR', phone: '08130000000', role: 'Admin', designation: 'Human Resources' },
-    { sn: '02', firstName: 'Abubakar', lastName: 'Ibrahim', gender: 'Male', staffId: '0251ITO', phone: '07062000033', role: 'I.T', designation: 'Operations' },
-    { sn: '03', firstName: 'Ikechukwu', lastName: 'Ugbonna', gender: 'Male', staffId: '0340ITO', phone: '08130000000', role: 'I.T', designation: 'Operations' },
-    { sn: '04', firstName: 'Joshua', lastName: 'Adewale', gender: 'Male', staffId: '0146APM', phone: '07038126632', role: 'Admin', designation: 'Project Management' },
-    { sn: '05', firstName: 'Fatimah', lastName: 'Nasir', gender: 'Female', staffId: '0226ACS', phone: '08130000000', role: 'Admin', designation: 'Customer Service' },
-    { sn: '06', firstName: 'Hauwa', lastName: 'Lateef', gender: 'Female', staffId: '0124HR', phone: '08130000000', role: 'I.T', designation: 'Human Resources' },
-  ];
-  
+  const [staffData, setStaffData] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState(null);
-    const [viewState, setViewState] = useState('LIST');
+  const [viewState, setViewState] = useState('LIST');
 
-
-  const handleSave = (updatedData) => {
-    console.log("Data diperbarui:", updatedData);
-    // Logika simpan data ke database/API di sini
-    setViewState('DETAILS'); 
+  // 1. Fungsi Mengambil Data dari Database
+  const fetchStaff = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/staff');
+      if (res.ok) {
+        const data = await res.json();
+        setStaffData(data);
+      }
+    } catch (error) {
+      console.error("Gagal mengambil data:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  if (viewState === 'DETAILS') {
-    return <StaffProfile 
-              staff={selectedStaff} 
-              onBack={() => setViewState('LIST')} 
-              onEdit={() => setViewState('EDIT')} // Tambahkan prop ini ke StaffProfile
-           />;
+  useEffect(() => {
+    fetchStaff();
+  }, []);
+
+  // 2. Handler untuk melihat detail
+  const handleViewDetails = (staff) => {
+    setSelectedStaff(staff);
+    setViewState('DETAILS');
+  };
+
+  // --- LOGIKA RENDER DINAMIS ---
+
+  // Jika sedang melihat detail profil
+  if (viewState === 'DETAILS' && selectedStaff) {
+    return (
+      <StaffProfile 
+        staff={selectedStaff} 
+        onBack={() => {
+          setViewState('LIST');
+          setSelectedStaff(null);
+        }} 
+        onUpdate={() => {
+          fetchStaff(); 
+        }} 
+      />
+    );
   }
 
-  if (selectedStaff) {
-      return (
-        <StaffProfil
-          staff={selectedStaff} 
-          onBack={() => setSelectedStaff(null)} 
-        />
-      );
-    }
-
-  if (viewState === 'EDIT') {
-    return <EditStaffProfile 
-              staff={selectedStaff} 
-              onSave={handleSave} 
-              onCancel={() => setViewState('DETAILS')} 
-           />;
+  // Jika sedang dalam mode edit (Placeholder)
+  if (viewState === 'EDIT' && selectedStaff) {
+    return (
+      <div className="p-10 text-center bg-white rounded-3xl m-6 border border-dashed border-gray-200">
+        <h2 className="text-xl font-bold mb-4">Edit Mode: {selectedStaff.firstName}</h2>
+        <p className="text-gray-500 mb-6">Gunakan form di halaman Profil untuk melakukan pengeditan.</p>
+        <button 
+          onClick={() => setViewState('DETAILS')}
+          className="bg-blue-600 text-white px-6 py-2 rounded-xl font-bold shadow-lg shadow-blue-100 transition-all active:scale-95"
+        >
+          Kembali ke Profil
+        </button>
+      </div>
+    );
   }
 
-
+  // Tampilan Utama (Daftar Staff)
   return (
-    <div className="bg-gray-50 min-h-full p-4 md:p-8 lg:p-10">
+    <div className="bg-gray-50 min-h-full p-6 animate-in fade-in duration-300">
       <div className="bg-white rounded-xl md:rounded-3xl shadow-sm p-4 md:p-8 w-full max-w-full mx-auto border border-gray-100">
         
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 md:mb-10">
-          <h2 className="text-lg md:text-xl font-bold text-gray-800">All Staff</h2>
-          {/* Tombol Tambah Staff */}
+          <div>
+            <h2 className="text-lg md:text-xl font-bold text-gray-800">All Staff</h2>
+            <p className="text-sm text-gray-500">Total: {staffData.length} Staff terdaftar</p>
+          </div>
+          
           <button
-            onClick={()=>setIsModalOpen(true)}
+            onClick={() => setIsModalOpen(true)}
             className="w-12 h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl flex items-center justify-center shadow-md shadow-blue-100 transition-all active:scale-95 cursor-pointer">
             <Plus size={24} strokeWidth={3} />
-          </button>        </div>
-
-      {/* Render Modal */}
-      <AddStaff 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-      />
-      
-      {/* Tabel */}
-       <div className="w-full overflow-x-auto rounded-lg border border-gray-50 custom-scrollbar">
-          <table className="w-full min-w-[800px] text-left text-xs md:text-sm">
-          {/* Judul Tabel */}
-            <thead>
-              <tr className="text-gray-400 border-b border-gray-500 bg-gray-50/50">
-                <th className="px-4 py-3 font-semibold uppercase tracking-wider">S/N</th>
-                <th className="px-4 py-3 font-semibold uppercase tracking-wider">First Name</th>
-                <th className="px-4 py-3 font-semibold uppercase tracking-wider">Last Name</th>
-                <th className="px-4 py-3 font-semibold uppercase tracking-wider text-center">Gender</th>
-                <th className="px-4 py-3 font-semibold uppercase tracking-wider">Staff ID</th>
-                <th className="px-4 py-3 font-semibold uppercase tracking-wider">Phone Number</th>
-                <th className="px-4 py-3 font-semibold uppercase tracking-wider">Role</th>
-                <th className="px-4 py-3 font-semibold uppercase tracking-wider">Designation</th>
-                <th className="px-4 py-3 font-semibold text-center sticky right-0 bg-gray-50/50">Action</th>
-              </tr>
-            </thead>
-            {/* Tabel Body */}
-            <tbody className="divide-y divide-gray-50">
-              {staffData.map((staff, index) => (
-                <tr key={index} className="hover:bg-blue-50/20 transition-colors group">
-                  <td className="px-4 py-4 text-gray-500 font-medium">{staff.sn}</td>
-                  <td className="px-4 py-4 text-gray-800 font-medium">{staff.firstName}</td>
-                  <td className="px-4 py-4 text-gray-800 font-medium">{staff.lastName}</td>
-                  <td className="px-4 py-4 text-gray-500 text-center">{staff.gender}</td>
-                  <td className="px-4 py-4 text-gray-500 font-mono text-[11px]">{staff.staffId}</td>
-                  <td className="px-4 py-4 text-gray-500">{staff.phone}</td>
-                  <td className="px-4 py-4">
-                    <span className="px-2 py-1 bg-gray-100 rounded-md text-[13px] text-gray-600">
-                        {staff.role}
-                    </span>
-                  </td>
-                  <td className="px-4 py-4 text-gray-500">{staff.designation}</td>
-                  <td className="px-4 py-4 text-center sticky right-0 bg-white group-hover:bg-blue-50/20">
-                    <button 
-                      onClick={() => setSelectedStaff(staff)} // Panggil fungsi ini
-                      className="text-blue-600 hover:text-blue-800 font-bold text-xs whitespace-nowrap cursor-pointer transition-all hover:underline active:scale-95"
-                    >
-                      View more
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* * Pagination Placeholder */}
-        <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mt-8 md:mt-12">
-          <button className="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded bg-blue-600 text-white shadow-lg shadow-blue-200 text-sm font-bold transition-transform hover:scale-105 active:scale-95">1</button>
-          
-          {[2, 3, 4, 5].map((num) => (
-            <button key={num} className="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded border border-gray-200 text-gray-500 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 text-sm font-medium transition-all cursor-pointer">
-              {num}
-            </button>
-          ))}
-          
-          <button className="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded border border-gray-200 text-gray-500 hover:bg-gray-50 text-sm font-medium transition-all cursor-pointer">
-            <span className="text-xs">&gt;&gt;</span>
           </button>
         </div>
+
+        <AddStaff 
+          isOpen={isModalOpen} 
+          onClose={() => {
+            setIsModalOpen(false);
+            fetchStaff(); 
+          }} 
+        />
+      
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20">
+            <Loader2 className="animate-spin text-blue-600 mb-2" size={40} />
+            <p className="text-gray-500 font-medium">Memuat data staff...</p>
+          </div>
+        ) : (
+          <div className="w-full overflow-x-auto rounded-lg border border-gray-50 custom-scrollbar">
+            <table className="w-full min-w-[800px] text-left text-xs md:text-sm">
+              <thead>
+                <tr className="text-gray-400 border-b border-gray-100 bg-gray-50/50">
+                  <th className="px-4 py-3 font-semibold uppercase">No</th>
+                  <th className="px-4 py-3 font-semibold uppercase">Name</th>
+                  <th className="px-4 py-3 font-semibold uppercase text-center">Gender</th>
+                  <th className="px-4 py-3 font-semibold uppercase">Staff ID</th>
+                  <th className="px-4 py-3 font-semibold uppercase">Phone</th>
+                  <th className="px-4 py-3 font-semibold uppercase">Role</th>
+                  <th className="px-4 py-3 font-semibold uppercase">Designation</th>
+                  <th className="px-4 py-3 font-semibold text-center">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {staffData.length > 0 ? (
+                  staffData.map((staff, index) => (
+                    <tr key={staff.id || index} className="hover:bg-blue-50/20 transition-colors group">
+                      <td className="px-4 py-4 text-gray-400">{index + 1}</td>
+                      <td className="px-4 py-4 text-gray-800 font-bold">
+                        {staff.firstName} {staff.lastName}
+                      </td>
+                      <td className="px-4 py-4 text-gray-500 text-center">{staff.gender}</td>
+                      <td className="px-4 py-4 text-gray-500 font-mono text-[11px]">{staff.staffId}</td>
+                      <td className="px-4 py-4 text-gray-500">{staff.phone || '-'}</td>
+                      <td className="px-4 py-4">
+                        <span className="px-2 py-1 bg-blue-50 text-blue-600 rounded-md text-[12px] font-bold">
+                            {staff.role}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 text-gray-500">{staff.designation}</td>
+                      <td className="px-4 py-4 text-center">
+                        <button 
+                          onClick={() => handleViewDetails(staff)}
+                          className="text-blue-600 hover:text-blue-800 font-bold text-xs cursor-pointer transition-all hover:underline"
+                        >
+                          View more
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="8" className="text-center py-10 text-gray-500">Tidak ada data staff.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {!loading && staffData.length > 0 && (
+          <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mt-8 md:mt-12">
+            <button className="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded bg-blue-600 text-white shadow-lg shadow-blue-200 text-sm font-bold">1</button>
+            <button className="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded border border-gray-200 text-gray-500 hover:bg-gray-50 text-sm font-medium transition-all cursor-pointer">
+              <span className="text-xs">&gt;&gt;</span>
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )

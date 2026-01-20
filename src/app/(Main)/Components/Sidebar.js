@@ -6,7 +6,8 @@ import { usePathname } from 'next/navigation';
 import { 
   LayoutDashboard, User, CheckSquare, Package, 
   ShoppingCart, CloudSun, BarChart3, Bell, Settings, ChevronRight, PanelLeftClose,
-  PanelLeftOpen, Warehouse
+  PanelLeftOpen, Warehouse,
+  Clock
 } from 'lucide-react';
 
 const Sidebar = ({ isCollapsed, toggleSidebar, userRole }) => {
@@ -69,7 +70,7 @@ const Sidebar = ({ isCollapsed, toggleSidebar, userRole }) => {
     },
     { 
       name: 'History', 
-      icon: <Bell size={18} />, 
+      icon: <Clock size={18} />, 
       path: '/History', 
       roles: ['Admin', 'Manager', 'Supervisor'] 
     },

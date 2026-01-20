@@ -20,42 +20,57 @@ export const authOptions = {
           throw new Error("Username dan password wajib diisi");
         }
 
-        // Cari user di database
+        // Cari user di database DAN sertakan profil staff untuk mengambil Nama/Role terbaru
         const user = await prisma.user.findUnique({
-          where: { username: credentials.username }
+          where: { username: credentials.username },
+          include: {
+            staffProfile: true // Pastikan nama relasi ini sesuai dengan schema.prisma Anda
+          }
         });
 
         if (!user) {
           throw new Error("Username tidak terdaftar");
         }
 
-        // Bandingkan password
         const isPasswordValid = await bcrypt.compare(credentials.password, user.password);
 
         if (!isPasswordValid) {
           throw new Error("Password salah");
         }
 
-        // Jika benar, kirim data user ke session
+        // KIRIM DATA LENGKAP KE JWT
         return {
           id: user.id,
-          name: user.username,
+          name: user.staffProfile?.firstName || user.username,
           email: user.email,
+          role: user.role, // Role utama dari model User
         };
       }
     })
   ],
   pages: {
-    signIn: '/Login', // Arahkan jika user mencoba masuk halaman terproteksi
+    signIn: '/Login',
   },
   secret: process.env.NEXTAUTH_SECRET,
   callbacks: {
+    // 1. Simpan Role ke dalam Token (Disimpan di Cookie terenkripsi)
     async jwt({ token, user }) {
-      if (user) token.id = user.id;
+      if (user) {
+        token.id = user.id;
+        token.email = user.email;
+        token.role = user.role; // Masukkan role ke token
+        token.name = user.name;
+      }
       return token;
     },
+    // 2. Kirim Role dari Token ke Client-Side Session
     async session({ session, token }) {
-      if (session.user) session.user.id = token.id;
+      if (session.user) {
+        session.user.id = token.id;
+        session.user.email = token.email;
+        session.user.role = token.role; // Sekarang tersedia di useSession()
+        session.user.name = token.name;
+      }
       return session;
     }
   }

@@ -28,5 +28,8 @@
     "install": "^0.13.0",
     "npm": "^11.7.0",
     "tailwindcss": "^4"
+  },
+  "prisma": {
+  "seed": "node prisma/seed.js"
   }
 }

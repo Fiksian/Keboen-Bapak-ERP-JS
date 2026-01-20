@@ -1,18 +1,35 @@
-'use client'
+'use client';
 
 import React, { useState } from 'react';
 import { 
-  ArrowLeft, Mail, Phone, 
-  Calendar, Briefcase, ShieldCheck, 
-  User, Edit, FileText, Save, Camera, Loader2
+  ArrowLeft, Mail, Phone, Briefcase, Shield, Save,
+  User, Camera, Loader2, CreditCard,
+  Home, ChevronDown
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
-const StaffProfile = ({ staff, onBack, onUpdate }) => {
-  const [isEditing, setIsEditing] = useState(false);
+const StaffProfile = ({ staff, onBack, onUpdate, currentUserRole }) => {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({ ...staff });
+  const [formData, setFormData] = useState({
+    firstName: staff?.firstName || '',
+    lastName: staff?.lastName || '',
+    email: staff?.email || '',
+    phone: staff?.phone || '',
+    designation: staff?.designation || '',
+    role: staff?.role || '',
+    gender: staff?.gender || '',
+    staffId: staff?.staffId || ''
+  });
 
-  if (!staff) return null;
+  const isAdmin = currentUserRole === 'Admin';
+
+  // Opsi Dropdown
+  const roleOptions = ['Admin', 'Staff', 'Manager', 'Supervisor'];
+  const designationOptions = [
+    'CEO', 'IT Support', 'Farm Worker', 'Accountant', 
+    'Marketing', 'Maintenance', 'New Employee'
+  ];
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -29,227 +46,214 @@ const StaffProfile = ({ staff, onBack, onUpdate }) => {
       });
 
       if (res.ok) {
-        const updatedData = await res.json();
-        setIsEditing(false);
-        
-        // Sangat penting: panggil onUpdate agar data di tabel (parent) ikut berubah
-        if (onUpdate) onUpdate(updatedData); 
-        
-        alert("Profil berhasil diperbarui!");
+        alert("Profil dan akses berhasil diperbarui!");
+        if (onUpdate) onUpdate();
       } else {
-        const errorData = await res.json();
-        alert(`Error: ${errorData.message}`);
+        const err = await res.json();
+        alert(err.message || "Gagal memperbarui profil");
       }
     } catch (error) {
-      alert("Terjadi kesalahan koneksi saat menyimpan.");
+      console.error("Update error:", error);
+      alert("Terjadi kesalahan koneksi");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="bg-[#f8f9fa] min-h-full p-4 md:p-8 lg:p-10 space-y-8 animate-in fade-in duration-500">
-      {/* Header / Navigation */}
-      <div className="flex items-center justify-between">
-        <button 
-          onClick={isEditing ? () => setIsEditing(false) : onBack}
-          disabled={loading}
-          className="flex items-center gap-2 text-gray-500 hover:text-blue-600 font-bold text-sm transition-all group"
-        >
-          <div className="p-2 bg-white rounded-xl shadow-sm group-hover:bg-blue-50 transition-all">
-            <ArrowLeft size={18} />
-          </div>
-          {isEditing ? "Batal Edit" : "Back to List"}
-        </button>
+    <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-500 pb-20">
+      
+      {/* HEADER SECTION */}
+      <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-bl-full -z-0 opacity-50" />
         
-        {!isEditing ? (
-          <button 
-            onClick={() => setIsEditing(true)}
-            className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl shadow-lg shadow-blue-200 transition-all active:scale-95 font-bold text-sm cursor-pointer"
-          >
-            <Edit size={16} />
-            Edit Profile
-          </button>
-        ) : (
-          <button 
-            onClick={handleSave}
-            disabled={loading}
-            className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-2xl shadow-lg shadow-green-200 transition-all active:scale-95 font-bold text-sm cursor-pointer disabled:bg-gray-400"
-          >
-            {loading ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-            {loading ? "Menyimpan..." : "Simpan Perubahan"}
-          </button>
-        )}
+        <div className="flex flex-col md:flex-row items-center gap-8 relative z-10">
+          <div className="relative group">
+            <div className="w-32 h-32 rounded-3xl bg-gray-100 flex items-center justify-center border-4 border-white shadow-xl overflow-hidden">
+              <User size={64} className="text-gray-300" />
+            </div>
+            <button className="absolute -bottom-2 -right-2 p-2 bg-blue-600 text-white rounded-xl shadow-lg hover:bg-blue-700 transition-all">
+              <Camera size={18} />
+            </button>
+          </div>
+
+          <div className="text-center md:text-left flex-1">
+            <p className="text-blue-600 text-[10px] font-black uppercase tracking-[0.3em] mb-1">
+              {isAdmin ? "Administrative Access" : "Employee Profile"}
+            </p>
+            <h1 className="text-3xl font-black text-gray-900 tracking-tight">
+              {formData.firstName} {formData.lastName}
+            </h1>
+            <div className="flex flex-wrap justify-center md:justify-start gap-3 mt-3">
+              <span className="px-4 py-1.5 bg-blue-600 text-white rounded-full text-[10px] font-black uppercase tracking-wider shadow-md shadow-blue-100">
+                {formData.role}
+              </span>
+              <span className="px-4 py-1.5 bg-gray-900 text-white rounded-full text-[10px] font-black uppercase tracking-wider">
+                {formData.designation}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex gap-3">
+            <button 
+              onClick={isAdmin ? onBack : () => router.push('/Dashboard')} 
+              className="p-4 bg-gray-50 text-gray-500 rounded-2xl hover:bg-gray-100 transition-all flex items-center gap-2 group"
+              title={isAdmin ? "Kembali ke Daftar" : "Kembali ke Dashboard"}
+            >
+              {isAdmin ? <ArrowLeft size={20} /> : <Home size={20} />}
+            </button>
+
+            <button 
+              onClick={handleSave} 
+              disabled={loading}
+              className="px-8 py-4 bg-blue-600 text-white rounded-2xl font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all flex items-center gap-3 active:scale-95 disabled:opacity-70"
+            >
+              {loading ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} />}
+              <span>Save Changes</span>
+            </button>
+          </div>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Kolom Kiri: Foto & Status */}
-        <div className="lg:col-span-1 space-y-6">
-          <div className="bg-white rounded-[32px] p-8 shadow-sm border border-gray-100 text-center space-y-6 relative overflow-hidden">
-            {isEditing && (
-              <div className="absolute top-4 right-4 text-[10px] font-black text-orange-500 bg-orange-50 px-2 py-1 rounded-lg border border-orange-100">
-                MODE EDIT
-              </div>
-            )}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* LEFT COLUMN: PERSONAL INFO */}
+        <div className="md:col-span-2 space-y-6">
+          <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
+            <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
+              <User size={20} className="text-blue-500" /> Identity Details
+            </h3>
             
-            <div className="relative w-32 h-32 mx-auto">
-              <div className="w-full h-full bg-blue-50 rounded-full flex items-center justify-center text-blue-600 border-4 border-white shadow-md overflow-hidden">
-                <User size={64} strokeWidth={1.5} />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest">First Name</label>
+                <input 
+                  name="firstName"
+                  value={formData.firstName}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 bg-gray-50 border-2 border-transparent rounded-xl focus:bg-white focus:border-blue-500 outline-none transition-all font-bold text-gray-700"
+                />
               </div>
-              {isEditing && (
-                <button className="absolute bottom-0 right-0 p-2 bg-blue-600 text-white rounded-full border-4 border-white hover:bg-blue-700 transition-all cursor-pointer">
-                  <Camera size={14} />
-                </button>
-              )}
-            </div>
-            
-            <div className="space-y-2">
-              {isEditing ? (
-                <div className="flex flex-col gap-2">
-                  <input 
-                    name="firstName"
-                    value={formData.firstName}
-                    onChange={handleChange}
-                    className="w-full text-center p-2 bg-gray-50 rounded-lg border-2 border-transparent focus:border-blue-600 outline-none font-bold text-gray-800"
-                    placeholder="First Name"
-                  />
-                  <input 
-                    name="lastName"
-                    value={formData.lastName}
-                    onChange={handleChange}
-                    className="w-full text-center p-2 bg-gray-50 rounded-lg border-2 border-transparent focus:border-blue-600 outline-none font-bold text-gray-800"
-                    placeholder="Last Name"
-                  />
-                </div>
-              ) : (
-                <h2 className="text-2xl font-black text-gray-800 tracking-tight">
-                  {formData.firstName} {formData.lastName}
-                </h2>
-              )}
-              <p className="text-blue-600 font-bold text-sm uppercase tracking-widest mt-1">
-                {formData.role}
-              </p>
-            </div>
+              <div className="space-y-2">
+                <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Last Name</label>
+                <input 
+                  name="lastName"
+                  value={formData.lastName}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 bg-gray-50 border-2 border-transparent rounded-xl focus:bg-white focus:border-blue-500 outline-none transition-all font-bold text-gray-700"
+                />
+              </div>
+              <div className="space-y-2 relative">
+                <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Gender</label>
+                <select 
+                  name="gender"
+                  value={formData.gender}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 bg-gray-50 border-2 border-transparent rounded-xl focus:bg-white focus:border-blue-500 outline-none transition-all font-bold text-gray-700 appearance-none cursor-pointer"
+                >
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                </select>
+                <ChevronDown size={16} className="absolute right-4 bottom-4 text-gray-400 pointer-events-none" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Phone Number</label>
+                <input 
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 bg-gray-50 border-2 border-transparent rounded-xl focus:bg-white focus:border-blue-500 outline-none transition-all font-bold text-gray-700"
+                />
+              </div>
 
-            <div className="pt-6 border-t border-gray-50 space-y-4">
-              <div className="flex items-center gap-3 text-sm text-gray-500 justify-center">
-                <Mail size={16} className="text-gray-400" />
-                <span>{formData.email || (formData.firstName.toLowerCase() + "@keboenbapak.com")}</span>
-              </div>
-              <div className="flex items-center gap-3 text-sm text-gray-500 justify-center">
-                <Phone size={16} className="text-gray-400" />
-                {isEditing ? (
-                   <input 
-                    name="phone"
-                    value={formData.phone}
+              {/* EMAIL EDITABLE FIELD */}
+              <div className="md:col-span-2 space-y-2">
+                <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Email Address (Login)</label>
+                <div className="relative">
+                  <input 
+                    name="email"
+                    type="email"
+                    value={formData.email}
                     onChange={handleChange}
-                    className="p-2 bg-gray-50 rounded-lg border border-transparent focus:border-blue-600 outline-none text-center text-sm w-full"
-                   />
-                ) : (formData.phone || '-')}
+                    className="w-full px-4 py-3 bg-gray-50 border-2 border-transparent rounded-xl focus:bg-white focus:border-blue-500 outline-none transition-all font-bold text-gray-700"
+                  />
+                  <Mail size={16} className="absolute right-4 bottom-4 text-gray-400" />
+                </div>
+                <p className="text-[10px] text-amber-600 font-bold mt-1 uppercase italic">* Mengubah email akan memperbarui data login Anda.</p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Kolom Kanan: Detail Info */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white rounded-[32px] p-8 shadow-sm border border-gray-100">
-            <h3 className="text-lg font-black text-gray-800 uppercase italic tracking-tight mb-8">
-              {isEditing ? "Edit Employment Info" : "Employment Details"}
+        {/* RIGHT COLUMN: WORK INFO (ADMIN DROPDOWNS) */}
+        <div className="space-y-6">
+          <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
+            <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
+              <Briefcase size={20} className="text-blue-500" /> System Settings
             </h3>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-12">
-              <DetailField 
-                isEditing={isEditing}
-                icon={<ShieldCheck />} 
-                label="Staff ID" 
-                name="staffId"
-                value={formData.staffId}
-                onChange={handleChange}
-              />
-              <DetailField 
-                isEditing={isEditing}
-                icon={<Briefcase />} 
-                label="Designation" 
-                name="designation"
-                value={formData.designation}
-                onChange={handleChange}
-                type="select"
-                options={["Operations", "Human Resources", "Project Management", "Security"]}
-              />
-              <DetailField 
-                isEditing={isEditing}
-                icon={<User />} 
-                label="Gender" 
-                name="gender"
-                value={formData.gender}
-                onChange={handleChange}
-                type="select"
-                options={["Male", "Female"]}
-              />
-              <DetailField 
-                isEditing={isEditing}
-                icon={<Mail />} 
-                label="Role" 
-                name="role"
-                value={formData.role}
-                onChange={handleChange}
-                type="select"
-                options={["Admin", "I.T", "Manager", "Operations"]}
-              />
+            <div className="space-y-6">
+              {/* DESIGNATION SELECT */}
+              <div className="space-y-2 relative">
+                <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Designation</label>
+                {isAdmin ? (
+                  <>
+                    <select 
+                      name="designation"
+                      value={formData.designation}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 bg-blue-50 border-2 border-blue-100 rounded-xl focus:bg-white focus:border-blue-500 outline-none transition-all font-bold text-gray-700 appearance-none cursor-pointer"
+                    >
+                      {designationOptions.map(opt => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                    </select>
+                    <ChevronDown size={16} className="absolute right-4 bottom-4 text-blue-500 pointer-events-none" />
+                  </>
+                ) : (
+                  <div className="w-full px-4 py-3 bg-gray-100 rounded-xl font-bold text-gray-500 border border-gray-200">
+                    {formData.designation}
+                  </div>
+                )}
+              </div>
+
+              {/* ROLE SELECT */}
+              <div className="space-y-2 relative">
+                <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest">System Role</label>
+                {isAdmin ? (
+                  <>
+                    <select 
+                      name="role"
+                      value={formData.role}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 bg-red-50 border-2 border-red-100 rounded-xl focus:bg-white focus:border-red-500 outline-none transition-all font-bold text-gray-700 appearance-none cursor-pointer"
+                    >
+                      {roleOptions.map(opt => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                    </select>
+                    <Shield size={16} className="absolute right-4 bottom-4 text-red-500 pointer-events-none" />
+                  </>
+                ) : (
+                  <div className="flex items-center gap-2 px-4 py-3 bg-blue-50 rounded-xl text-blue-700 font-bold text-sm border border-blue-100">
+                    <Shield size={16} />
+                    {formData.role}
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Staff ID</label>
+                <div className="flex items-center gap-2 px-4 py-3 bg-gray-100 rounded-xl text-gray-500 font-mono text-xs border border-gray-200">
+                  <CreditCard size={14} />
+                  {formData.staffId}
+                </div>
+              </div>
             </div>
           </div>
-
-          {isEditing && (
-            <div className="bg-blue-50 rounded-[32px] p-6 flex items-start gap-4 border border-blue-100 animate-pulse">
-              <div className="p-2 bg-blue-600 text-white rounded-xl">
-                <FileText size={20} />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-blue-800">Tips Pengeditan</p>
-                <p className="text-xs text-blue-600 mt-1 leading-relaxed italic font-medium">
-                  Pastikan Staff ID tidak diubah sembarangan karena terhubung dengan identitas unik di database.
-                </p>
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>
   );
 };
-
-// Sub-komponen dinamis untuk Field
-const DetailField = ({ isEditing, icon, label, name, value, onChange, type = "text", options = [] }) => (
-  <div className="flex items-start gap-4 group">
-    <div className={`p-3 rounded-2xl transition-all ${isEditing ? 'bg-blue-600 text-white shadow-md' : 'bg-gray-50 text-gray-400'}`}>
-      {React.cloneElement(icon, { size: 20 })}
-    </div>
-    <div className="flex-1">
-      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{label}</p>
-      {isEditing ? (
-        type === "select" ? (
-          <select 
-            name={name}
-            value={value}
-            onChange={onChange}
-            className="w-full text-sm font-bold text-gray-800 bg-gray-50 border-b-2 border-transparent focus:border-blue-600 outline-none py-1.5 px-2 rounded-lg cursor-pointer mt-1"
-          >
-            {options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-          </select>
-        ) : (
-          <input 
-            name={name}
-            value={value}
-            onChange={onChange}
-            className="w-full text-sm font-bold text-gray-800 bg-gray-50 border-b-2 border-transparent focus:border-blue-600 outline-none py-1.5 px-2 rounded-lg mt-1"
-          />
-        )
-      ) : (
-        <p className="text-sm font-bold text-gray-800 mt-1">{value || '-'}</p>
-      )}
-    </div>
-  </div>
-);
 
 export default StaffProfile;

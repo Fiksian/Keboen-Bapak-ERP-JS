@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider   = "prisma-client-js"
   engineType = "library"
@@ -15,28 +9,40 @@ datasource db {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
+  // Mengubah ID menjadi String agar sama dengan Staff
+  id        String   @id @default(cuid()) 
   username  String   @unique
   email     String   @unique
   password  String
   phone     String?
+  role      String   @default("Staff")
   createdAt DateTime @default(now())
+
+  // RELASI: Menghubungkan User ke Staff Profile
+  staffProfile Staff?
 }
 
 model Staff {
-  id          String   @id @default(cuid())
-  sn          String?  // Serial Number (opsional jika ingin mengikuti urutan manual)
+  // Gunakan ID yang sama dengan User (tidak default cuid lagi di sini)
+  // Karena ID ini akan diisi secara manual mengambil dari User.id saat pembuatan
+  id          String   @id 
+  
+  // RELASI: Menghubungkan Staff ke User melalui ID dan Email
+  email       String   @unique 
+  user        User     @relation(fields: [id], references: [id], onDelete: Cascade)
+  
+  sn          String?  
   firstName   String
   lastName    String
   gender      String
-  staffId     String   @unique
+  staffId     String   @unique // Ini adalah ID Otomatis (STF-2026-001)
   phone       String?
-  role        String
+  role        String   
   designation String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  @@map("staffs") // Mengubah nama tabel di database menjadi plural 'staffs'
+  @@map("staffs")
 }
 
 model Purchasing {
@@ -45,8 +51,46 @@ model Purchasing {
   qty         String
   amount      String
   requestedBy String
-  date        DateTime @default(now())
-  status      String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  category    String?  
+  type        String   
+  status      String   @default("PENDING")
+  isReceived  Boolean  @default(false)   
   createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+}
+
+model Stock {
+  id              String   @id @default(cuid())
+  name            String   @unique 
+  category        String
+  stock           Float    
+  unit            String   
+  type            String   
+  price           String?  
+  status          String?  
+  lastPurchasedId String?  
+  updatedAt       DateTime @updatedAt
+}
+
+model Task {
+  id        String   @id @default(cuid())
+  title     String
+  time      String
+  priority  String   
+  category  String
+  assignee  String
+  completed Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model History {
+  id          String   @id @default(uuid())
+  action      String   // Contoh: "STOCK_UPDATE", "PURCHASE_APPROVED", "MANUAL_EDIT"
+  item        String   // Nama barang
+  category    String   // Kategori barang
+  type        String   // STOCKS atau INVENTORY
+  quantity    Float    // Jumlah perubahan (bisa positif/negatif)
+  user        String   // Nama user yang melakukan (dari session)
+  notes       String?  // Alasan/Catatan (description)
+  createdAt   DateTime @default(now())
 }

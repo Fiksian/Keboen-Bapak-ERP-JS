@@ -4,14 +4,12 @@ import bcrypt from "bcryptjs";
 
 export async function POST(request) {
   try {
-    const { username, email, password } = await request.json();
+    const { username, email, password, phone } = await request.json();
 
-    // 1. Validasi Input
     if (!username || !email || !password) {
-      return NextResponse.json({ message: "Semua data wajib diisi" }, { status: 400 });
+      return NextResponse.json({ message: "Username, Email, dan Password wajib diisi" }, { status: 400 });
     }
 
-    // 2. Cek apakah user sudah ada
     const existingUser = await prisma.user.findFirst({
       where: {
         OR: [{ username }, { email }]
@@ -22,25 +20,50 @@ export async function POST(request) {
       return NextResponse.json({ message: "Username atau Email sudah terdaftar" }, { status: 400 });
     }
 
-    // 3. Hash Password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // 4. Simpan ke Database
-    const newUser = await prisma.user.create({
-      data: {
-        username,
-        email,
-        password: hashedPassword,
-      },
+    const result = await prisma.$transaction(async (tx) => {
+      // A. Buat Akun User
+      const newUser = await tx.user.create({
+        data: {
+          username,
+          email,
+          password: hashedPassword,
+          phone: phone || null,
+          role: "Staff", // Role default di level User (Access Control)
+        },
+      });
+
+      // B. Buat Profil Staff (Dihubungkan lewat Email)
+      const newStaff = await tx.staff.create({
+        data: {
+          email: email,
+          staffId: `STF-${Math.floor(1000 + Math.random() * 9000)}`,
+          firstName: username,
+          lastName: "", 
+          gender: "Male",
+          phone: phone || "",
+          role: 'Staff',
+          designation: "Staff",
+        },
+      });
+
+      return { user: newUser, staff: newStaff };
     });
 
     return NextResponse.json({ 
-      message: "Registrasi berhasil", 
-      user: { username: newUser.username } 
+      message: "Registrasi akun dan profil staff berhasil", 
+      user: { 
+        username: result.user.username,
+        email: result.user.email 
+      } 
     }, { status: 201 });
 
   } catch (error) {
     console.error("REGISTRATION_ERROR:", error);
-    return NextResponse.json({ message: "Gagal membuat akun" }, { status: 500 });
+    if (error.code === 'P2002') {
+      return NextResponse.json({ message: "Email atau Staff ID sudah digunakan" }, { status: 400 });
+    }
+    return NextResponse.json({ message: "Gagal memproses pendaftaran" }, { status: 500 });
   }
 }

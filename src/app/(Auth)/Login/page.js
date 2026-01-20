@@ -123,7 +123,7 @@ const Login = () => {
               {loading ? 'Processing...' : 'Sign In'}
             </button>
 
-            <div className="text-center pt-2">
+            {/* <div className="text-center pt-2">
               <span className="text-gray-600 text-sm font-medium">Don't have an account? </span>
               <Link 
                 href="/Register" 
@@ -131,7 +131,7 @@ const Login = () => {
               >
                 Sign Up
               </Link>
-            </div>
+            </div> */}
           </form>
         </div>
       </div>

@@ -9,32 +9,85 @@ import {
   PanelLeftOpen, Warehouse
 } from 'lucide-react';
 
-const Sidebar = ({ isCollapsed, toggleSidebar }) => {
+const Sidebar = ({ isCollapsed, toggleSidebar, userRole }) => {
   const pathname = usePathname();
 
   const menuItems = [
-    { name: 'Dashboard', icon: <LayoutDashboard size={18} />, path: '/Dashboard' },
-    { name: 'Staff', icon: <User size={18} />, path: '/Staff' },
-    { name: 'Tasks', icon: <CheckSquare size={18} />, path: '/Tasks' },
-    { name: 'Kandang', icon: <Warehouse size={18} />, path: '/Kandang' },
-    { name: 'Stock', icon: <Package size={18} />, path: '/Stock' },
-    { name: 'Purchasing', icon: <ShoppingCart size={18} />, path: '/Purchasing' },
-    { name: 'Cuaca', icon: <CloudSun size={18} />, path: '/Cuaca' },
-    { name: 'Report', icon: <BarChart3 size={18} />, path: '/Report' },
-    { name: 'Notifications', icon: <Bell size={18} />, path: '/Notifications' },
+    { 
+      name: 'Dashboard', 
+      icon: <LayoutDashboard size={18} />, 
+      path: '/Dashboard', 
+      roles: ['Admin', 'Staff', 'Manager', 'Supervisor'] 
+    },
+    { 
+      name: 'Staff', 
+      icon: <User size={18} />, 
+      path: '/Staff', 
+      roles: ['Admin']
+    },
+    { 
+      name: 'Tasks', 
+      icon: <CheckSquare size={18} />, 
+      path: '/Tasks', 
+      roles: ['Admin', 'Staff', 'Manager', 'Supervisor'] 
+    },
+    { 
+      name: 'Kandang', 
+      icon: <Warehouse size={18} />, 
+      path: '/Kandang', 
+      roles: ['Admin', 'Staff', 'Supervisor'] 
+    },
+    { 
+      name: 'Warehouse', 
+      icon: <Package size={18} />, 
+      path: '/Stock', 
+      roles: ['Admin', 'Manager', 'Staff', 'Supervisor'] 
+    },
+    { 
+      name: 'Purchasing', 
+      icon: <ShoppingCart size={18} />, 
+      path: '/Purchasing', 
+      roles: ['Admin', 'Manager', 'Supervisor'] 
+    },
+    { 
+      name: 'Cuaca', 
+      icon: <CloudSun size={18} />, 
+      path: '/Cuaca', 
+      roles: ['Admin', 'Staff', 'Manager', 'Supervisor'] 
+    },
+    { 
+      name: 'Report', 
+      icon: <BarChart3 size={18} />, 
+      path: '/Report', 
+      roles: ['Admin', 'Manager'] 
+    },
+    { 
+      name: 'Notifications', 
+      icon: <Bell size={18} />, 
+      path: '/Notifications', 
+      roles: ['Admin', 'Staff', 'Manager', 'Supervisor'] 
+    },
+    { 
+      name: 'History', 
+      icon: <Bell size={18} />, 
+      path: '/History', 
+      roles: ['Admin', 'Manager', 'Supervisor'] 
+    },
   ];
 
   return (
     <aside className={`bg-white border-r flex flex-col h-full shrink-0 shadow-md transition-all duration-300 ${isCollapsed ? 'w-20' : 'xl:w-64 sm:w-64'}`}>
       <nav className="flex-1 py-1 overflow-y-auto overflow-x-hidden">
         {menuItems.map((item) => {
-          // Cek apakah menu aktif berdasarkan URL saat ini
+          
+          if (!item.roles.includes(userRole)) return null;
+
           const isActive = pathname === item.path;
 
           return (
             <Link 
               key={item.name}
-              href={item.path} // Tambahkan href agar Link berfungsi
+              href={item.path}
               className={`w-full flex items-center justify-between px-4 py-4 cursor-pointer transition-colors hover:shadow-md hover:shadow-green-300 ${
                 isActive 
                   ? 'text-green-700/80 bg-blue-50/40 border-l-4 border-green-500/80 font-semibold ' 
@@ -54,8 +107,9 @@ const Sidebar = ({ isCollapsed, toggleSidebar }) => {
       </nav>
 
       <div className="border-t pb-4 bg-white shrink-0 ">
+        {/* Settings biasanya bisa diakses semua yang login untuk ganti password/profil sendiri */}
         <Link 
-          href="/Settings" // Ganti onClick dengan href
+          href="/Settings"
           className="group w-full flex items-center justify-between px-4 py-4 cursor-pointer text-gray-500 hover:bg-gray-50  transition-colors hover:shadow-md hover:shadow-green-300"
         >
           <div className="flex items-center gap-3 group-hover:text-green-600/80 ">
@@ -65,7 +119,6 @@ const Sidebar = ({ isCollapsed, toggleSidebar }) => {
           <ChevronRight size={14} className="text-gray-600 group-hover:text-green-600/80" />
         </Link>
         
-        {/* Tombol Toggle Sidebar tetap menggunakan div/button karena tidak pindah halaman */}
         <div 
           className="group px-4 py-4 border-t hover:bg-blue-50 transition-colors cursor-pointer hover:shadow-md hover:shadow-green-300 flex items-center justify-start" 
           onClick={toggleSidebar}

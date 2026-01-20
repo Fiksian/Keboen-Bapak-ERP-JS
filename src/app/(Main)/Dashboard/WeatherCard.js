@@ -14,7 +14,7 @@ const WeatherCard = () => {
       <h3 className="text-xl font-bold text-gray-700 border-b-2 border-blue-600 pb-1 mb-2">
         Cuaca Harian
       </h3>
-      <p className="text-gray-400 text-xs mb-6">Bandung, 19 Desember 2025</p>
+      <p className="text-gray-400 text-xs mb-6">Bandung, {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
       
       <div className="flex items-center gap-6 mb-8">
         <h1 className="text-6xl font-black text-gray-800 tracking-tighter">25° C</h1>

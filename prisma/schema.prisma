@@ -47,15 +47,20 @@ model Staff {
 
 model Purchasing {
   id          String   @id @default(cuid())
+  noPO        String   @unique
+  supplier    String?
   item        String
   qty         String
   amount      String
   requestedBy String
-  category    String?  
-  type        String   
+  approvedBy  String? 
+  receivedBy  String?
+  category    String?
+  type        String   @default("STOCKS")
   status      String   @default("PENDING")
-  isReceived  Boolean  @default(false)   
+  isReceived  Boolean  @default(false)
   createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model Stock {
@@ -85,12 +90,13 @@ model Task {
 
 model History {
   id          String   @id @default(uuid())
-  action      String   // Contoh: "STOCK_UPDATE", "PURCHASE_APPROVED", "MANUAL_EDIT"
+  action      String   // Contoh: "PURCHASE_REQUEST", "STOCK_IN", "PURCHASE_APPROVED"
   item        String   // Nama barang
   category    String   // Kategori barang
   type        String   // STOCKS atau INVENTORY
-  quantity    Float    // Jumlah perubahan (bisa positif/negatif)
-  user        String   // Nama user yang melakukan (dari session)
-  notes       String?  // Alasan/Catatan (description)
+  quantity    Float    // Jumlah perubahan
+  unit        String   @default("Unit") // Tambahkan unit agar mapping API tidak error
+  user        String   // Nama user dari session
+  notes       String?  // Detail catatan (Ex: PO Number, Supplier, etc)
   createdAt   DateTime @default(now())
 }

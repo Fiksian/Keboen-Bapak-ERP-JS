@@ -5,8 +5,8 @@ const prisma = new PrismaClient();
 
 async function main() {
   const adminEmail = "admin@keboenbapak.com";
-  const adminUsername = "admin";
-  const adminPassword = "password123";
+  const adminUsername = "Admin";
+  const adminPassword = "123456";
 
   console.log('--- Memulai Proses Seeding ---');
   
@@ -14,7 +14,6 @@ async function main() {
 
   try {
     await prisma.$transaction(async (tx) => {
-      // 1. Upsert User (Buat jika belum ada)
       const user = await tx.user.upsert({
         where: { email: adminEmail },
         update: {},
@@ -26,12 +25,11 @@ async function main() {
         },
       });
 
-      // 2. Upsert Profil Staff (ID disamakan dengan User.id)
       await tx.staff.upsert({
         where: { email: adminEmail },
         update: {},
         create: {
-          id: user.id, // Menyamakan ID
+          id: user.id, 
           email: adminEmail,
           firstName: "Super",
           lastName: "Admin",

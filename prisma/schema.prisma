@@ -46,21 +46,23 @@ model Staff {
 }
 
 model Purchasing {
-  id          String   @id @default(cuid())
-  noPO        String   @unique
-  supplier    String?
-  item        String
-  qty         String
-  amount      String
-  requestedBy String
-  approvedBy  String? 
-  receivedBy  String?
-  category    String?
-  type        String   @default("STOCKS")
-  status      String   @default("PENDING")
-  isReceived  Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String    @id @default(cuid())
+  noPO         String    @unique
+  item         String
+  qty          String
+  amount       String?   // Pastikan ini String jika Anda mengirim "1000" (dengan kutip)
+  category     String    // Tambahkan ini
+  type         String    @default("STOCKS") // Tambahkan ini
+  supplier     String?
+  status       String    @default("PENDING")
+  isReceived   Boolean   @default(false)
+  receivedAt   DateTime?
+  receivedBy   String?
+  suratJalan   String?
+  requestedBy  String
+  approvedBy   String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 }
 
 model Stock {

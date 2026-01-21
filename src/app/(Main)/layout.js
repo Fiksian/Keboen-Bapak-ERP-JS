@@ -1,6 +1,6 @@
 'use client'
-import Header from '@/app/(Main)/Components/Header';
-import Sidebar from '@/app/(Main)/Components/Sidebar';
+import Header from '@/app/(Main)/Components/Layout/Header';
+import Sidebar from '@/app/(Main)/Components/Layout/Sidebar';
 import { useState, useEffect } from "react";
 import { useRouter } from 'next/navigation';
 import { useSession } from "next-auth/react";
@@ -8,7 +8,7 @@ import { Loader2 } from 'lucide-react';
 
 export default function DashboardLayout({ children }) {
   const router = useRouter();
-  const { data: session, status } = useSession(); // Ambil data session & status loading
+  const { data: session, status } = useSession(); 
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   useEffect(() => {
@@ -31,20 +31,22 @@ export default function DashboardLayout({ children }) {
   const userRole = session?.user?.role || 'Staff';
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden">
-      <Header 
-        user={session?.user}
-      />
+    <div className="flex flex-col h-screen overflow-hidden bg-white">
+      <div className="print:hidden">
+        <Header user={session?.user} />
+      </div>
       
       <div className="flex flex-1 overflow-hidden">
-        <Sidebar 
-          userRole={userRole}
-          isCollapsed={isCollapsed} 
-          toggleSidebar={() => setIsCollapsed(!isCollapsed)}
-        />
+        <div className="print:hidden h-full">
+          <Sidebar 
+            userRole={userRole}
+            isCollapsed={isCollapsed} 
+            toggleSidebar={() => setIsCollapsed(!isCollapsed)}
+          />
+        </div>
         
-        <main className="flex-1 overflow-y-auto bg-[#f8fafc] p-6">
-          <div className="max-w-[1600px] mx-auto">
+        <main className="flex-1 overflow-y-auto bg-[#f8fafc] p-6 print:p-0 print:bg-white print:overflow-visible">
+          <div className="max-w-[1600px] mx-auto print:max-w-none">
             {children}
           </div>
         </main>

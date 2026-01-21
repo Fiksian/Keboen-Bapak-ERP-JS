@@ -73,7 +73,7 @@ const AddPurchasing = ({ isOpen, onClose, onAdd }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 h-full flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm text-gray-800">
+    <div onClick={onClose} className="fixed inset-0 z-50 h-full flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm text-gray-800">
       <div className="bg-white w-full max-w-2xl rounded-[32px] shadow-2xl border border-gray-100 overflow-hidden animate-in zoom-in duration-300">
         
         {/* Header Section */}

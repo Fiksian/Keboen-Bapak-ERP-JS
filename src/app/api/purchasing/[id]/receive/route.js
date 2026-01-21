@@ -13,7 +13,7 @@ const getAutoStatus = (quantity) => {
 
 /**
  * PATCH: Proses Penerimaan Barang (Masuk Gudang)
- * Mencatat 'receivedBy' untuk transparansi audit.
+ * Mencatat 'receivedBy', 'receivedAt', dan 'suratJalan' untuk transparansi audit.
  */
 export async function PATCH(request, context) {
   try {
@@ -24,7 +24,11 @@ export async function PATCH(request, context) {
     }
 
     const { id } = await context.params; 
+    const body = await request.json(); // Ambil data dari frontend (termasuk nomor surat jalan)
+    const { suratJalan } = body; 
+
     const userName = session.user.name || "Warehouse Admin";
+    const currentTime = new Date(); // Ambil waktu server saat ini
 
     // 2. Ambil data Purchase Order
     const purchase = await prisma.purchasing.findUnique({
@@ -55,16 +59,18 @@ export async function PATCH(request, context) {
 
     // 5. Database Transaction
     await prisma.$transaction([
-      // A. Update status & CATAT PENERIMA di Purchasing
+      // A. Update status & CATAT BUKTI di tabel Purchasing
       prisma.purchasing.update({
         where: { id: id },
         data: { 
           isReceived: true,
-          receivedBy: userName // Mencatat siapa yang klik "Receive"
+          receivedBy: userName,
+          receivedAt: currentTime, // Mencatat tanggal & jam masuk
+          suratJalan: suratJalan || "TANPA-SJ" // Menyimpan nomor surat jalan vendor
         }
       }),
 
-      // B. Update/Upsert Stock
+      // B. Update/Upsert Stock (Kuantitas riil di gudang)
       prisma.stock.upsert({
         where: { name: purchase.item },
         update: {
@@ -84,7 +90,7 @@ export async function PATCH(request, context) {
         }
       }),
 
-      // C. Catat ke History dengan nama penerima yang spesifik
+      // C. Catat ke tabel History (Log Aktivitas)
       prisma.history.create({
         data: {
           action: "STOCK_IN",
@@ -92,14 +98,15 @@ export async function PATCH(request, context) {
           category: purchase.category || "General",
           type: purchase.type || "STOCKS",
           quantity: incomingQty,
-          user: userName, // Mencatat user gudang
-          notes: `Penerimaan PO: ${purchase.noPO} | Diterima oleh: ${userName} | Supplier: ${purchase.supplier}`
+          user: userName,
+          notes: `Penerimaan PO: ${purchase.noPO} | SJ: ${suratJalan || '---'} | Oleh: ${userName}`
         }
       })
     ]);
 
     return NextResponse.json({ 
       message: `Barang dari PO ${purchase.noPO} berhasil diterima oleh ${userName}`,
+      receivedAt: currentTime,
       newStatus: finalStatus 
     }, { status: 200 });
 

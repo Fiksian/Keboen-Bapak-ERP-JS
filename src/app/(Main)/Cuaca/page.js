@@ -5,7 +5,7 @@ import {
   CloudRain, Sun, Wind, Droplets, Eye, 
   CloudLightning, Navigation, MoreHorizontal,
   ChevronRight, Thermometer, Leaf, Cloud, Loader2,
-  TrendingUp, Calendar
+  TrendingUp, Calendar, Clock
 } from 'lucide-react';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, 
@@ -24,7 +24,7 @@ const Cuaca = () => {
     const fetchWeather = async () => {
       try {
         setLoading(true);
-        // Mengambil data Current, Hourly (untuk Grafik), dan Daily (untuk 7 Hari)
+        // Mengambil data cuaca
         const response = await fetch(
           `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,visibility&hourly=temperature_2m&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto`
         );
@@ -62,11 +62,19 @@ const Cuaca = () => {
   if (error) return <div className="p-10 text-red-500 font-bold">Error: {error}</div>;
   if (!weather || !weather.hourly || !weather.daily) return null;
 
-  // Data Grafik (24 Jam)
-  const chartData = weather.hourly.time.slice(0, 24).map((time, index) => ({
-    time: new Date(time).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
-    temp: weather.hourly.temperature_2m[index],
-  }));
+  // LOGIKA FILTER 24 JAM KE DEPAN
+  const currentHour = new Date();
+  currentHour.setMinutes(0, 0, 0); // Reset ke awal jam sekarang
+
+  const chartData = weather.hourly.time
+    .map((time, index) => ({
+      rawTime: new Date(time),
+      timeLabel: new Date(time).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+      temp: weather.hourly.temperature_2m[index],
+    }))
+    // Hanya ambil data yang waktunya >= jam sekarang DAN dalam rentang 24 jam kedepan
+    .filter(item => item.rawTime >= currentHour)
+    .slice(0, 24);
 
   const current = weather.current;
   const daily = weather.daily;
@@ -90,7 +98,7 @@ const Cuaca = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* Kolom Kiri: Main Card & Grafik */}
+        {/* Kolom Kiri */}
         <div className="lg:col-span-2 space-y-6">
           
           {/* Hero Card */}
@@ -114,12 +122,20 @@ const Cuaca = () => {
             </div>
           </div>
 
-          {/* Grafik Fluktuasi */}
+          {/* Grafik Fluktuasi 24 Jam */}
           <div className="bg-white rounded-[32px] p-8 shadow-sm border border-gray-100">
-            <h3 className="font-black text-gray-800 uppercase tracking-widest text-[10px] flex items-center gap-2 mb-8">
-               <TrendingUp size={16} className="text-blue-600" /> Hourly Temperature Trend
-            </h3>
-            <div className="h-[250px] w-full">
+            <div className="flex justify-between items-center mb-8">
+                <h3 className="font-black text-gray-800 uppercase tracking-widest text-[10px] flex items-center gap-2">
+                <Clock size={16} className="text-blue-600" /> 24-Hour Next Forecast
+                </h3>
+                <div className="flex gap-4">
+                    <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                        <span className="text-[9px] font-bold text-gray-400 uppercase">Temp (°C)</span>
+                    </div>
+                </div>
+            </div>
+            <div className="h-[280px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={chartData}>
                   <defs>
@@ -129,26 +145,46 @@ const Cuaca = () => {
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="time" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 'bold', fill: '#94a3b8'}} interval={3} />
-                  <YAxis hide={true} domain={['dataMin - 2', 'dataMax + 2']} />
-                  <Tooltip contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '12px', fontWeight: 'bold'}} />
-                  <Area type="monotone" dataKey="temp" stroke="#3b82f6" strokeWidth={4} fillOpacity={1} fill="url(#colorTemp)" />
+                  <XAxis 
+                    dataKey="timeLabel" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{fontSize: 9, fontWeight: 'bold', fill: '#94a3b8'}} 
+                    interval={3} // Menampilkan label setiap 3 jam agar tidak tumpang tindih
+                  />
+                  <YAxis 
+                    hide={false} 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{fontSize: 9, fontWeight: 'bold', fill: '#cbd5e1'}}
+                    domain={['dataMin - 1', 'dataMax + 1']} 
+                  />
+                  <Tooltip 
+                    cursor={{ stroke: '#3b82f6', strokeWidth: 2, strokeDasharray: '5 5' }}
+                    contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '12px', fontWeight: 'bold'}} 
+                    labelStyle={{ color: '#64748b', marginBottom: '4px' }}
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="temp" 
+                    stroke="#3b82f6" 
+                    strokeWidth={4} 
+                    fillOpacity={1} 
+                    fill="url(#colorTemp)" 
+                    animationDuration={1500}
+                  />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
           </div>
         </div>
 
-        {/* Kolom Kanan: 7 Hari & Detail */}
+        {/* Kolom Kanan (Tetap) */}
         <div className="space-y-6">
-          
-          {/* Prediksi 7 Hari */}
           <div className="bg-white rounded-[32px] p-8 shadow-sm border border-gray-100">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="font-black text-gray-800 uppercase tracking-widest text-[10px] flex items-center gap-2">
+            <h3 className="font-black text-gray-800 uppercase tracking-widest text-[10px] flex items-center gap-2 mb-6">
                  <Calendar size={16} className="text-blue-600" /> 7-Day Forecast
-              </h3>
-            </div>
+            </h3>
             <div className="space-y-2">
               {daily.time.map((date, idx) => {
                 const dayDetails = getWeatherDetails(daily.weather_code[idx]);
@@ -172,7 +208,6 @@ const Cuaca = () => {
             </div>
           </div>
 
-          {/* Kondisi Lingkungan */}
           <div className="bg-white rounded-[32px] p-8 shadow-sm border border-gray-100 space-y-6">
             <h3 className="font-black text-gray-800 uppercase tracking-widest text-[10px]">Station Details</h3>
             <div className="space-y-5">
@@ -183,7 +218,6 @@ const Cuaca = () => {
             </div>
           </div>
 
-          {/* Rekomendasi */}
           <div className="bg-[#99A675] rounded-[32px] p-8 text-white shadow-xl shadow-green-100/50 relative overflow-hidden">
              <Leaf className="absolute right-[-10px] bottom-[-10px] w-24 h-24 text-black/10 -rotate-12" />
              <div className="relative z-10 text-sm font-bold leading-relaxed italic opacity-95">
@@ -192,7 +226,6 @@ const Cuaca = () => {
                     : "Cuaca stabil. Waktu yang tepat untuk pemberian nutrisi terjadwal."}
              </div>
           </div>
-
         </div>
       </div>
     </div>

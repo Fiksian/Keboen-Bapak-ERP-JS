@@ -14,6 +14,7 @@ async function main() {
 
   try {
     await prisma.$transaction(async (tx) => {
+      // 1. Upsert User (Buat jika belum ada)
       const user = await tx.user.upsert({
         where: { email: adminEmail },
         update: {},
@@ -25,11 +26,12 @@ async function main() {
         },
       });
 
+      // 2. Upsert Profil Staff (ID disamakan dengan User.id)
       await tx.staff.upsert({
         where: { email: adminEmail },
         update: {},
         create: {
-          id: user.id, 
+          id: user.id, // Menyamakan ID
           email: adminEmail,
           firstName: "Super",
           lastName: "Admin",

@@ -11,7 +11,7 @@ const EditStock = ({ isOpen, onClose, itemData, fetchAllStocks }) => {
     stock: "",
     status: "",
     type: "",
-    notes: "" // Field baru untuk alasan perubahan
+    notes: ""
   });
 
   useEffect(() => {
@@ -23,7 +23,7 @@ const EditStock = ({ isOpen, onClose, itemData, fetchAllStocks }) => {
         stock: itemData.stock || 0,
         status: itemData.status || "READY",
         type: itemData.type || "STOCKS",
-        notes: "" // Reset catatan setiap buka modal
+        notes: "" 
       });
     }
   }, [itemData]);
@@ -33,7 +33,6 @@ const EditStock = ({ isOpen, onClose, itemData, fetchAllStocks }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Pastikan admin mengisi alasan perubahan
     if (!formData.notes.trim()) {
       alert("Mohon isi alasan perubahan stok.");
       return;
@@ -58,7 +57,7 @@ const EditStock = ({ isOpen, onClose, itemData, fetchAllStocks }) => {
   };
 
   return (
-    <div className="fixed min-h-full inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm transition-all">
+    <div onClick={onClose} className="fixed min-h-full inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm transition-all">
       <div className="bg-white w-full max-w-xl rounded-[32px] shadow-2xl border border-gray-100 overflow-hidden animate-in fade-in zoom-in duration-200">
         
         <div className="p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">

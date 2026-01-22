@@ -57,7 +57,7 @@ const EditStock = ({ isOpen, onClose, itemData, fetchAllStocks }) => {
   };
 
   return (
-    <div onClick={onClose} className="fixed min-h-full inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm transition-all">
+    <div className="fixed min-h-full inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm transition-all">
       <div className="bg-white w-full max-w-xl rounded-[32px] shadow-2xl border border-gray-100 overflow-hidden animate-in fade-in zoom-in duration-200">
         
         <div className="p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">

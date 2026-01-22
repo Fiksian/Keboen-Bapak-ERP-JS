@@ -3,7 +3,6 @@ import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 
-// Helper status stok
 const getAutoStatus = (quantity) => {
   const qty = parseFloat(quantity) || 0;
   if (qty <= 0) return "SOLD OUT";
@@ -11,26 +10,22 @@ const getAutoStatus = (quantity) => {
   return "READY";
 };
 
-/**
- * PATCH: Proses Penerimaan Barang (Masuk Gudang)
- * Mencatat 'receivedBy', 'receivedAt', dan 'suratJalan' untuk transparansi audit.
- */
 export async function PATCH(request, context) {
   try {
-    // 1. Validasi Sesi
     const session = await getServerSession(authOptions);
     if (!session || !session.user) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
     const { id } = await context.params; 
-    const body = await request.json(); // Ambil data dari frontend (termasuk nomor surat jalan)
-    const { suratJalan } = body; 
+    const body = await request.json();
+    
+    // Mengambil field tambahan sesuai form modal Receipt
+    const { suratJalan, receivedBy, condition, notes, receivedQty } = body; 
 
-    const userName = session.user.name || "Warehouse Admin";
-    const currentTime = new Date(); // Ambil waktu server saat ini
+    const userName = receivedBy || session.user.name || "Warehouse Staff";
+    const currentTime = new Date();
 
-    // 2. Ambil data Purchase Order
     const purchase = await prisma.purchasing.findUnique({
       where: { id: id }
     });
@@ -43,12 +38,10 @@ export async function PATCH(request, context) {
       return NextResponse.json({ message: "Barang sudah pernah diterima sebelumnya" }, { status: 400 });
     }
 
-    // 3. Parsing Quantity
     const qtyParts = purchase.qty.split(' ');
-    const incomingQty = parseFloat(qtyParts[0]) || 0;
+    const incomingQty = receivedQty || parseFloat(qtyParts[0]) || 0;
     const unitLabel = qtyParts[1] || "Unit";
 
-    // 4. Kalkulasi Stok
     const existingStock = await prisma.stock.findUnique({
       where: { name: purchase.item }
     });
@@ -57,27 +50,41 @@ export async function PATCH(request, context) {
     const finalQty = currentQty + incomingQty;
     const finalStatus = getAutoStatus(finalQty);
 
-    // 5. Database Transaction
-    await prisma.$transaction([
-      // A. Update status & CATAT BUKTI di tabel Purchasing
-      prisma.purchasing.update({
+    // DATABASE TRANSACTION
+    const result = await prisma.$transaction(async (tx) => {
+      
+      // 1. Buat Record Receipt (Bukti STTB Digital)
+      const receipt = await tx.receipt.create({
+        data: {
+          receiptNo: `GRN-${currentTime.getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+          purchasingId: id,
+          suratJalan: suratJalan || "TANPA-SJ",
+          receivedQty: incomingQty,
+          receivedBy: userName,
+          condition: condition || "GOOD",
+          notes: notes || "",
+          receivedAt: currentTime
+        }
+      });
+
+      // 2. Update status di tabel Purchasing
+      await tx.purchasing.update({
         where: { id: id },
         data: { 
           isReceived: true,
-          receivedBy: userName,
-          receivedAt: currentTime, // Mencatat tanggal & jam masuk
-          suratJalan: suratJalan || "TANPA-SJ" // Menyimpan nomor surat jalan vendor
+          status: "RECEIVED"
         }
-      }),
+      });
 
-      // B. Update/Upsert Stock (Kuantitas riil di gudang)
-      prisma.stock.upsert({
+      // 3. Update/Upsert Stock
+      await tx.stock.upsert({
         where: { name: purchase.item },
         update: {
           stock: finalQty,
           status: finalStatus, 
           price: purchase.amount,
-          type: purchase.type 
+          type: purchase.type,
+          lastPurchasedId: id
         },
         create: {
           name: purchase.item,
@@ -86,28 +93,33 @@ export async function PATCH(request, context) {
           unit: unitLabel,
           type: purchase.type || "STOCKS",
           price: purchase.amount,
-          status: finalStatus 
+          status: finalStatus,
+          lastPurchasedId: id
         }
-      }),
+      });
 
-      // C. Catat ke tabel History (Log Aktivitas)
-      prisma.history.create({
+      // 4. Catat ke tabel History dengan Reference ID ke Receipt
+      await tx.history.create({
         data: {
           action: "STOCK_IN",
           item: purchase.item,
           category: purchase.category || "General",
           type: purchase.type || "STOCKS",
           quantity: incomingQty,
+          unit: unitLabel,
           user: userName,
-          notes: `Penerimaan PO: ${purchase.noPO} | SJ: ${suratJalan || '---'} | Oleh: ${userName}`
+          referenceId: receipt.id, // Menghubungkan log ke bukti receipt
+          notes: `PO: ${purchase.noPO} | SJ: ${suratJalan || '---'} | Kondisi: ${condition || 'GOOD'}`
         }
-      })
-    ]);
+      });
+
+      return receipt;
+    });
 
     return NextResponse.json({ 
-      message: `Barang dari PO ${purchase.noPO} berhasil diterima oleh ${userName}`,
-      receivedAt: currentTime,
-      newStatus: finalStatus 
+      message: `Penerimaan PO ${purchase.noPO} berhasil diproses`,
+      receiptNo: result.receiptNo,
+      receivedAt: currentTime 
     }, { status: 200 });
 
   } catch (error) {

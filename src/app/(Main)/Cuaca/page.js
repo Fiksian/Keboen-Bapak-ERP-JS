@@ -3,9 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { 
   CloudRain, Sun, Wind, Droplets, Eye, 
-  CloudLightning, Navigation, MoreHorizontal,
-  ChevronRight, Thermometer, Leaf, Cloud, Loader2,
-  TrendingUp, Calendar, Clock
+  CloudLightning, Navigation, Thermometer, Leaf, Cloud, Loader2,
+  Calendar, Clock
 } from 'lucide-react';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, 
@@ -62,9 +61,8 @@ const Cuaca = () => {
   if (error) return <div className="p-10 text-red-500 font-bold">Error: {error}</div>;
   if (!weather || !weather.hourly || !weather.daily) return null;
 
-  // LOGIKA FILTER 24 JAM KE DEPAN
   const currentHour = new Date();
-  currentHour.setMinutes(0, 0, 0); // Reset ke awal jam sekarang
+  currentHour.setMinutes(0, 0, 0);
 
   const chartData = weather.hourly.time
     .map((time, index) => ({
@@ -72,7 +70,6 @@ const Cuaca = () => {
       timeLabel: new Date(time).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
       temp: weather.hourly.temperature_2m[index],
     }))
-    // Hanya ambil data yang waktunya >= jam sekarang DAN dalam rentang 24 jam kedepan
     .filter(item => item.rawTime >= currentHour)
     .slice(0, 24);
 
@@ -150,7 +147,7 @@ const Cuaca = () => {
                     axisLine={false} 
                     tickLine={false} 
                     tick={{fontSize: 9, fontWeight: 'bold', fill: '#94a3b8'}} 
-                    interval={3} // Menampilkan label setiap 3 jam agar tidak tumpang tindih
+                    interval={3}
                   />
                   <YAxis 
                     hide={false} 

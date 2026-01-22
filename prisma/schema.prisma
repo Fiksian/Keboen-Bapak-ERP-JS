@@ -9,7 +9,6 @@ datasource db {
 }
 
 model User {
-  // Mengubah ID menjadi String agar sama dengan Staff
   id        String   @id @default(cuid()) 
   username  String   @unique
   email     String   @unique
@@ -18,16 +17,11 @@ model User {
   role      String   @default("Staff")
   createdAt DateTime @default(now())
 
-  // RELASI: Menghubungkan User ke Staff Profile
   staffProfile Staff?
 }
 
 model Staff {
-  // Gunakan ID yang sama dengan User (tidak default cuid lagi di sini)
-  // Karena ID ini akan diisi secara manual mengambil dari User.id saat pembuatan
   id          String   @id 
-  
-  // RELASI: Menghubungkan Staff ke User melalui ID dan Email
   email       String   @unique 
   user        User     @relation(fields: [id], references: [id], onDelete: Cascade)
   
@@ -35,7 +29,7 @@ model Staff {
   firstName   String
   lastName    String
   gender      String
-  staffId     String   @unique // Ini adalah ID Otomatis (STF-2026-001)
+  staffId     String   @unique 
   phone       String?
   role        String   
   designation String
@@ -50,19 +44,32 @@ model Purchasing {
   noPO         String    @unique
   item         String
   qty          String
-  amount       String?   // Pastikan ini String jika Anda mengirim "1000" (dengan kutip)
-  category     String    // Tambahkan ini
-  type         String    @default("STOCKS") // Tambahkan ini
+  amount       String?   
+  category     String    
+  type         String    @default("STOCKS") 
   supplier     String?
   status       String    @default("PENDING")
   isReceived   Boolean   @default(false)
-  receivedAt   DateTime?
-  receivedBy   String?
-  suratJalan   String?
+  
+  receipts     Receipt[]
+
   requestedBy  String
   approvedBy   String?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
+}
+
+model Receipt {
+  id             String      @id @default(cuid())
+  receiptNo      String      @unique 
+  purchasingId   String
+  purchasing     Purchasing  @relation(fields: [purchasingId], references: [id])
+  suratJalan     String      
+  receivedQty    Float       
+  receivedBy     String      
+  condition      String      @default("GOOD") 
+  notes          String?     
+  receivedAt     DateTime    @default(now())
 }
 
 model Stock {
@@ -92,13 +99,14 @@ model Task {
 
 model History {
   id          String   @id @default(uuid())
-  action      String   // Contoh: "PURCHASE_REQUEST", "STOCK_IN", "PURCHASE_APPROVED"
-  item        String   // Nama barang
-  category    String   // Kategori barang
-  type        String   // STOCKS atau INVENTORY
-  quantity    Float    // Jumlah perubahan
-  unit        String   @default("Unit") // Tambahkan unit agar mapping API tidak error
-  user        String   // Nama user dari session
-  notes       String?  // Detail catatan (Ex: PO Number, Supplier, etc)
+  action      String   
+  item        String   
+  category    String   
+  type        String   
+  quantity    Float    
+  unit        String   @default("Unit") 
+  user        String   
+  notes       String?  
+  referenceId String?  
   createdAt   DateTime @default(now())
 }

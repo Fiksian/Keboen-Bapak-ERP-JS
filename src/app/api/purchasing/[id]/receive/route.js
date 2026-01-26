@@ -5,7 +5,7 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 
 const getAutoStatus = (quantity) => {
   const qty = parseFloat(quantity) || 0;
-  if (qty <= 0) return "SOLD OUT";
+  if (qty <= 0) return "EMPTY";
   if (qty <= 10) return "LIMITED";
   return "READY";
 };
@@ -18,13 +18,14 @@ export async function PATCH(request, context) {
     }
 
     const { id } = await context.params; 
-    const body = await request.json();
+    const body = await request.json(); 
     
-    // Mengambil field tambahan sesuai form modal Receipt
-    const { suratJalan, receivedBy, condition, notes, receivedQty } = body; 
+    // Destrukturisasi data dari modal ArrivalMonitor
+    const { suratJalan, vehicleNo, condition, notes, receivedQty, receivedBy } = body; 
 
-    const userName = receivedBy || session.user.name || "Warehouse Staff";
+    const userName = receivedBy || session.user.name || "Warehouse Admin";
     const currentTime = new Date();
+    const dateStr = currentTime.toISOString().split('T')[0].replace(/-/g, '');
 
     const purchase = await prisma.purchasing.findUnique({
       where: { id: id }
@@ -42,23 +43,16 @@ export async function PATCH(request, context) {
     const incomingQty = receivedQty || parseFloat(qtyParts[0]) || 0;
     const unitLabel = qtyParts[1] || "Unit";
 
-    const existingStock = await prisma.stock.findUnique({
-      where: { name: purchase.item }
-    });
-
-    const currentQty = existingStock ? parseFloat(existingStock.stock) : 0;
-    const finalQty = currentQty + incomingQty;
-    const finalStatus = getAutoStatus(finalQty);
-
-    // DATABASE TRANSACTION
+    // Menjalankan transaksi untuk menjamin integritas data di 4 tabel
     const result = await prisma.$transaction(async (tx) => {
       
-      // 1. Buat Record Receipt (Bukti STTB Digital)
+      // 1. Buat record di tabel Receipt (Sesuai Skema Baru)
       const receipt = await tx.receipt.create({
         data: {
-          receiptNo: `GRN-${currentTime.getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+          receiptNo: `GRN-${dateStr}-${Math.floor(1000 + Math.random() * 9000)}`,
           purchasingId: id,
           suratJalan: suratJalan || "TANPA-SJ",
+          vehicleNo: vehicleNo || "N/A",
           receivedQty: incomingQty,
           receivedBy: userName,
           condition: condition || "GOOD",
@@ -67,16 +61,24 @@ export async function PATCH(request, context) {
         }
       });
 
-      // 2. Update status di tabel Purchasing
+      // 2. Update status di tabel Purchasing (Sesuai Skema Baru)
       await tx.purchasing.update({
         where: { id: id },
         data: { 
           isReceived: true,
-          status: "RECEIVED"
+          status: "RECEIVED" // Menggunakan Enum PurchaseStatus
         }
       });
 
-      // 3. Update/Upsert Stock
+      // 3. Kalkulasi dan Update/Upsert Stock
+      const existingStock = await tx.stock.findUnique({
+        where: { name: purchase.item }
+      });
+
+      const currentQty = existingStock ? parseFloat(existingStock.stock) : 0;
+      const finalQty = currentQty + incomingQty;
+      const finalStatus = getAutoStatus(finalQty);
+
       await tx.stock.upsert({
         where: { name: purchase.item },
         update: {
@@ -98,7 +100,7 @@ export async function PATCH(request, context) {
         }
       });
 
-      // 4. Catat ke tabel History dengan Reference ID ke Receipt
+      // 4. Catat Log History dengan referenceId ke Receipt
       await tx.history.create({
         data: {
           action: "STOCK_IN",
@@ -108,8 +110,8 @@ export async function PATCH(request, context) {
           quantity: incomingQty,
           unit: unitLabel,
           user: userName,
-          referenceId: receipt.id, // Menghubungkan log ke bukti receipt
-          notes: `PO: ${purchase.noPO} | SJ: ${suratJalan || '---'} | Kondisi: ${condition || 'GOOD'}`
+          referenceId: receipt.id,
+          notes: `PO: ${purchase.noPO} | SJ: ${suratJalan} | Kendaraan: ${vehicleNo}`
         }
       });
 
@@ -119,7 +121,7 @@ export async function PATCH(request, context) {
     return NextResponse.json({ 
       message: `Penerimaan PO ${purchase.noPO} berhasil diproses`,
       receiptNo: result.receiptNo,
-      receivedAt: currentTime 
+      receivedAt: currentTime
     }, { status: 200 });
 
   } catch (error) {

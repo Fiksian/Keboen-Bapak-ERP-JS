@@ -5,6 +5,28 @@ import React from 'react';
 const PrintSTTB = ({ data }) => {
   if (!data) return null;
 
+  // Helper untuk parsing kuantitas dan satuan
+  const getQtyDetail = () => {
+    if (!data.qty) return { val: '0', unit: 'Unit' };
+    const parts = data.qty.toString().split(' ');
+    return {
+      val: parts[0] || '0',
+      unit: parts[1] || 'Unit'
+    };
+  };
+
+  const { val, unit } = getQtyDetail();
+  
+  // PRIORITAS: 
+  // 1. Langsung dari objek (jika sudah di-flatten di StockHistory) 
+  // 2. Dari array receipts (jika passing objek utuh Prisma)
+  const displaySuratJalan = data.suratJalan || data.receipts?.[0]?.suratJalan || "____________________";
+  const displayVehicleNo = data.vehicleNo || data.receipts?.[0]?.vehicleNo || "____________________";
+  const displayCondition = data.condition || data.receipts?.[0]?.condition || "GOOD";
+  const displayNotes = data.notes || data.receipts?.[0]?.notes || "Tidak ada catatan tambahan.";
+  const displayReceivedAt = data.receivedAt || data.receipts?.[0]?.receivedAt || new Date();
+  const displayReceivedBy = data.receivedBy || data.receipts?.[0]?.receivedBy || "System";
+
   return (
     <div 
       id="print-area" 
@@ -14,16 +36,16 @@ const PrintSTTB = ({ data }) => {
         
         {/* Header STTB */}
         <div className="flex justify-between border-b-4 border-black pb-6 mb-8">
-          <div>
-            <h1 className="text-4xl font-black uppercase italic tracking-tighter">Surat Tanda Terima Barang</h1>
-            <div className="flex gap-4 mt-2">
-              <p className="text-xs font-bold px-2 py-1 bg-black text-white italic">STTB-INBOUND</p>
-              <p className="text-sm font-bold text-gray-800">No. PO: {data.noPO}</p>
+          <div className="text-left">
+            <h1 className="text-4xl font-black uppercase italic tracking-tighter leading-none">Surat Tanda Terima Barang</h1>
+            <div className="flex gap-4 mt-3">
+              <p className="text-[10px] font-black px-2 py-1 bg-black text-white italic tracking-widest uppercase">STTB-INBOUND</p>
+              <p className="text-sm font-bold text-gray-800 uppercase tracking-tighter">No. PO: {data.noPO}</p>
             </div>
           </div>
           <div className="text-right">
-            <h2 className="text-xl font-bold uppercase italic font-black">KEBOEN BAPAK ERP</h2>
-            <p className="text-[10px] text-gray-500 uppercase font-bold tracking-widest leading-tight">
+            <h2 className="text-xl font-bold uppercase italic font-black leading-none">KEBOEN BAPAK ERP</h2>
+            <p className="text-[10px] text-gray-500 uppercase font-bold tracking-widest leading-tight mt-2 text-right">
               Warehouse & Logistics Department<br/>
               Integrated Management System
             </p>
@@ -31,68 +53,85 @@ const PrintSTTB = ({ data }) => {
         </div>
 
         {/* Info Transaksi & Pengiriman */}
-        <div className="grid grid-cols-2 gap-10 mb-10 border-b border-gray-100 pb-8">
-          <div className="space-y-3">
+        <div className="grid grid-cols-2 gap-10 mb-10 border-b border-gray-100 pb-8 text-left">
+          <div className="space-y-4">
             <div>
-              <p className="text-[10px] font-bold text-gray-400 uppercase italic">Dikirim Oleh (Vendor):</p>
-              <p className="font-black text-lg uppercase leading-none">{data.supplier || "Supplier Umum"}</p>
+              <p className="text-[10px] font-bold text-gray-400 uppercase italic mb-1">Dikirim Oleh (Vendor):</p>
+              <p className="font-black text-lg uppercase leading-none tracking-tight">{data.supplier || "Supplier Umum"}</p>
             </div>
-            <div>
-              <p className="text-[10px] font-bold text-gray-400 uppercase italic">No. Surat Jalan Vendor:</p>
-              <p className="font-bold text-md tracking-widest uppercase">{data.suratJalan || "____________________"}</p>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-[10px] font-bold text-gray-400 uppercase italic mb-1">No. Surat Jalan:</p>
+                <p className="font-black text-md tracking-widest uppercase border-b-2 border-black inline-block w-full">
+                  {displaySuratJalan}
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-gray-400 uppercase italic mb-1">No. Kendaraan:</p>
+                <p className="font-black text-md tracking-widest uppercase border-b-2 border-black inline-block w-full">
+                  {displayVehicleNo}
+                </p>
+              </div>
             </div>
           </div>
-          <div className="text-right space-y-3">
+          <div className="text-right space-y-4">
             <div>
-              <p className="text-[10px] font-bold text-gray-400 uppercase italic">Tanggal Diterima:</p>
-              <p className="font-bold text-lg leading-none">
-                {data.receivedAt 
-                  ? new Date(data.receivedAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })
-                  : new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })
-                }
+              <p className="text-[10px] font-bold text-gray-400 uppercase italic mb-1">Tanggal & Waktu Terima:</p>
+              <p className="font-bold text-lg leading-none uppercase">
+                {new Date(displayReceivedAt).toLocaleDateString('id-ID', { 
+                    day: '2-digit', 
+                    month: 'long', 
+                    year: 'numeric' 
+                })}
               </p>
-            </div>
-            <div>
-              <p className="text-[10px] font-bold text-gray-400 uppercase italic">Waktu Kedatangan:</p>
-              <p className="font-bold uppercase">
-                {data.receivedAt 
-                  ? new Date(data.receivedAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) 
-                  : "-- : --"} WIB
+              <p className="text-xs font-black text-gray-600 mt-1 uppercase">
+                Pukul {new Date(displayReceivedAt).toLocaleTimeString('id-ID', { 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                })} WIB
               </p>
             </div>
           </div>
         </div>
 
         {/* Tabel Detail Barang */}
-        <div className="mb-10">
+        <div className="mb-10 text-left">
           <p className="text-[10px] font-black uppercase mb-3 text-gray-400 italic">Rincian Item Yang Diterima:</p>
           <table className="w-full border-collapse">
             <thead>
-              <tr className="border-y-2 border-black bg-gray-50 print:bg-gray-100">
+              <tr className="border-y-2 border-black bg-gray-50">
                 <th className="py-4 px-4 text-left text-xs uppercase font-black">Deskripsi Barang / Material</th>
                 <th className="py-4 px-4 text-center text-xs uppercase font-black w-32">Kuantitas</th>
                 <th className="py-4 px-4 text-center text-xs uppercase font-black">Satuan</th>
-                <th className="py-4 px-4 text-left text-xs uppercase font-black">Kondisi</th>
+                <th className="py-4 px-4 text-left text-xs uppercase font-black">Kondisi Fisik</th>
               </tr>
             </thead>
             <tbody>
               <tr className="border-b-2 border-gray-100">
-                <td className="py-6 px-4">
+                <td className="py-6 px-4 text-left">
                   <p className="font-black text-lg uppercase tracking-tight leading-none">{data.item}</p>
-                  <p className="text-[10px] text-gray-400 font-bold uppercase mt-2">Ref ID: {data.id?.slice(-8).toUpperCase() || 'N/A'}</p>
+                  <p className="text-[10px] text-gray-400 font-bold uppercase mt-2">Kategori: {data.category || 'General'}</p>
                 </td>
                 <td className="py-6 px-4 text-center">
-                  <span className="text-xl font-black italic">{data.qty?.split(' ')[0] || data.qty}</span>
+                  <span className="text-2xl font-black italic">{val}</span>
                 </td>
-                <td className="py-6 px-4 text-center uppercase font-bold">
-                  {data.qty?.split(' ')[1] || 'Unit'}
+                <td className="py-6 px-4 text-center uppercase font-bold text-sm">
+                  {unit}
                 </td>
                 <td className="py-6 px-4">
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 border border-black rounded-sm flex items-center justify-center text-[8px] font-bold">OK</div>
-                    <span className="text-[12px] font-bold uppercase">Baik</span>
-                    <div className="w-4 h-4 border border-black rounded-sm ml-2"></div>
-                    <span className="text-[12px] font-bold uppercase">Rusak</span>
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-4 h-4 border border-black rounded-sm flex items-center justify-center text-[8px] font-bold ${displayCondition === 'GOOD' ? 'bg-black text-white' : ''}`}>
+                        {displayCondition === 'GOOD' ? '✓' : ''}
+                      </div>
+                      <span className="text-[11px] font-bold uppercase">Baik / OK</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className={`w-4 h-4 border border-black rounded-sm flex items-center justify-center text-[8px] font-bold ${displayCondition !== 'GOOD' ? 'bg-black text-white' : ''}`}>
+                         {displayCondition !== 'GOOD' ? '✓' : ''}
+                      </div>
+                      <span className="text-[11px] font-bold uppercase">Rusak / Tidak Lengkap</span>
+                    </div>
                   </div>
                 </td>
               </tr>
@@ -101,37 +140,39 @@ const PrintSTTB = ({ data }) => {
         </div>
 
         {/* Area Catatan & Tanda Tangan */}
-        <div className="grid grid-cols-2 gap-10 mt-10">
-          <div className="border-2 border-dashed border-gray-200 p-4 rounded-xl">
+        <div className="grid grid-cols-2 gap-10 mt-10 text-left">
+          <div className="border-2 border-dashed border-gray-200 p-5 rounded-[24px]">
             <p className="text-[9px] font-bold text-gray-400 uppercase mb-2 italic">Catatan Pemeriksaan Gudang:</p>
-            <div className="h-16"></div>
+            <p className="text-xs font-medium text-gray-700 leading-relaxed italic">
+                {displayNotes}
+            </p>
           </div>
           
-          <div className="text-center flex flex-col items-center justify-between">
+          <div className="text-center flex flex-col items-center justify-between py-2">
             <div>
-              <p className="text-[10px] font-bold uppercase text-gray-400 mb-1">Diterima Oleh,</p>
-              <p className="text-[10px] font-black uppercase italic underline decoration-2">Petugas Gudang (PIC)</p>
+              <p className="text-[10px] font-bold uppercase text-gray-400 mb-1">Verifikasi Sistem Gudang,</p>
+              <p className="text-[10px] font-black uppercase italic underline decoration-2">Receiver PIC</p>
             </div>
-            <div className="mt-12">
-              <p className="font-black border-b-2 border-black inline-block px-8 py-1 uppercase tracking-widest leading-none mb-1">
-                {data.receivedBy || "...................."}
+            <div className="mt-8">
+              <p className="font-black border-b-2 border-black inline-block px-10 py-1 uppercase tracking-widest leading-none mb-1 text-lg">
+                {displayReceivedBy}
               </p>
               <p className="text-[8px] text-gray-500 font-bold uppercase tracking-tighter">
-                {data.receivedBy ? "SYSTEM VERIFIED" : "MANUAL SIGNATURE"}
+                E-Signature Verified via ERP System
               </p>
             </div>
           </div>
         </div>
 
-        {/* Footer Dokumen */}
-        <div className="fixed bottom-12 left-12 right-12 border-t border-gray-200 pt-6">
+        {/* Footer Dokumen - Diubah ke mt-20 agar lebih fleksibel saat print */}
+        <div className="mt-20 border-t border-gray-200 pt-6">
           <div className="flex justify-between items-end">
-            <div className="space-y-1">
+            <div className="text-left space-y-1">
               <p className="text-[8px] text-gray-400 italic font-bold">
-                * Putih: Gudang | Merah: Finance | Kuning: Vendor
+                * Putih: Arsip Gudang | Merah: Admin Finance | Kuning: Copy Vendor
               </p>
               <p className="text-[8px] text-gray-400 font-black uppercase tracking-widest">
-                Generated via Next.js Stock History Module
+                Internal Document - Keboen Bapak Stock Management v2.0
               </p>
             </div>
             <div className="text-right">

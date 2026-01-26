@@ -3,7 +3,7 @@ import { PrismaClient } from "@prisma/client";
 const prismaClientSingleton = () => {
   return new PrismaClient({
     log: [
-      { emit: 'stdout', level: 'query' },
+      // { emit: 'stdout', level: 'query' },
       { emit: 'stdout', level: 'error' },
       { emit: 'stdout', level: 'warn' },
       { emit: 'stdout', level: 'info' },
@@ -22,7 +22,6 @@ if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;
 }
 
-// Fungsi IIFE untuk mengecek koneksi saat startup
 (async () => {
   try {
     await prisma.$connect();

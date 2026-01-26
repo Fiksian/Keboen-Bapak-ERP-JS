@@ -5,11 +5,16 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 
 /**
  * GET: Mengambil semua daftar Purchase Order
- * Diurutkan berdasarkan tanggal terbaru
+ * Termasuk data Receipt (Penerimaan) jika sudah diterima
  */
 export async function GET() {
   try {
     const requests = await prisma.purchasing.findMany({
+      include: {
+        receipts: {
+          orderBy: { receivedAt: 'desc' }
+        }
+      },
       orderBy: { createdAt: 'desc' }
     });
     return NextResponse.json(requests, { status: 200 });
@@ -28,7 +33,7 @@ export async function POST(request) {
   try {
     const session = await getServerSession(authOptions);
 
-    // 1. Proteksi Sesi: Hanya user login yang bisa membuat PO
+    // 1. Proteksi Sesi
     if (!session || !session.user) {
       return NextResponse.json(
         { message: "Unauthorized: Silakan login terlebih dahulu" }, 
@@ -39,17 +44,15 @@ export async function POST(request) {
     const body = await request.json();
     const { supplier, item, qty, amount, category, type } = body;
     
-    // Nama pengaju diambil paksa dari sesi server (mencegah pemalsuan nama di frontend)
     const userName = session.user.name || "Unknown User";
 
     // 2. OTOMATISASI NOMOR PO
-    // Format: PO/20260121/X7R2 (PO/Tanggal/Random 4 digit)
     const now = new Date();
     const dateStr = now.toISOString().split('T')[0].replace(/-/g, '');
     const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
     const autoNoPO = `PO/${dateStr}/${randomSuffix}`;
 
-    // 3. Validasi Input Dasar (Tanpa noPO karena sudah otomatis)
+    // 3. Validasi Input Dasar
     if (!item || !qty || !amount) {
       return NextResponse.json(
         { message: "Data tidak lengkap (Item, Qty, dan Harga wajib diisi)" },
@@ -61,9 +64,9 @@ export async function POST(request) {
     const qtyValue = parseFloat(qty) || 0;
     const amountValue = amount ? amount.toString() : "0";
 
-    // 5. Database Transaction: Atomic update
+    // 5. Database Transaction
     const [newRequest] = await prisma.$transaction([
-      // A. Simpan data ke tabel Purchasing dengan Nomor PO Otomatis
+      // A. Simpan ke tabel Purchasing
       prisma.purchasing.create({
         data: {
           noPO: autoNoPO,
@@ -97,7 +100,6 @@ export async function POST(request) {
   } catch (error) {
     console.error("POST_PURCHASING_ERROR:", error);
     
-    // Cek jika terjadi error duplikasi noPO yang jarang terjadi (race condition)
     if (error.code === 'P2002') {
       return NextResponse.json(
         { message: "Terjadi konflik nomor PO otomatis, silakan coba lagi." }, 

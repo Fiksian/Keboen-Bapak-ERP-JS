@@ -7,7 +7,7 @@ const StockTable = ({ data, onEdit, onRefresh }) => {
     switch (status?.toUpperCase()) {
       case 'READY': return 'bg-green-50 text-green-600 border-green-100';
       case 'LIMITED': return 'bg-orange-50 text-orange-600 border-orange-100 animate-pulse';
-      case 'SOLD OUT': return 'bg-red-50 text-red-600 border-red-100';
+      case 'EMPTY': return 'bg-red-50 text-red-600 border-red-100';
       default: return 'bg-gray-50 text-gray-600';
     }
   };
@@ -30,7 +30,7 @@ const StockTable = ({ data, onEdit, onRefresh }) => {
             <th className="px-8 py-6">Nama Produk</th>
             <th className="px-6 py-6">Kategori</th>
             <th className="px-6 py-6 text-center">Kuantitas</th>
-            <th className="px-6 py-6 text-center">Status (DB Sync)</th>
+            <th className="px-6 py-6 text-center">Status</th>
             <th className="px-8 py-6 text-right">Action Control</th>
           </tr>
         </thead>
@@ -39,15 +39,18 @@ const StockTable = ({ data, onEdit, onRefresh }) => {
             const status = item.status || 'UNKNOWN'; 
             
             return (
-              <tr key={item.id} className={`hover:bg-blue-50/20 transition-colors group ${status === 'SOLD OUT' ? 'opacity-60' : ''}`}>
+              <tr key={item.id} className={`hover:bg-blue-50/20 transition-colors group ${status === 'EMPTY' ? 'opacity-60' : ''}`}>
                 <td className="px-8 py-6 flex items-center gap-4">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${status === 'SOLD OUT' ? 'bg-red-50 text-red-300' : 'bg-gray-50 text-gray-400 group-hover:bg-white'}`}>
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${status === 'EMPTY' ? 'bg-red-50 text-red-300' : 'bg-gray-50 text-gray-400 group-hover:bg-white'}`}>
                     <Package size={18} />
                   </div>
                   <div className="flex flex-col">
-                    <span className="font-bold text-gray-800">{item.name}</span>
+                    <span className="font-bold text-gray-800 uppercase">{item.name}</span>
                     <span className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter">
                       Rp {parseInt(item.price || 0).toLocaleString('id-ID')} / {item.unit}
+                    </span>
+                    <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
+                      ID: {item.id.slice(-6).toUpperCase()}
                     </span>
                   </div>
                 </td>

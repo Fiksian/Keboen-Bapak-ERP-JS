@@ -58,7 +58,6 @@ const StaffManager = () => {
     fetchData();
   }, [fetchData]);
 
-  // --- LOGIC FILTER & PAGINATION ---
   
   const filteredStaff = useMemo(() => {
     return staffData.filter(staff => {
@@ -75,19 +74,16 @@ const StaffManager = () => {
     return filteredStaff.slice(startIndex, startIndex + itemsPerPage);
   }, [filteredStaff, currentPage]);
 
-  // Reset page when search changes
   useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery]);
 
-  // --- HANDLERS ---
 
   const handleViewDetails = (staff) => {
     setSelectedStaff(staff);
     setViewState('DETAILS');
   };
 
-  // --- LOGIKA RENDER ---
 
   if (status === "loading" || loading) {
     return (
@@ -118,7 +114,7 @@ const StaffManager = () => {
   }
 
   return (
-    <div className="bg-[#f8fafc] min-h-screen p-4 md:p-8 animate-in fade-in duration-700">
+    <div className="bg-[#f8fafc] min-h-screen p-4 md:p-8">
       <div className="max-w-[1600px] mx-auto">
         
         {/* Header Section */}

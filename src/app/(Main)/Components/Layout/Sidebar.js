@@ -39,6 +39,12 @@ const Sidebar = ({ isCollapsed, toggleSidebar, userRole }) => {
       roles: ['Admin', 'Staff', 'Supervisor'] 
     },
     { 
+      name: 'Produksi', 
+      icon: <Settings size={18} />, 
+      path: '/Produksi', 
+      roles: ['Admin', 'Staff', 'Supervisor'] 
+    },
+    { 
       name: 'Warehouse', 
       icon: <Package size={18} />, 
       path: '/Stock', 

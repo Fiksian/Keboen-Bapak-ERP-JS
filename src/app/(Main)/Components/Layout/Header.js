@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react';
-import { Settings, UserCircle } from 'lucide-react';
+import { Settings2, UserCircle } from 'lucide-react';
 import ProfileModal from './ProfileModal';
 import SettingsModal from './SettingsModal';
 
@@ -35,7 +35,7 @@ const Header = ({ onLogout }) => {
                     onClick={() => setIsSettingsOpen(true)}
                     className="p-1 hover:bg-white/20 rounded-full transition-all active:scale-90"
                 >
-                    <Settings className="w-8 h-8 text-white" />
+                    <Settings2 className="w-8 h-8 text-white" />
                 </button>
             </div>
 

@@ -60,7 +60,6 @@ const Cuaca = () => {
   const daily = weather.daily;
   const currentDetails = getWeatherDetails(current.weather_code, current.is_day);
 
-  // Dynamic Theme based on Temperature & Day Cycle
   const isHot = current.temperature_2m > 30;
   const heroGradient = current.is_day 
     ? (isHot ? "from-orange-500 via-red-500 to-orange-600" : currentDetails.color)
@@ -96,10 +95,8 @@ const Cuaca = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* Kolom Kiri */}
         <div className="lg:col-span-2 space-y-6">
           
-          {/* Hero Card */}
           <div className={`relative bg-gradient-to-br ${heroGradient} rounded-[40px] p-10 text-white overflow-hidden shadow-2xl transition-all duration-1000`}>
             <div className="absolute top-[-30px] right-[-30px] w-80 h-80 bg-white/10 rounded-full blur-3xl animate-pulse"></div>
             <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-8">
@@ -126,7 +123,6 @@ const Cuaca = () => {
             </div>
           </div>
 
-          {/* Grafik Fluktuasi */}
           <div className="bg-white rounded-[32px] p-8 shadow-sm border border-gray-100">
             <div className="flex justify-between items-center mb-8">
                 <h3 className="font-black text-gray-800 uppercase tracking-widest text-[10px] flex items-center gap-2">
@@ -156,9 +152,7 @@ const Cuaca = () => {
           </div>
         </div>
 
-        {/* Kolom Kanan */}
         <div className="space-y-6">
-          {/* 7-Day Forecast */}
           <div className="bg-white rounded-[32px] p-8 shadow-sm border border-gray-100">
             <h3 className="font-black text-gray-800 uppercase tracking-widest text-[10px] flex items-center gap-2 mb-6">
                  <Calendar size={16} className="text-blue-600" /> Weekly Forecast
@@ -184,7 +178,6 @@ const Cuaca = () => {
             </div>
           </div>
 
-          {/* Details */}
           <div className="bg-white rounded-[32px] p-8 shadow-sm border border-gray-100 space-y-6">
             <h3 className="font-black text-gray-800 uppercase tracking-widest text-[10px]">Environment Metrics</h3>
             <div className="space-y-5">

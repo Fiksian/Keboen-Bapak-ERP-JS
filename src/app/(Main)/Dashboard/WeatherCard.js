@@ -5,13 +5,11 @@ import {
   Sun, Cloud, CloudRain, CloudLightning, 
   Wind, Droplets, MapPin, Loader2, Clock 
 } from 'lucide-react';
-import { useWeather } from '@/context/WeatherContext'; // Import context
+import { useWeather } from '@/context/WeatherContext';
 
 const WeatherCard = () => {
-  // Mengambil data langsung dari Central Context
   const { weather: weatherData, loading } = useWeather();
 
-  // Skeleton Loader saat data sedang sinkronisasi
   if (loading || !weatherData) {
     return (
       <div className="bg-white rounded-[32px] p-8 shadow-sm border border-gray-100 flex flex-col items-center justify-center min-h-[450px] space-y-4">
@@ -23,7 +21,6 @@ const WeatherCard = () => {
 
   const { current, hourly } = weatherData;
 
-  // Helper untuk Icon Dinamis
   const getWeatherIcon = (code, size = 48) => {
     if (code === 0) return <Sun size={size} className="text-yellow-400 fill-yellow-400" />;
     if (code <= 3) return <Cloud size={size} className="text-gray-400 fill-gray-50" />;
@@ -34,7 +31,6 @@ const WeatherCard = () => {
 
   const now = new Date();
   
-  // Filter 4 jam ke depan dari data hourly context
   const nextHours = hourly.time
     .map((time, index) => ({
       rawTime: new Date(time),
@@ -47,7 +43,6 @@ const WeatherCard = () => {
   return (
     <div className="bg-white rounded-[32px] p-8 shadow-sm border border-gray-100 flex flex-col items-center hover:shadow-xl hover:shadow-blue-50/50 transition-all duration-500 group h-full">
       
-      {/* Location Badge */}
       <div className="flex flex-col items-center mb-6">
         <div className="flex items-center gap-1.5 px-3 py-1 bg-blue-50 rounded-full mb-2">
           <MapPin size={10} className="text-blue-600" />
@@ -58,7 +53,6 @@ const WeatherCard = () => {
         </p>
       </div>
       
-      {/* Temperature Display */}
       <div className="flex items-center gap-6 mb-8 transition-transform duration-500 group-hover:scale-110">
         <h1 className="text-7xl font-black text-gray-800 tracking-tighter tabular-nums italic">
           {Math.round(current.temperature_2m)}°
@@ -68,7 +62,6 @@ const WeatherCard = () => {
         </div>
       </div>
 
-      {/* Metrics Section */}
       <div className="flex gap-4 text-[9px] font-black text-gray-400 uppercase mb-10 tracking-[0.1em]">
         <span className="flex items-center gap-1.5 px-3 py-2 bg-slate-50 rounded-xl italic border border-transparent hover:border-blue-100 transition-colors">
           <Wind size={14} className="text-blue-500" /> {current.wind_speed_10m} KM/H
@@ -78,7 +71,6 @@ const WeatherCard = () => {
         </span>
       </div>
 
-      {/* Hourly Forecast List */}
       <div className="w-full space-y-2">
         <div className="flex items-center gap-2 mb-4 border-b border-gray-50 pb-2">
           <Clock size={12} className="text-blue-600" />

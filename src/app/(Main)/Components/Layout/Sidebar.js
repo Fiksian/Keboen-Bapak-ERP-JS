@@ -114,7 +114,6 @@ const Sidebar = ({ isCollapsed, toggleSidebar, userRole }) => {
       </nav>
 
       <div className="border-t pb-4 bg-white shrink-0 ">
-        {/* Settings biasanya bisa diakses semua yang login untuk ganti password/profil sendiri */}
         <Link 
           href="/Settings"
           className="group w-full flex items-center justify-between px-4 py-4 cursor-pointer text-gray-500 hover:bg-gray-50  transition-colors hover:shadow-md hover:shadow-green-300"

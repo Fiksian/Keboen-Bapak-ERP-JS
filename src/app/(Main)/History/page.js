@@ -4,17 +4,20 @@ import React, { useState, useEffect } from 'react';
 import { 
   History, ArrowUpRight, ArrowDownLeft, 
   Search, FileSpreadsheet, Loader2,
-  User, Hash, Package, X, Calendar as CalendarIcon
+  User, Package, X, Calendar as CalendarIcon
 } from 'lucide-react';
+import Pagination from '@/app/(Main)/Components/Pagination';
 
 const HistoryTransaksi = () => {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('ALL');
   const [searchTerm, setSearchTerm] = useState('');
-  
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const fetchLogs = async () => {
     setLoading(true);
@@ -50,6 +53,15 @@ const HistoryTransaksi = () => {
     return matchesFilter && matchesSearch && matchesDate;
   });
 
+  const totalPages = Math.ceil(filteredLogs.length / itemsPerPage);
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentLogs = filteredLogs.slice(indexOfFirstItem, indexOfLastItem);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filter, searchTerm, startDate, endDate]);
+
   const resetDateFilter = () => {
     setStartDate('');
     setEndDate('');
@@ -58,7 +70,6 @@ const HistoryTransaksi = () => {
   return (
     <div className="p-6 bg-[#f8f9fa] min-h-full space-y-8 animate-in fade-in duration-500 text-gray-800">
       
-      {/* Header & Action Brief */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-black text-gray-800 uppercase italic tracking-tight flex items-center gap-3">
@@ -72,7 +83,7 @@ const HistoryTransaksi = () => {
         <div className="flex gap-2">
           <button 
             onClick={() => window.print()}
-            className="flex items-center gap-2 px-5 py-3 bg-white border border-gray-100 rounded-2xl text-[10px] font-black uppercase tracking-widest text-gray-500 hover:bg-gray-50 transition-all shadow-sm"
+            className="flex items-center gap-2 px-5 py-3 bg-white border border-gray-100 rounded-2xl text-[10px] font-black uppercase tracking-widest text-gray-500 hover:bg-gray-50 transition-all shadow-sm cursor-pointer"
           >
             <FileSpreadsheet size={16} className="text-green-600" />
             Export Audit Log
@@ -80,17 +91,15 @@ const HistoryTransaksi = () => {
         </div>
       </div>
 
-      {/* Filter, Date, & Search Bar */}
       <div className="space-y-4">
         <div className="bg-white p-4 rounded-[24px] shadow-sm border border-gray-100 flex flex-wrap gap-4 items-center">
           
-          {/* Tipe Filter */}
           <div className="flex gap-2 p-1 bg-gray-50 rounded-2xl border border-gray-100">
             {['ALL', 'INCOMING', 'OUTGOING'].map((type) => (
               <button
                 key={type}
                 onClick={() => setFilter(type)}
-                className={`px-6 py-2 rounded-xl text-[10px] font-black tracking-widest transition-all ${
+                className={`px-6 py-2 rounded-xl text-[10px] font-black tracking-widest transition-all cursor-pointer ${
                   filter === type 
                   ? 'bg-white text-blue-600 shadow-sm' 
                   : 'text-gray-400 hover:text-gray-600'
@@ -101,7 +110,6 @@ const HistoryTransaksi = () => {
             ))}
           </div>
 
-          {/* Date Picker Range */}
           <div className="flex items-center gap-2 bg-gray-50 p-1 rounded-2xl border border-gray-100">
             <div className="flex items-center px-3 gap-2">
               <CalendarIcon size={14} className="text-gray-400" />
@@ -109,24 +117,23 @@ const HistoryTransaksi = () => {
                 type="date" 
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="bg-transparent text-[16px] font-black uppercase outline-none text-gray-500 cursor-pointer"
+                className="bg-transparent text-[14px] font-black uppercase outline-none text-gray-500 cursor-pointer"
               />
               <span className="text-gray-400 font-bold px-1 text-[12px]">TO</span>
               <input 
                 type="date" 
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="bg-transparent text-[16px] font-black uppercase outline-none text-gray-500 cursor-pointer"
+                className="bg-transparent text-[14px] font-black uppercase outline-none text-gray-500 cursor-pointer"
               />
               {(startDate || endDate) && (
-                <button onClick={resetDateFilter} className="ml-2 p-1 hover:bg-gray-200 rounded-full transition-colors">
+                <button onClick={resetDateFilter} className="ml-2 p-1 hover:bg-gray-200 rounded-full transition-colors cursor-pointer">
                   <X size={12} className="text-gray-500" />
                 </button>
               )}
             </div>
           </div>
 
-          {/* Search Input Group */}
           <div className="relative group flex-1 min-w-[280px]">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-blue-500 transition-colors" size={16} />
             <input 
@@ -136,20 +143,11 @@ const HistoryTransaksi = () => {
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-12 pr-10 py-3 bg-gray-50 border border-transparent rounded-2xl text-xs font-bold focus:bg-white focus:border-blue-100 outline-none transition-all w-full shadow-inner"
             />
-            {searchTerm && (
-              <button 
-                onClick={() => setSearchTerm('')}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500 transition-colors"
-              >
-                <X size={14} />
-              </button>
-            )}
           </div>
         </div>
       </div>
 
-      {/* Logs Table */}
-      <div className="bg-white rounded-[32px] shadow-sm border border-gray-100 overflow-hidden">
+      <div className="bg-white rounded-[32px] shadow-sm border border-gray-100 overflow-hidden flex flex-col">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
@@ -170,15 +168,17 @@ const HistoryTransaksi = () => {
                     <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Synchronizing Logs...</span>
                   </td>
                 </tr>
-              ) : filteredLogs.length > 0 ? (
-                filteredLogs.map((log) => (
+              ) : currentLogs.length > 0 ? (
+                currentLogs.map((log) => (
                   <tr key={log.id} className="hover:bg-blue-50/10 transition-colors group animate-in slide-in-from-bottom-2 duration-300">
                     <td className="px-8 py-6">
                       <div className="flex flex-col">
                         <span className="font-black text-gray-800 text-xs">
                           {new Date(log.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
                         </span>
-                        <span className="text-[10px] text-gray-400 font-bold uppercase">{new Date(log.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                        <span className="text-[10px] text-gray-400 font-bold uppercase">
+                          {new Date(log.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                        </span>
                       </div>
                     </td>
                     <td className="px-6 py-6">
@@ -199,11 +199,9 @@ const HistoryTransaksi = () => {
                       </span>
                     </td>
                     <td className="px-6 py-6 text-center">
-                      <div className="flex flex-col items-center gap-1">
-                        <div className="bg-gray-100 px-3 py-1.5 rounded-xl flex items-center gap-2 border border-gray-200">
-                          <User size={10} className="text-gray-500" />
-                          <span className="text-[10px] font-black text-gray-700 uppercase tracking-tighter">{log.user || 'SYSTEM'}</span>
-                        </div>
+                      <div className="bg-gray-100 px-3 py-1.5 rounded-xl flex items-center gap-2 border border-gray-200 w-fit mx-auto">
+                        <User size={10} className="text-gray-500" />
+                        <span className="text-[10px] font-black text-gray-700 uppercase tracking-tighter">{log.user || 'SYSTEM'}</span>
                       </div>
                     </td>
                     <td className="px-6 py-6 text-center">
@@ -234,6 +232,12 @@ const HistoryTransaksi = () => {
             </tbody>
           </table>
         </div>
+
+        <Pagination 
+          currentPage={currentPage} 
+          totalPages={totalPages} 
+          onPageChange={(page) => setCurrentPage(page)} 
+        />
       </div>
     </div>
   );

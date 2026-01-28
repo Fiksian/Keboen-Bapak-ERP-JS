@@ -51,7 +51,6 @@ const StockTable = ({ data, onEdit, onRefresh }) => {
         </thead>
         <tbody className="divide-y divide-gray-50">
           {data.length > 0 ? data.map((item) => {
-            // Hitung status secara real-time di sini
             const derivedStatus = getDerivedStatus(item.stock); 
             
             return (

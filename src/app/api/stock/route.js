@@ -2,15 +2,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-
-/**
- * Fungsi Helper untuk menangani Floating Point Error.
- * Membulatkan angka ke 4 desimal dan memaksa nilai mendekati nol menjadi nol bersih.
- */
-const cleanNumber = (value) => {
-  const rounded = parseFloat(parseFloat(value).toFixed(4));
-  return Math.abs(rounded) < 0.00001 ? 0 : rounded;
-};
+import { convertQty, getBaseUnit, cleanNumber } from "@/lib/unitConverter";
 
 export async function GET() {
   try {
@@ -38,20 +30,20 @@ export async function POST(request) {
     const body = await request.json();
     const { name, category, stock, unit, type, price, status } = body;
     
-    // 1. Bersihkan input qty
-    const inputQty = cleanNumber(stock);
+    const targetUnit = getBaseUnit(unit);
+    
+    const convertedInputQty = convertQty(stock, unit, targetUnit);
+    
+    const inputQty = cleanNumber(convertedInputQty);
 
-    // 2. Cari data stok yang sudah ada untuk kalkulasi total presisi
     const existingStock = await prisma.stock.findUnique({
       where: { name: name }
     });
 
-    // 3. Hitung total stok baru secara manual agar bisa dibulatkan sebelum masuk DB
     const totalQty = existingStock 
       ? cleanNumber(existingStock.stock + inputQty) 
       : inputQty;
 
-    // 4. Tentukan status berdasarkan TOTAL stok, bukan hanya input
     const determineStatus = (qty) => {
       if (qty <= 0) return "OUT_OF_STOCK";
       if (qty <= 10) return "LIMITED";
@@ -63,9 +55,8 @@ export async function POST(request) {
         name: name,
       },
       update: {
-        // Gunakan nilai total yang sudah dibersihkan, bukan increment bawaan prisma
-        // agar kita punya kontrol penuh atas pembulatan desimal.
         stock: totalQty,
+        unit: targetUnit,
         price: price?.toString(),
         category: category,
         status: determineStatus(totalQty), 
@@ -75,7 +66,7 @@ export async function POST(request) {
         name: name,
         category: category || "General",
         stock: inputQty,
-        unit: unit || "Unit",
+        unit: targetUnit,
         type: type || "STOCKS",
         price: price?.toString() || "0",
         status: determineStatus(inputQty),

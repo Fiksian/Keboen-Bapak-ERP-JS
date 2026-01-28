@@ -14,20 +14,36 @@ export const UNIT_CONVERSION_MAP = {
 };
 
 export function convertQty(qty, fromUnit, toUnit) {
-  const from = fromUnit.toUpperCase();
-  const to = toUnit.toUpperCase();
+  const numericQty = parseFloat(qty);
+  if (isNaN(numericQty)) return 0;
 
-  if (from === to) return qty;
+  const from = fromUnit?.toUpperCase();
+  const to = toUnit?.toUpperCase();
 
-  if (UNIT_CONVERSION_MAP[from] && UNIT_CONVERSION_MAP[from][to]) {
-    return qty * UNIT_CONVERSION_MAP[from][to];
-  }
+  if (!from || !to || from === to) return numericQty;
 
-  if (UNIT_CONVERSION_MAP[to] && UNIT_CONVERSION_MAP[to][from]) {
-    return qty / UNIT_CONVERSION_MAP[to][from];
-  }
+  let result = numericQty;
 
-
-  console.warn(`No conversion found from ${from} to ${to}`);
-  return qty;
+  if (UNIT_CONVERSION_MAP[from] && UNIT_CONVERSION_MAP[from][to] !== undefined) {
+    result = numericQty * UNIT_CONVERSION_MAP[from][to];
+  } 
+  else if (UNIT_CONVERSION_MAP[to] && UNIT_CONVERSION_MAP[to][from] !== undefined) {
+    result = numericQty / UNIT_CONVERSION_MAP[to][from];
+  } 
+  
+  return result;
 }
+
+
+export function getBaseUnit(unit) {
+  const u = unit?.toUpperCase();
+  if (["TON", "GRAM", "KG", "MG", "LB"].includes(u)) return "KG";
+  if (["ML", "LITER", "M3"].includes(u)) return "LITER";
+  if (["CM", "MM", "METER", "KM"].includes(u)) return "METER";
+  return unit; 
+}
+
+export const cleanNumber = (value) => {
+  const rounded = parseFloat(parseFloat(value).toFixed(4));
+  return Math.abs(rounded) < 0.00001 ? 0 : rounded;
+};

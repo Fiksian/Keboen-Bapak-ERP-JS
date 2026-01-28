@@ -78,7 +78,6 @@ const AddPurchasing = ({ isOpen, onClose, onAdd }) => {
         onClick={(e) => e.stopPropagation()}
       >
         
-        {/* Header Section */}
         <div className="p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-blue-600 rounded-2xl text-white shadow-lg shadow-blue-100">

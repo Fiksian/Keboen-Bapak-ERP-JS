@@ -117,7 +117,7 @@ const StockInventory = () => {
       <div className="bg-white rounded-[32px] p-8 shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
         <div className="text-left">
           <h2 className="text-2xl font-black text-gray-800 uppercase italic tracking-tight">
-            {activeTab === 'stocks' ? 'DAFTAR PRODUK JUAL' : 'LOGISTIK INTERNAL'}
+            {activeTab === 'stocks' ? 'STOCKS' : 'INTERNAL'}
           </h2>
           <p className="text-gray-400 text-sm mt-1 font-medium italic text-left">Status stok berubah otomatis sesuai kuantitas riil.</p>
         </div>

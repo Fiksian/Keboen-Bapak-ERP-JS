@@ -20,30 +20,46 @@ export async function GET() {
 
     // 3. Mapping data ke format UI Frontend
     const formattedLogs = historyLogs.map((log) => {
-      // Logika penentuan tipe transaksi
+      // Definisikan kategori aksi agar penentuan IN/OUT lebih akurat
       const incomingActions = [
         "STOCK_IN", 
-        "PURCHASE_REQUEST", 
         "PURCHASE_APPROVED", 
-        "MANUAL_ADD"
+        "MANUAL_ADD",
+        "PRODUCTION_IN",     // Barang Jadi Masuk
+        "PRODUCTION_REFUND"  // Bahan Baku Kembali (Batal)
+      ];
+
+      const outgoingActions = [
+        "STOCK_OUT",
+        "MANUAL_REMOVE",
+        "PRODUCTION_OUT",    // Bahan Baku Keluar (Produksi)
+        "PRODUCTION_CONSUMPTION"
       ];
       
-      const isIncoming = incomingActions.some(action => log.action.includes(action)) || log.quantity > 0;
+      // Tentukan tipe berdasarkan Action Name (Prioritas Utama)
+      let type = "OUTGOING"; 
+      if (incomingActions.includes(log.action)) {
+        type = "INCOMING";
+      } else if (outgoingActions.includes(log.action)) {
+        type = "OUTGOING";
+      } else {
+        // Fallback jika action tidak dikenal
+        type = log.quantity > 0 ? "INCOMING" : "OUTGOING";
+      }
       
       return {
         id: log.id,
         createdAt: log.createdAt,
         itemName: log.item, 
         description: log.notes || log.action, 
-        // Menentukan label tipe untuk UI
-        type: isIncoming ? "INCOMING" : "OUTGOING",
+        type: type,
         quantity: Math.abs(log.quantity), 
         unit: log.unit || "Unit", 
-        // Mengambil 8 karakter pertama ID sebagai Ref No jika notes kosong
         referenceId: log.id.substring(0, 8).toUpperCase(), 
         user: log.user,
         category: log.category,
-        storageType: log.type // STOCKS atau INVENTORY
+        storageType: log.type,
+        rawAction: log.action 
       };
     });
 

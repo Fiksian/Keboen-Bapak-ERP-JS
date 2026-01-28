@@ -174,7 +174,7 @@ const StaffManager = () => {
               <tbody className="divide-y divide-gray-50">
                 {currentStaffTableData.map((staff, index) => (
                   <tr key={staff.id} className="hover:bg-blue-50/20 transition-all duration-300">
-                    <td className="px-8 py-6 text-gray-300 font-mono text-xs">
+                    <td className="px-8 py-6 text-gray-600 font-mono text-xs">
                       {(currentPage - 1) * itemsPerPage + index + 1}
                     </td>
                     <td className="px-8 py-6">

@@ -4,14 +4,17 @@ import React, { useState, useEffect } from 'react';
 import { 
   History, ArrowUpRight, ArrowDownLeft, 
   Search, FileSpreadsheet, Loader2,
-  User, Hash, Package
+  User, Hash, Package, X, Calendar as CalendarIcon
 } from 'lucide-react';
 
 const HistoryTransaksi = () => {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('ALL'); // ALL, INCOMING, OUTGOING
+  const [filter, setFilter] = useState('ALL');
   const [searchTerm, setSearchTerm] = useState('');
+  
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
   const fetchLogs = async () => {
     setLoading(true);
@@ -32,15 +35,25 @@ const HistoryTransaksi = () => {
     fetchLogs();
   }, []);
 
-  // Logika Filtering & Searching
   const filteredLogs = logs.filter(log => {
     const matchesFilter = filter === 'ALL' || log.type === filter;
-    const matchesSearch = 
-      log.itemName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      log.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      log.user?.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesFilter && matchesSearch;
+    
+    const searchString = `${log.itemName} ${log.description} ${log.user} ${log.referenceId}`.toLowerCase();
+    const matchesSearch = searchString.includes(searchTerm.toLowerCase());
+    
+    const logDate = new Date(log.createdAt).setHours(0,0,0,0);
+    const start = startDate ? new Date(startDate).setHours(0,0,0,0) : null;
+    const end = endDate ? new Date(endDate).setHours(0,0,0,0) : null;
+
+    const matchesDate = (!start || logDate >= start) && (!end || logDate <= end);
+    
+    return matchesFilter && matchesSearch && matchesDate;
   });
+
+  const resetDateFilter = () => {
+    setStartDate('');
+    setEndDate('');
+  };
 
   return (
     <div className="p-6 bg-[#f8f9fa] min-h-full space-y-8 animate-in fade-in duration-500 text-gray-800">
@@ -67,32 +80,71 @@ const HistoryTransaksi = () => {
         </div>
       </div>
 
-      {/* Filter & Search Bar */}
-      <div className="bg-white p-4 rounded-[24px] shadow-sm border border-gray-100 flex flex-wrap gap-4 items-center justify-between">
-        <div className="flex gap-2 p-1 bg-gray-50 rounded-2xl border border-gray-100">
-          {['ALL', 'INCOMING', 'OUTGOING'].map((type) => (
-            <button
-              key={type}
-              onClick={() => setFilter(type)}
-              className={`px-6 py-2 rounded-xl text-[10px] font-black tracking-widest transition-all ${
-                filter === type 
-                ? 'bg-white text-blue-600 shadow-sm' 
-                : 'text-gray-400 hover:text-gray-600'
-              }`}
-            >
-              {type}
-            </button>
-          ))}
-        </div>
-        <div className="relative group">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-blue-500 transition-colors" size={16} />
-          <input 
-            type="text" 
-            placeholder="Search item, notes, or user..." 
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-12 pr-6 py-3 bg-gray-50 border border-transparent rounded-2xl text-xs font-bold focus:bg-white focus:border-blue-100 outline-none transition-all w-full md:w-80 shadow-inner"
-          />
+      {/* Filter, Date, & Search Bar */}
+      <div className="space-y-4">
+        <div className="bg-white p-4 rounded-[24px] shadow-sm border border-gray-100 flex flex-wrap gap-4 items-center">
+          
+          {/* Tipe Filter */}
+          <div className="flex gap-2 p-1 bg-gray-50 rounded-2xl border border-gray-100">
+            {['ALL', 'INCOMING', 'OUTGOING'].map((type) => (
+              <button
+                key={type}
+                onClick={() => setFilter(type)}
+                className={`px-6 py-2 rounded-xl text-[10px] font-black tracking-widest transition-all ${
+                  filter === type 
+                  ? 'bg-white text-blue-600 shadow-sm' 
+                  : 'text-gray-400 hover:text-gray-600'
+                }`}
+              >
+                {type}
+              </button>
+            ))}
+          </div>
+
+          {/* Date Picker Range */}
+          <div className="flex items-center gap-2 bg-gray-50 p-1 rounded-2xl border border-gray-100">
+            <div className="flex items-center px-3 gap-2">
+              <CalendarIcon size={14} className="text-gray-400" />
+              <input 
+                type="date" 
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="bg-transparent text-[16px] font-black uppercase outline-none text-gray-500 cursor-pointer"
+              />
+              <span className="text-gray-400 font-bold px-1 text-[12px]">TO</span>
+              <input 
+                type="date" 
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="bg-transparent text-[16px] font-black uppercase outline-none text-gray-500 cursor-pointer"
+              />
+              {(startDate || endDate) && (
+                <button onClick={resetDateFilter} className="ml-2 p-1 hover:bg-gray-200 rounded-full transition-colors">
+                  <X size={12} className="text-gray-500" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Search Input Group */}
+          <div className="relative group flex-1 min-w-[280px]">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-blue-500 transition-colors" size={16} />
+            <input 
+              type="text" 
+              placeholder="Search item, notes, or user..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-12 pr-10 py-3 bg-gray-50 border border-transparent rounded-2xl text-xs font-bold focus:bg-white focus:border-blue-100 outline-none transition-all w-full shadow-inner"
+            />
+            {searchTerm && (
+              <button 
+                onClick={() => setSearchTerm('')}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500 transition-colors"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -120,8 +172,7 @@ const HistoryTransaksi = () => {
                 </tr>
               ) : filteredLogs.length > 0 ? (
                 filteredLogs.map((log) => (
-                  <tr key={log.id} className="hover:bg-blue-50/10 transition-colors group">
-                    {/* Time */}
+                  <tr key={log.id} className="hover:bg-blue-50/10 transition-colors group animate-in slide-in-from-bottom-2 duration-300">
                     <td className="px-8 py-6">
                       <div className="flex flex-col">
                         <span className="font-black text-gray-800 text-xs">
@@ -130,8 +181,6 @@ const HistoryTransaksi = () => {
                         <span className="text-[10px] text-gray-400 font-bold uppercase">{new Date(log.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                       </div>
                     </td>
-
-                    {/* Details */}
                     <td className="px-6 py-6">
                       <div className="flex flex-col gap-1">
                         <div className="flex items-center gap-2">
@@ -141,8 +190,6 @@ const HistoryTransaksi = () => {
                         <span className="text-[10px] text-gray-400 font-bold uppercase italic leading-tight max-w-xs">{log.description}</span>
                       </div>
                     </td>
-
-                    {/* Type */}
                     <td className="px-6 py-6 text-center">
                       <span className={`px-3 py-1.5 rounded-xl text-[9px] font-black flex items-center justify-center gap-1 mx-auto w-fit border ${
                         log.type === 'INCOMING' ? 'bg-green-50 text-green-600 border-green-100' : 'bg-orange-50 text-orange-600 border-orange-100'
@@ -151,8 +198,6 @@ const HistoryTransaksi = () => {
                         {log.type}
                       </span>
                     </td>
-
-                    {/* User / PIC */}
                     <td className="px-6 py-6 text-center">
                       <div className="flex flex-col items-center gap-1">
                         <div className="bg-gray-100 px-3 py-1.5 rounded-xl flex items-center gap-2 border border-gray-200">
@@ -161,18 +206,14 @@ const HistoryTransaksi = () => {
                         </div>
                       </div>
                     </td>
-
-                    {/* Quantity Changes */}
                     <td className="px-6 py-6 text-center">
                       <div className="flex flex-col items-center">
                         <span className={`text-sm font-black italic ${log.type === 'INCOMING' ? 'text-blue-600' : 'text-red-500'}`}>
-                          {log.type === 'INCOMING' ? '+' : '-'}{log.quantity.toLocaleString('id-ID')}
+                          {log.type === 'INCOMING' ? '+' : '-'}{log.quantity?.toLocaleString('id-ID')}
                         </span>
                         <span className="text-[9px] text-gray-400 font-black uppercase tracking-widest italic">{log.unit}</span>
                       </div>
                     </td>
-
-                    {/* Reference ID */}
                     <td className="px-8 py-6 text-right">
                       <span className="font-mono text-[10px] text-blue-400 font-black bg-blue-50 px-2 py-1 rounded-lg border border-blue-100">
                         #{log.referenceId || 'LOG-INF'}

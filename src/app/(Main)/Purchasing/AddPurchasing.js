@@ -12,7 +12,6 @@ const AddPurchasing = ({ isOpen, onClose, onAdd }) => {
   const { data: session } = useSession();
   const [loading, setLoading] = useState(false);
   
-  // State Awal Form
   const initialFormState = {
     supplier: "",
     item: "",
@@ -25,8 +24,6 @@ const AddPurchasing = ({ isOpen, onClose, onAdd }) => {
 
   const [formData, setFormData] = useState(initialFormState);
 
-  // Fungsi untuk mereset dan menutup modal
-  // Baris 28: Fungsi ini membungkus onClose untuk memastikan data selalu bersih saat keluar
   const handleClose = useCallback(() => {
     setFormData(initialFormState);
     onClose();
@@ -39,8 +36,8 @@ const AddPurchasing = ({ isOpen, onClose, onAdd }) => {
     setLoading(true);
 
     const rawData = {
-      supplier: formData.supplier,
-      item: formData.item,
+      supplier: formData.supplier.toUpperCase(),
+      item: formData.item.toUpperCase(),         
       qty: `${formData.qty} ${formData.unit}`,
       amount: formData.amount.toString(),
       type: formData.type,     
@@ -56,7 +53,7 @@ const AddPurchasing = ({ isOpen, onClose, onAdd }) => {
 
       if (res.ok) {
         onAdd(); 
-        handleClose(); // Gunakan handleClose agar form bersih setelah sukses
+        handleClose();
       } else {
         const err = await res.json();
         alert(err.message || "Gagal mengirim Purchase Order.");
@@ -72,12 +69,10 @@ const AddPurchasing = ({ isOpen, onClose, onAdd }) => {
   if (!isOpen) return null;
 
   return (
-    // Baris 76: Penambahan onClick pada overlay untuk mendeteksi klik di luar modal
     <div 
       className="fixed inset-0 z-50 h-full flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm text-gray-800"
       onClick={handleClose}
     >
-      {/* Baris 80: stopPropagation untuk mencegah modal ikut tertutup saat area form diklik */}
       <div 
         className="bg-white w-full max-w-2xl rounded-[32px] shadow-2xl border border-gray-100 overflow-hidden animate-in zoom-in duration-300"
         onClick={(e) => e.stopPropagation()}
@@ -114,7 +109,7 @@ const AddPurchasing = ({ isOpen, onClose, onAdd }) => {
                 className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 text-sm font-bold outline-none focus:border-blue-500 focus:bg-white transition-all uppercase" 
                 placeholder="Masukkan Supplier" 
                 value={formData.supplier}
-                onChange={(e) => setFormData({...formData, supplier: e.target.value})} 
+                onChange={(e) => setFormData({...formData, supplier: e.target.value.toUpperCase()})}
               />
               <Users className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-300" size={18} />
             </div>
@@ -129,7 +124,7 @@ const AddPurchasing = ({ isOpen, onClose, onAdd }) => {
                   className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 text-sm font-bold outline-none focus:border-blue-500 uppercase" 
                   placeholder="Nama Barang" 
                   value={formData.item}
-                  onChange={(e) => setFormData({...formData, item: e.target.value})} 
+                  onChange={(e) => setFormData({...formData, item: e.target.value.toUpperCase()})}
                 />
                 <FileText className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-300" size={18} />
               </div>

@@ -8,12 +8,23 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// --- ENUMS ---
+
 enum PurchaseStatus {
   PENDING
   APPROVED
   REJECTED
   RECEIVED
 }
+
+enum ProductionStatus {
+  SCHEDULLING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+// --- MODELS ---
 
 model User {
   id           String   @id @default(cuid())
@@ -56,7 +67,6 @@ model Purchasing {
   status      PurchaseStatus @default(PENDING)
   isReceived  Boolean        @default(false)
   
-  // Relasi ke tabel penerimaan barang
   receipts    Receipt[]
 
   requestedBy String
@@ -67,13 +77,12 @@ model Purchasing {
 
 model Receipt {
   id           String     @id @default(cuid())
-  receiptNo    String     @unique // GRN-YYYYMMDD-XXXX
+  receiptNo    String     @unique 
   purchasingId String
   purchasing   Purchasing @relation(fields: [purchasingId], references: [id])
   
-  // Input wajib dari user
   suratJalan   String
-  vehicleNo    String     // Nomor Kendaraan / Plat Nomor
+  vehicleNo    String     
   receivedQty  Float
   receivedBy   String
   condition    String     @default("GOOD")
@@ -94,6 +103,44 @@ model Stock {
   lastPurchasedId String?
   updatedAt       DateTime @updatedAt
 }
+
+// --- NEW PRODUCTION MODELS ---
+
+model Production {
+  id          String           @id @default(cuid())
+  noBatch     String           @unique // Format: PROD/YYYY/MM/001
+  productName String           // PERBAIKAN: @unique DIHAPUS agar satu produk bisa banyak batch
+  targetQty   Float            
+  actualQty   Float?           
+  status      ProductionStatus @default(SCHEDULLING)
+  
+  totalCost   Float            @default(0)
+  unitCost    Float            @default(0)
+
+  startDate   DateTime         @default(now())
+  endDate     DateTime?
+  
+  components  ProductionComponent[]
+
+  createdBy   String
+  notes       String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
+
+model ProductionComponent {
+  id           String     @id @default(cuid())
+  productionId String
+  production   Production @relation(fields: [productionId], references: [id], onDelete: Cascade)
+  
+  itemName     String     
+  qtyNeeded    Float      
+  unit         String     @default("Unit")
+
+  createdAt    DateTime   @default(now())
+}
+
+// ---------------------------
 
 model Task {
   id        String   @id @default(cuid())
@@ -117,6 +164,6 @@ model History {
   unit        String   @default("Unit")
   user        String
   notes       String?
-  referenceId String?  // Bisa diisi ID Receipt
+  referenceId String?  
   createdAt   DateTime @default(now())
 }

@@ -5,7 +5,6 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 
 /**
  * GET: Mengambil semua daftar Purchase Order
- * Termasuk data Receipt (Penerimaan) jika sudah diterima
  */
 export async function GET() {
   try {
@@ -25,15 +24,13 @@ export async function GET() {
 }
 
 /**
- * POST: Membuat Purchase Order Baru secara Otomatis
- * - Nomor PO dibuat otomatis (PO/YYYYMMDD/RANDOM)
- * - Pembuat (requestedBy) diambil otomatis dari session login
+ * POST: Membuat Purchase Order Baru dengan Penomoran Berurutan (Sequential)
+ * BARANG SAMA = ID BARU (Karena setiap pembelian adalah transaksi unik)
  */
 export async function POST(request) {
   try {
     const session = await getServerSession(authOptions);
 
-    // 1. Proteksi Sesi
     if (!session || !session.user) {
       return NextResponse.json(
         { message: "Unauthorized: Silakan login terlebih dahulu" }, 
@@ -43,16 +40,36 @@ export async function POST(request) {
 
     const body = await request.json();
     const { supplier, item, qty, amount, category, type } = body;
-    
     const userName = session.user.name || "Unknown User";
 
-    // 2. OTOMATISASI NOMOR PO
     const now = new Date();
-    const dateStr = now.toISOString().split('T')[0].replace(/-/g, '');
-    const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
-    const autoNoPO = `PO/${dateStr}/${randomSuffix}`;
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const datePattern = `${year}/${month}`;
 
-    // 3. Validasi Input Dasar
+    const lastPO = await prisma.purchasing.findFirst({
+      where: {
+        noPO: {
+          contains: `PO/${datePattern}`
+        }
+      },
+      orderBy: {
+        noPO: 'desc'
+      }
+    });
+
+    let nextNumber = 1;
+    if (lastPO && lastPO.noPO) {
+      const parts = lastPO.noPO.split('/');
+      const lastSequence = parseInt(parts[parts.length - 1]);
+      if (!isNaN(lastSequence)) {
+        nextNumber = lastSequence + 1;
+      }
+    }
+
+    const sequenceStr = String(nextNumber).padStart(3, '0');
+    const autoNoPO = `PO/${datePattern}/${sequenceStr}`;
+
     if (!item || !qty || !amount) {
       return NextResponse.json(
         { message: "Data tidak lengkap (Item, Qty, dan Harga wajib diisi)" },
@@ -60,19 +77,18 @@ export async function POST(request) {
       );
     }
 
-    // 4. Parsing angka untuk tabel History
-    const qtyValue = parseFloat(qty) || 0;
-    const amountValue = amount ? amount.toString() : "0";
+    const qtyAsString = qty.toString();
+    const amountValue = amount.toString();
+    const qtyAsNumber = parseFloat(qty) || 0;
 
-    // 5. Database Transaction
-    const [newRequest] = await prisma.$transaction([
-      // A. Simpan ke tabel Purchasing
-      prisma.purchasing.create({
+    const result = await prisma.$transaction(async (tx) => {
+      // Baris ini akan selalu menghasilkan ID (CUID) baru
+      const newPurchase = await tx.purchasing.create({
         data: {
           noPO: autoNoPO,
           supplier: supplier || "Supplier Umum",
           item: item,
-          qty: qty,             
+          qty: qtyAsString,         
           amount: amountValue,  
           requestedBy: userName,
           approvedBy: null,     
@@ -81,28 +97,31 @@ export async function POST(request) {
           status: "PENDING",
           isReceived: false
         }
-      }),
-      // B. Catat log audit ke tabel History
-      prisma.history.create({
+      });
+
+      await tx.history.create({
         data: {
           action: "PURCHASE_REQUEST_AUTO",
           item: item,
           category: category || "General",
           type: type || "STOCKS",
-          quantity: qtyValue,
+          quantity: qtyAsNumber,
           user: userName,
           notes: `Membuat PO Otomatis: ${autoNoPO} oleh ${userName}.`
         }
-      })
-    ]);
+      });
 
-    return NextResponse.json(newRequest, { status: 201 });
+      return newPurchase;
+    });
+
+    return NextResponse.json(result, { status: 201 });
+
   } catch (error) {
     console.error("POST_PURCHASING_ERROR:", error);
     
     if (error.code === 'P2002') {
       return NextResponse.json(
-        { message: "Terjadi konflik nomor PO otomatis, silakan coba lagi." }, 
+        { message: "Terjadi konflik penomoran otomatis, silakan coba lagi." }, 
         { status: 409 }
       );
     }

@@ -11,16 +11,20 @@ const PrintPO = ({ data }) => {
     <div id="print-area" className="hidden print:block p-10 bg-white text-black min-h-screen">
       {/* Header Nota */}
       <div className="flex justify-between border-b-4 border-black pb-6 mb-8">
-        <div>
-          <h1 className="text-4xl font-black uppercase italic tracking-tighter">Purchase Order</h1>
-          <p className="text-sm font-bold text-gray-600 mt-1">Ref No: {data.noPO}</p>
+          <div className="text-left">
+            <h1 className="text-4xl font-black uppercase italic tracking-tighter leading-none">Purchasing Order</h1>
+            <div className="flex gap-4 mt-3">
+              <p className="text-sm font-bold text-gray-800 uppercase tracking-tighter">No. PO: {data.noPO}</p>
+            </div>
+          </div>
+          <div className="text-right">
+            <h2 className="text-xl font-bold uppercase italic font-black leading-none">KEBOEN BAPAK ERP</h2>
+            <p className="text-[10px] text-gray-500 uppercase font-bold tracking-widest leading-tight mt-2 text-right">
+              Warehouse & Logistics Department<br/>
+              Integrated Management System
+            </p>
+          </div>
         </div>
-        <div className="text-right">
-          <h2 className="text-xl font-bold uppercase italic">Nama Perusahaan Anda</h2>
-          <p className="text-xs text-gray-500">Alamat Lengkap Perusahaan</p>
-          <p className="text-xs text-gray-500">Telp: (021) 1234567 | Email: admin@company.com</p>
-        </div>
-      </div>
 
       {/* Info Transaksi */}
       <div className="grid grid-cols-2 gap-10 mb-10">

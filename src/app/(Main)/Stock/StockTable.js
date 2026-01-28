@@ -1,10 +1,23 @@
+'use client'
+
 import React from 'react';
 import { Package, Trash2 } from 'lucide-react';
 
 const StockTable = ({ data, onEdit, onRefresh }) => {
 
+  /**
+   * Helper untuk menentukan status secara dinamis berdasarkan angka stok.
+   * Ini memastikan UI selalu akurat meskipun data di DB belum ter-update statusnya.
+   */
+  const getDerivedStatus = (stock) => {
+    const s = parseFloat(stock) || 0;
+    if (s <= 0) return 'EMPTY';
+    if (s <= 10) return 'LIMITED';
+    return 'READY';
+  };
+
   const getStatusStyle = (status) => {
-    switch (status?.toUpperCase()) {
+    switch (status) {
       case 'READY': return 'bg-green-50 text-green-600 border-green-100';
       case 'LIMITED': return 'bg-orange-50 text-orange-600 border-orange-100 animate-pulse';
       case 'EMPTY': return 'bg-red-50 text-red-600 border-red-100';
@@ -22,6 +35,18 @@ const StockTable = ({ data, onEdit, onRefresh }) => {
     }
   };
 
+  /**
+   * Helper untuk memformat angka stok agar bersih dari floating point error
+   * dan membatasi desimal yang terlalu panjang.
+   */
+  const formatStock = (val) => {
+    const num = parseFloat(val) || 0;
+    // Jika angka sangat mendekati nol (sampah floating point), kembalikan 0
+    if (Math.abs(num) < 0.00001) return "0";
+    // Menghapus nol di belakang koma yang tidak perlu
+    return parseFloat(num.toFixed(2)).toString();
+  };
+
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-left border-collapse">
@@ -36,20 +61,21 @@ const StockTable = ({ data, onEdit, onRefresh }) => {
         </thead>
         <tbody className="divide-y divide-gray-50">
           {data.length > 0 ? data.map((item) => {
-            const status = item.status || 'UNKNOWN'; 
+            // Hitung status secara real-time di sini
+            const derivedStatus = getDerivedStatus(item.stock); 
             
             return (
-              <tr key={item.id} className={`hover:bg-blue-50/20 transition-colors group ${status === 'EMPTY' ? 'opacity-60' : ''}`}>
+              <tr key={item.id} className={`hover:bg-blue-50/20 transition-colors group ${derivedStatus === 'EMPTY' ? 'opacity-60' : ''}`}>
                 <td className="px-8 py-6 flex items-center gap-4">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${status === 'EMPTY' ? 'bg-red-50 text-red-300' : 'bg-gray-50 text-gray-400 group-hover:bg-white'}`}>
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${derivedStatus === 'EMPTY' ? 'bg-red-50 text-red-300' : 'bg-gray-50 text-gray-400 group-hover:bg-white'}`}>
                     <Package size={18} />
                   </div>
                   <div className="flex flex-col">
-                    <span className="font-bold text-gray-800 uppercase">{item.name}</span>
-                    <span className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter">
+                    <span className="font-bold text-gray-800 uppercase leading-none">{item.name}</span>
+                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter mt-1">
                       Rp {parseInt(item.price || 0).toLocaleString('id-ID')} / {item.unit}
                     </span>
-                    <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
+                    <span className="text-[9px] text-slate-300 font-medium uppercase tracking-widest mt-0.5">
                       ID: {item.id.slice(-6).toUpperCase()}
                     </span>
                   </div>
@@ -58,27 +84,27 @@ const StockTable = ({ data, onEdit, onRefresh }) => {
                   {item.category}
                 </td>
                 <td className="px-6 py-6 text-center font-black">
-                  <span className={`text-lg ${status === 'READY' ? 'text-blue-600' : status === 'LIMITED' ? 'text-orange-500' : 'text-red-500'}`}>
-                    {item.stock}
+                  <span className={`text-lg ${derivedStatus === 'READY' ? 'text-indigo-600' : derivedStatus === 'LIMITED' ? 'text-orange-500' : 'text-rose-500'}`}>
+                    {formatStock(item.stock)}
                   </span> 
                   <span className="ml-1 text-[10px] text-gray-400 uppercase">{item.unit}</span>
                 </td>
                 <td className="px-6 py-6 text-center">
-                  <span className={`px-3 py-1 rounded-lg text-[9px] font-black border uppercase ${getStatusStyle(status)}`}>
-                    {status}
+                  <span className={`px-3 py-1 rounded-lg text-[9px] font-black border uppercase ${getStatusStyle(derivedStatus)}`}>
+                    {derivedStatus}
                   </span>
                 </td>
                 <td className="px-8 py-6 text-right">
                   <div className="flex justify-end items-center gap-2">
                     <button 
                       onClick={() => onEdit(item)} 
-                      className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black text-[10px] uppercase transition-all active:scale-95 shadow-sm shadow-blue-100"
+                      className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-[10px] uppercase transition-all active:scale-95 shadow-sm shadow-indigo-100"
                     >
                       Update
                     </button>
                     <button 
                       onClick={() => deleteItem(item.id)} 
-                      className="p-2 text-gray-300 hover:text-red-600 transition-colors cursor-pointer"
+                      className="p-2 text-gray-300 hover:text-rose-600 transition-colors cursor-pointer"
                     >
                       <Trash2 size={18} />
                     </button>

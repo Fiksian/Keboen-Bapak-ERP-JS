@@ -10,14 +10,12 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, 
   Tooltip, ResponsiveContainer 
 } from 'recharts';
-import { useWeather } from '@/context/WeatherContext'; // Pastikan path ini sesuai struktur folder Anda
+import { useWeather } from '@/context/WeatherContext';
 
 const Cuaca = () => {
-  // Mengambil data terpusat dari Context
   const { weather, loading } = useWeather();
   const [currentTime, setCurrentTime] = useState(new Date());
 
-  // Timer untuk jam digital tetap berjalan lokal agar akurat per detik
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
@@ -33,7 +31,6 @@ const Cuaca = () => {
     return { label: "Cerah", icon: <Sun className="text-yellow-400" />, color: "from-blue-500 to-blue-700" };
   };
 
-  // State loading dari Context
   if (loading) return (
     <div className="flex flex-col items-center justify-center min-h-[500px] text-gray-400">
       <Loader2 className="animate-spin mb-4 text-blue-600" size={40} />
@@ -43,7 +40,6 @@ const Cuaca = () => {
 
   if (!weather?.hourly || !weather?.daily) return null;
 
-  // Logika pengolahan data untuk Chart
   const currentHour = new Date();
   currentHour.setMinutes(0, 0, 0);
 
@@ -68,7 +64,6 @@ const Cuaca = () => {
   return (
     <div className="p-6 bg-[#f8f9fa] min-h-full space-y-6 animate-in fade-in duration-700 text-gray-800">
       
-      {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-blue-600 rounded-xl text-white shadow-lg shadow-blue-100">
@@ -195,6 +190,17 @@ const Cuaca = () => {
                     ? "🌡️ Suhu terdeteksi tinggi. Aktifkan sistem misting dan pastikan sirkulasi udara maksimal di dalam greenhouse." 
                     : "✅ Parameter lingkungan ideal. Tetap pantau grafik kelembaban untuk mencegah jamur pada tanaman."}
              </div>
+          </div>
+
+          <div className="w-full text-center pb-2">
+            <a 
+              href="https://open-meteo.com/" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-[12px] font-black text-slate-600 uppercase tracking-[0.2em] hover:text-blue-400 transition-colors italic"
+            >
+              Data Provided by Open-Meteo
+            </a>
           </div>
         </div>
       </div>

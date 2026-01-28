@@ -36,6 +36,7 @@ const WeatherCard = () => {
       rawTime: new Date(time),
       timeLabel: new Date(time).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
       temp: Math.round(hourly.temperature_2m[index]),
+      code: hourly.weather_code ? hourly.weather_code[index] : 0
     }))
     .filter(item => item.rawTime > now)
     .slice(0, 4);
@@ -71,7 +72,7 @@ const WeatherCard = () => {
         </span>
       </div>
 
-      <div className="w-full space-y-2">
+      <div className="w-full space-y-2 mb-8">
         <div className="flex items-center gap-2 mb-4 border-b border-gray-50 pb-2">
           <Clock size={12} className="text-blue-600" />
           <span className="text-[10px] font-black text-gray-800 uppercase italic tracking-widest">Upcoming Forecast</span>
@@ -90,11 +91,22 @@ const WeatherCard = () => {
                 {item.temp}°C
               </span>
               <div className="opacity-40 group-hover/item:opacity-100 transition-all scale-75 group-hover/item:scale-100">
-                {getWeatherIcon(0, 16)}
+                {getWeatherIcon(item.code, 16)}
               </div>
             </div>
           </div>
         ))}
+      </div>
+
+      <div className="mt-auto pt-4 border-t border-gray-50 w-full text-center">
+        <a 
+          href="https://open-meteo.com/" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="text-[8px] font-black text-gray-300 uppercase tracking-[0.2em] hover:text-blue-400 transition-colors italic transition-all"
+        >
+          Data Provided by Open-Meteo
+        </a>
       </div>
     </div>
   );

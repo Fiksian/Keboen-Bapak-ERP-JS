@@ -3,7 +3,8 @@
 import React, { useState } from 'react';
 import { 
   Clock, PackageCheck, X, FileText, 
-  Truck, ClipboardCheck, Loader2, AlertCircle 
+  Truck, ClipboardCheck, Loader2, AlertCircle,
+  Lock // Tambahan icon untuk visualisasi locked
 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 
@@ -19,9 +20,13 @@ const ArrivalMonitor = ({ arrivals, onRefresh }) => {
     notes: ''
   });
 
+  const isAuthorized = ["Admin", "Supervisor"].includes(session?.user?.role);
+
   if (!arrivals || arrivals.length === 0) return null;
 
   const handleOpenModal = (arrival) => {
+    if (!isAuthorized) return; 
+    
     setSelectedArrival(arrival);
     setConfirmPO('');
     setFormData({
@@ -91,12 +96,19 @@ const ArrivalMonitor = ({ arrivals, onRefresh }) => {
                 <span className="text-[9px] text-orange-400 font-bold uppercase tracking-tighter self-center">{arrival.supplier || 'Vendor'}</span>
               </div>
             </div>
-            <button 
-              onClick={() => handleOpenModal(arrival)} 
-              className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-[10px] font-black rounded-xl cursor-pointer transition-colors shadow-md shadow-orange-100 uppercase"
-            >
-              Terima
-            </button>
+
+            {isAuthorized ? (
+              <button 
+                onClick={() => handleOpenModal(arrival)} 
+                className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-[10px] font-black rounded-xl cursor-pointer transition-colors shadow-md shadow-orange-100 uppercase"
+              >
+                Terima
+              </button>
+            ) : (
+              <div className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 text-slate-400 rounded-xl text-[9px] font-black uppercase italic border border-slate-200">
+                <Lock size={12} /> Restricted
+              </div>
+            )}
           </div>
         ))}
       </div>

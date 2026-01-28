@@ -5,10 +5,6 @@ import { Package, Trash2 } from 'lucide-react';
 
 const StockTable = ({ data, onEdit, onRefresh }) => {
 
-  /**
-   * Helper untuk menentukan status secara dinamis berdasarkan angka stok.
-   * Ini memastikan UI selalu akurat meskipun data di DB belum ter-update statusnya.
-   */
   const getDerivedStatus = (stock) => {
     const s = parseFloat(stock) || 0;
     if (s <= 0) return 'EMPTY';
@@ -35,15 +31,9 @@ const StockTable = ({ data, onEdit, onRefresh }) => {
     }
   };
 
-  /**
-   * Helper untuk memformat angka stok agar bersih dari floating point error
-   * dan membatasi desimal yang terlalu panjang.
-   */
   const formatStock = (val) => {
     const num = parseFloat(val) || 0;
-    // Jika angka sangat mendekati nol (sampah floating point), kembalikan 0
     if (Math.abs(num) < 0.00001) return "0";
-    // Menghapus nol di belakang koma yang tidak perlu
     return parseFloat(num.toFixed(2)).toString();
   };
 

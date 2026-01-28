@@ -17,7 +17,7 @@ export default function DashboardPage() {
     );
   }
 
-  const isAdmin = session?.user?.role === "Admin";
+  const isAuthorized = ["Admin"].includes(session?.user?.role);
 
   return (
     <div className="space-y-6">
@@ -31,7 +31,7 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        {isAdmin && (
+        {isAuthorized && (
           <Link 
             href="/Staff" 
             className="bg-blue-600 text-white px-6 py-2 rounded-lg font-black text-sm shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all active:scale-95"
@@ -41,7 +41,6 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* Baris Pertama: Weather & Chart */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="lg:col-span-4 h-full">
           <WeatherCard />
@@ -51,7 +50,6 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Baris Kedua: Tasks */}
       <div className="mt-8">
         <div className="mb-4">
           <h2 className="text-lg font-black text-gray-800 uppercase tracking-widest">

@@ -7,8 +7,10 @@ import {
   Home, ChevronDown
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 
-const StaffProfile = ({ staff, onBack, onUpdate, currentUserRole }) => {
+const StaffProfile = ({ staff, onBack, onUpdate }) => {
+  const { data: session } = useSession();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -22,12 +24,11 @@ const StaffProfile = ({ staff, onBack, onUpdate, currentUserRole }) => {
     staffId: staff?.staffId || ''
   });
 
-  const isAdmin = currentUserRole === 'Admin';
+  const isAdmin = session?.user?.role === 'Admin';
 
-  // Opsi Dropdown
-  const roleOptions = ['Admin', 'Staff', 'Manager', 'Supervisor'];
+  const roleOptions = [ 'Staff', 'Manager', 'Supervisor', 'Admin'];
   const designationOptions = [
-    'CEO', 'IT Support', 'Farm Worker', 'Accountant', 
+    'IT Support', 'Farm Worker', 'Accountant', 
     'Marketing', 'Maintenance', 'New Employee'
   ];
 
@@ -63,7 +64,6 @@ const StaffProfile = ({ staff, onBack, onUpdate, currentUserRole }) => {
   return (
     <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-500 pb-20">
       
-      {/* HEADER SECTION */}
       <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-bl-full -z-0 opacity-50" />
         
@@ -116,7 +116,6 @@ const StaffProfile = ({ staff, onBack, onUpdate, currentUserRole }) => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* LEFT COLUMN: PERSONAL INFO */}
         <div className="md:col-span-2 space-y-6">
           <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
             <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
@@ -165,7 +164,6 @@ const StaffProfile = ({ staff, onBack, onUpdate, currentUserRole }) => {
                 />
               </div>
 
-              {/* EMAIL EDITABLE FIELD */}
               <div className="md:col-span-2 space-y-2">
                 <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Email Address (Login)</label>
                 <div className="relative">
@@ -184,7 +182,6 @@ const StaffProfile = ({ staff, onBack, onUpdate, currentUserRole }) => {
           </div>
         </div>
 
-        {/* RIGHT COLUMN: WORK INFO (ADMIN DROPDOWNS) */}
         <div className="space-y-6">
           <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
             <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">

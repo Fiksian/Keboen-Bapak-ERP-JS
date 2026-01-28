@@ -92,7 +92,6 @@ const AddStaff = ({ isOpen, onClose }) => {
         <div className='p-8 max-h-[75vh] overflow-y-auto custom-scrollbar'>
           <form onSubmit={handleSubmit} className='space-y-8 text-left'>
 
-            {/* Upload Foto Section */}
             <div className='flex flex-col items-center justify-center'>
               <div className='relative group'>
                 <div className='w-32 h-32 bg-gray-50 rounded-[2rem] border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden transition-all group-hover:border-blue-400 group-hover:bg-blue-50/30'>
@@ -176,6 +175,7 @@ const AddStaff = ({ isOpen, onClose }) => {
                   <select name="role" value={formData.role} onChange={handleChange} className='w-full pl-12 pr-4 py-3.5 border border-gray-100 bg-gray-50/30 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white outline-none appearance-none transition-all text-sm font-bold text-gray-700 cursor-pointer'>
                     <option value="Staff">Staff Member</option>
                     <option value="Manager">Manager</option>
+                    <option value="Supervisor">Supervisor</option>
                     <option value="Admin">Administrator</option>
                   </select>
                 </div>

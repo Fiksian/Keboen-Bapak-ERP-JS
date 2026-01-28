@@ -30,7 +30,7 @@ const Sidebar = ({ isCollapsed, toggleSidebar, userRole }) => {
       name: 'Tasks', 
       icon: <CheckSquare size={18} />, 
       path: '/Tasks', 
-      roles: ['Admin', 'Staff', 'Manager', 'Supervisor'] 
+      roles: ['Admin'] 
     },
     { 
       name: 'Kandang', 
@@ -42,7 +42,7 @@ const Sidebar = ({ isCollapsed, toggleSidebar, userRole }) => {
       name: 'Produksi', 
       icon: <Settings size={18} />, 
       path: '/Produksi', 
-      roles: ['Admin', 'Staff', 'Supervisor'] 
+      roles: ['Admin', 'Staff', 'Manager','Supervisor'] 
     },
     { 
       name: 'Warehouse', 
@@ -54,7 +54,7 @@ const Sidebar = ({ isCollapsed, toggleSidebar, userRole }) => {
       name: 'Purchasing', 
       icon: <ShoppingCart size={18} />, 
       path: '/Purchasing', 
-      roles: ['Admin', 'Manager', 'Supervisor'] 
+      roles: ['Admin', 'Manager', 'Staff','Supervisor'] 
     },
     { 
       name: 'Cuaca', 

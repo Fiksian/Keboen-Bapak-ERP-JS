@@ -1,12 +1,17 @@
 'use client';
 
 import React from 'react';
+import { useSession } from 'next-auth/react';
 import { 
   Hash, Building2, CalendarDays, User, ShieldCheck, 
   Truck, Printer, RotateCcw, Trash2, PackageCheck 
 } from 'lucide-react';
 
 const PurchasingTable = ({ data, onStatusUpdate, onDelete, onPrint }) => {
+  const { data: session } = useSession();
+
+  const isAuthorized = ["Admin", "Supervisor"].includes(session?.user?.role);
+
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-left border-collapse">
@@ -106,23 +111,38 @@ const PurchasingTable = ({ data, onStatusUpdate, onDelete, onPrint }) => {
                       </div>
                     ) : (
                       <div className="flex gap-2">
-                        {req.status === 'APPROVED' ? (
-                          <button onClick={() => onStatusUpdate(req.id, 'PENDING')} className="flex items-center gap-1.5 px-4 py-2 text-orange-600 bg-orange-50 hover:bg-orange-100 border border-orange-200 rounded-xl transition-all text-[9px] font-black uppercase italic cursor-pointer shadow-sm">
-                            <RotateCcw size={13} strokeWidth={3} /> REVOKE
-                          </button>
-                        ) : (
+                        {isAuthorized ? (
                           <>
-                            <button onClick={() => onStatusUpdate(req.id, 'APPROVED')} className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white text-[9px] font-black rounded-xl transition-all shadow-md uppercase italic cursor-pointer">
-                              APPROVE
-                            </button>
-                            <button onClick={() => onStatusUpdate(req.id, req.status === 'REJECTED' ? 'PENDING' : 'REJECTED')} className={`px-4 py-2 text-[9px] font-black rounded-xl transition-all border uppercase italic cursor-pointer ${req.status === 'REJECTED' ? 'bg-gray-100 text-gray-600 border-gray-200' : 'bg-white text-red-500 border-red-100 hover:bg-red-50'}`}>
-                              {req.status === 'REJECTED' ? 'UNDO' : 'REJECT'}
-                            </button>
+                            {req.status === 'APPROVED' ? (
+                              <button onClick={() => onStatusUpdate(req.id, 'PENDING')} className="flex items-center gap-1.5 px-4 py-2 text-orange-600 bg-orange-50 hover:bg-orange-100 border border-orange-200 rounded-xl transition-all text-[9px] font-black uppercase italic cursor-pointer shadow-sm">
+                                <RotateCcw size={13} strokeWidth={3} /> REVOKE
+                              </button>
+                            ) : (
+                              <>
+                                <button onClick={() => onStatusUpdate(req.id, 'APPROVED')} className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white text-[9px] font-black rounded-xl transition-all shadow-md uppercase italic cursor-pointer">
+                                  APPROVE
+                                </button>
+                                <button onClick={() => onStatusUpdate(req.id, req.status === 'REJECTED' ? 'PENDING' : 'REJECTED')} className={`px-4 py-2 text-[9px] font-black rounded-xl transition-all border uppercase italic cursor-pointer ${req.status === 'REJECTED' ? 'bg-gray-100 text-gray-600 border-gray-200' : 'bg-white text-red-500 border-red-100 hover:bg-red-50'}`}>
+                                  {req.status === 'REJECTED' ? 'UNDO' : 'REJECT'}
+                                </button>
+                              </>
+                            )}
                           </>
+                        ) : (
+                          <span className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase italic border ${
+                            req.status === 'PENDING' ? 'bg-gray-50 text-gray-400 border-gray-100' :
+                            req.status === 'REJECTED' ? 'bg-red-50 text-red-400 border-red-100' :
+                            'bg-green-50 text-green-500 border-green-100'
+                          }`}>
+                            {req.status}
+                          </span>
                         )}
-                        <button onClick={() => onDelete(req.id)} className="p-2 text-gray-300 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all cursor-pointer">
-                          <Trash2 size={18} />
-                        </button>
+
+                        {isAuthorized && (
+                          <button onClick={() => onDelete(req.id)} className="p-2 text-gray-300 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all cursor-pointer">
+                            <Trash2 size={18} />
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>

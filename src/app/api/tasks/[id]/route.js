@@ -1,16 +1,14 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
-// UPDATE & TOGGLE STATUS
 export async function PATCH(request, context) {
   try {
-    const { id } = await context.params; // Sesuai standar Next.js terbaru
+    const { id } = await context.params; 
     const body = await request.json();
 
     const updatedTask = await prisma.task.update({
       where: { id: id },
       data: {
-        // Mendukung update parsial (hanya field yang dikirim yang diubah)
         ...(body.title && { title: body.title }),
         ...(body.time && { time: body.time }),
         ...(body.priority && { priority: body.priority }),

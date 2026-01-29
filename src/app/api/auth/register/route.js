@@ -23,18 +23,16 @@ export async function POST(request) {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const result = await prisma.$transaction(async (tx) => {
-      // A. Buat Akun User
       const newUser = await tx.user.create({
         data: {
           username,
           email,
           password: hashedPassword,
           phone: phone || null,
-          role: "Staff", // Role default di level User (Access Control)
+          role: "Staff", 
         },
       });
 
-      // B. Buat Profil Staff (Dihubungkan lewat Email)
       const newStaff = await tx.staff.create({
         data: {
           email: email,

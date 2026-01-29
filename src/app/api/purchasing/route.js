@@ -3,9 +3,7 @@ import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 
-/**
- * GET: Mengambil semua daftar Purchase Order
- */
+
 export async function GET() {
   try {
     const requests = await prisma.purchasing.findMany({
@@ -23,10 +21,7 @@ export async function GET() {
   }
 }
 
-/**
- * POST: Membuat Purchase Order Baru dengan Penomoran Berurutan (Sequential)
- * BARANG SAMA = ID BARU (Karena setiap pembelian adalah transaksi unik)
- */
+
 export async function POST(request) {
   try {
     const session = await getServerSession(authOptions);
@@ -82,7 +77,6 @@ export async function POST(request) {
     const qtyAsNumber = parseFloat(qty) || 0;
 
     const result = await prisma.$transaction(async (tx) => {
-      // Baris ini akan selalu menghasilkan ID (CUID) baru
       const newPurchase = await tx.purchasing.create({
         data: {
           noPO: autoNoPO,

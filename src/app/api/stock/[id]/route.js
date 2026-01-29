@@ -16,7 +16,6 @@ export async function PATCH(request, context) {
     const { id } = await context.params; 
     const body = await request.json();
 
-    // 1. Ambil data stok lama untuk menghitung selisih (diff)
     const oldStock = await prisma.stock.findUnique({
       where: { id: id }
     });
@@ -29,9 +28,7 @@ export async function PATCH(request, context) {
     const diff = newStockValue - oldStock.stock;
     const autoStatus = getAutoStatus(newStockValue);
 
-    // 2. Jalankan Transaction: Update Stock & Create History
     const [updatedStock] = await prisma.$transaction([
-      // Aksi 1: Update data stok
       prisma.stock.update({
         where: { id: id },
         data: {
@@ -42,14 +39,13 @@ export async function PATCH(request, context) {
           type: body.type 
         }
       }),
-      // Aksi 2: Catat ke History
       prisma.history.create({
         data: {
           action: "STOCK_UPDATE",
           item: oldStock.name,
           category: body.category || oldStock.category,
           type: body.type || oldStock.type,
-          quantity: diff, // Menyimpan selisih perubahan (+ atau -)
+          quantity: diff,
           user: session?.user?.name || "System",
           notes: body.notes || `Update manual: ${oldStock.stock} -> ${newStockValue}`
         }
@@ -71,7 +67,6 @@ export async function DELETE(request, context) {
     const session = await getServerSession(authOptions);
     const { id } = await context.params;
 
-    // 1. Cari data sebelum dihapus untuk catatan history
     const itemToDelete = await prisma.stock.findUnique({
       where: { id: id }
     });
@@ -80,7 +75,6 @@ export async function DELETE(request, context) {
       return NextResponse.json({ message: "Item tidak ditemukan" }, { status: 404 });
     }
 
-    // 2. Jalankan Transaction: Delete Stock & Create History
     await prisma.$transaction([
       prisma.stock.delete({
         where: { id: id },
@@ -91,7 +85,7 @@ export async function DELETE(request, context) {
           item: itemToDelete.name,
           category: itemToDelete.category,
           type: itemToDelete.type,
-          quantity: -itemToDelete.stock, // History mencatat penghilangan seluruh stok
+          quantity: -itemToDelete.stock,
           user: session?.user?.name || "System",
           notes: "Item dihapus dari sistem"
         }

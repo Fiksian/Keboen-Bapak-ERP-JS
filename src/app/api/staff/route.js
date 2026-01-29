@@ -4,7 +4,6 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import bcrypt from "bcryptjs";
 
-// --- GET: Mengambil semua data staff ---
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
@@ -12,11 +11,10 @@ export async function GET() {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    // Perbaikan pada logika filter 'where'
     const staffs = await prisma.staff.findMany({
       where: {
         user: {
-          id: { not: undefined } // Memastikan relasi user ada
+          id: { not: undefined }
         }
       },
       orderBy: { createdAt: 'desc' },
@@ -38,7 +36,6 @@ export async function GET() {
   }
 }
 
-// --- POST: Menambah staff baru + Membuat Akun User ---
 export async function POST(request) {
   try {
     const session = await getServerSession(authOptions);
@@ -59,17 +56,14 @@ export async function POST(request) {
       password 
     } = body;
 
-    // 1. Validasi Input Dasar
     if (!username || !firstName || !email || !password) {
       return NextResponse.json({ message: "Data tidak lengkap!" }, { status: 400 });
     }
 
-    // 2. LOGIKA AUTO-GENERATE STAFF ID
     const currentYear = new Date().getFullYear();
     const count = await prisma.staff.count();
     const generatedStaffId = `STF-${currentYear}-${(count + 1).toString().padStart(3, '0')}`;
 
-    // 3. Cek Duplikasi (Email & Username)
     const existingUser = await prisma.user.findFirst({
       where: {
         OR: [{ email }, { username }]
@@ -82,9 +76,7 @@ export async function POST(request) {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // 4. Transaction: Membuat User dan Staff dengan ID yang SAMA
     const result = await prisma.$transaction(async (tx) => {
-      // A. Buat User
       const newUser = await tx.user.create({
         data: {
           username,
@@ -94,10 +86,9 @@ export async function POST(request) {
         }
       });
 
-      // B. Buat Profil Staff menggunakan ID yang sama dengan newUser.id
       const newStaff = await tx.staff.create({
         data: {
-          id: newUser.id, // Sinkronisasi ID sesuai schema baru
+          id: newUser.id,
           firstName,
           lastName,
           gender,

@@ -88,7 +88,6 @@ export async function POST(request) {
         }
       });
 
-      // Potong Stok Bahan Baku
       for (const ing of processedIngredients) {
         const updated = await tx.stock.updateMany({
           where: { name: ing.itemName, stock: { gte: ing.qtyNeeded } },

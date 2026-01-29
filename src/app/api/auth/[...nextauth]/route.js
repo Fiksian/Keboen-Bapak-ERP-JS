@@ -6,7 +6,7 @@ import bcrypt from "bcryptjs";
 export const authOptions = {
   session: {
     strategy: "jwt",
-    maxAge: 24 * 60 * 60, // Sesi berlaku 1 hari
+    maxAge: 24 * 60 * 60, 
   },
   providers: [
     CredentialsProvider({
@@ -20,11 +20,10 @@ export const authOptions = {
           throw new Error("Username dan password wajib diisi");
         }
 
-        // Cari user di database DAN sertakan profil staff untuk mengambil Nama/Role terbaru
         const user = await prisma.user.findUnique({
           where: { username: credentials.username },
           include: {
-            staffProfile: true // Pastikan nama relasi ini sesuai dengan schema.prisma Anda
+            staffProfile: true
           }
         });
 
@@ -38,12 +37,11 @@ export const authOptions = {
           throw new Error("Password salah");
         }
 
-        // KIRIM DATA LENGKAP KE JWT
         return {
           id: user.id,
           name: user.staffProfile?.firstName || user.username,
           email: user.email,
-          role: user.role, // Role utama dari model User
+          role: user.role,
         };
       }
     })
@@ -53,22 +51,20 @@ export const authOptions = {
   },
   secret: process.env.NEXTAUTH_SECRET,
   callbacks: {
-    // 1. Simpan Role ke dalam Token (Disimpan di Cookie terenkripsi)
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
         token.email = user.email;
-        token.role = user.role; // Masukkan role ke token
+        token.role = user.role;
         token.name = user.name;
       }
       return token;
     },
-    // 2. Kirim Role dari Token ke Client-Side Session
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.id;
         session.user.email = token.email;
-        session.user.role = token.role; // Sekarang tersedia di useSession()
+        session.user.role = token.role;
         session.user.name = token.name;
       }
       return session;

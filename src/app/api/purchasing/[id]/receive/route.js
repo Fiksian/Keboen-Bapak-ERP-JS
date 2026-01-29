@@ -20,7 +20,6 @@ export async function PATCH(request, context) {
     const { id } = await context.params; 
     const body = await request.json(); 
     
-    // Destrukturisasi data dari modal ArrivalMonitor
     const { suratJalan, vehicleNo, condition, notes, receivedQty, receivedBy } = body; 
 
     const userName = receivedBy || session.user.name || "Warehouse Admin";
@@ -43,10 +42,8 @@ export async function PATCH(request, context) {
     const incomingQty = receivedQty || parseFloat(qtyParts[0]) || 0;
     const unitLabel = qtyParts[1] || "Unit";
 
-    // Menjalankan transaksi untuk menjamin integritas data di 4 tabel
     const result = await prisma.$transaction(async (tx) => {
       
-      // 1. Buat record di tabel Receipt (Sesuai Skema Baru)
       const receipt = await tx.receipt.create({
         data: {
           receiptNo: `GRN-${dateStr}-${Math.floor(1000 + Math.random() * 9000)}`,
@@ -61,16 +58,14 @@ export async function PATCH(request, context) {
         }
       });
 
-      // 2. Update status di tabel Purchasing (Sesuai Skema Baru)
       await tx.purchasing.update({
         where: { id: id },
         data: { 
           isReceived: true,
-          status: "RECEIVED" // Menggunakan Enum PurchaseStatus
+          status: "RECEIVED"
         }
       });
 
-      // 3. Kalkulasi dan Update/Upsert Stock
       const existingStock = await tx.stock.findUnique({
         where: { name: purchase.item }
       });
@@ -100,7 +95,6 @@ export async function PATCH(request, context) {
         }
       });
 
-      // 4. Catat Log History dengan referenceId ke Receipt
       await tx.history.create({
         data: {
           action: "STOCK_IN",

@@ -20,7 +20,7 @@ const AddStaff = ({ isOpen, onClose }) => {
 
   const designationOptions = [
     'IT Support', 'Farm Worker', 'Accountant', 
-    'Marketing', 'Maintenance', 'New Employee'
+    'Marketing', 'Maintenance', 'New Employee', "Test Akun"
   ];
 
   if (!isOpen) return null;

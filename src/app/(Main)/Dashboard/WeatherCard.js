@@ -1,5 +1,3 @@
-'use client';
-
 import React from 'react';
 import { 
   Sun, Cloud, CloudRain, CloudLightning, 

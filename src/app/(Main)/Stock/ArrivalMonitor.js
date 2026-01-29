@@ -1,10 +1,9 @@
-'use client'
 
 import React, { useState } from 'react';
 import { 
   Clock, PackageCheck, X, FileText, 
   Truck, ClipboardCheck, Loader2, AlertCircle,
-  Lock // Tambahan icon untuk visualisasi locked
+  Lock
 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 

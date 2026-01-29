@@ -11,7 +11,6 @@ import {
 } from 'lucide-react';
 
 const Report = () => {
-  // Data Dummy: Pertumbuhan Berat Badan Sapi (Bulanan)
   const growthData = [
     { month: 'Jan', weight: 450 },
     { month: 'Feb', weight: 480 },
@@ -21,7 +20,6 @@ const Report = () => {
     { month: 'Jun', weight: 580 },
   ];
 
-  // Data Dummy: Distribusi Biaya Operasional
   const expenseData = [
     { name: 'Pakan', value: 55 },
     { name: 'Kesehatan', value: 20 },
@@ -34,7 +32,6 @@ const Report = () => {
   return (
     <div className="p-6 bg-[#f8f9fa] min-h-full space-y-8">
       
-      {/* Header Section */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h2 className="text-2xl font-black text-gray-800 uppercase italic tracking-tight">
@@ -54,7 +51,6 @@ const Report = () => {
         </div>
       </div>
 
-      {/* Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <ReportStatCard 
           title="Revenue Growth" 
@@ -78,7 +74,6 @@ const Report = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
-        {/* Chart 1: Growth Analytics */}
         <div className="bg-white rounded-[32px] p-8 shadow-sm border border-gray-100">
           <div className="flex justify-between items-center mb-8">
             <h3 className="font-bold text-gray-700">Analisa Pertumbuhan Berat Badan (Rata-rata)</h3>
@@ -103,7 +98,6 @@ const Report = () => {
           </div>
         </div>
 
-        {/* Chart 2: Expense Distribution */}
         <div className="bg-white rounded-[32px] p-8 shadow-sm border border-gray-100">
           <h3 className="font-bold text-gray-700 mb-8">Distribusi Biaya Operasional</h3>
           <div className="flex flex-col md:flex-row items-center justify-between gap-8">
@@ -141,7 +135,6 @@ const Report = () => {
 
       </div>
 
-      {/* Recent Generated Reports Table */}
       <div className="bg-white rounded-[32px] shadow-sm border border-gray-100 overflow-hidden">
         <div className="p-8 border-b border-gray-50 flex justify-between items-center">
           <h3 className="font-bold text-gray-700">Laporan Terbaru</h3>
@@ -189,7 +182,6 @@ const Report = () => {
   );
 };
 
-// Sub-komponen Kartu Statistik Report
 const ReportStatCard = ({ title, value, percentage, isUp }) => (
   <div className="bg-white rounded-[32px] p-6 shadow-sm border border-gray-100 space-y-3">
     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{title}</p>

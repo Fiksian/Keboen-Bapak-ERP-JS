@@ -6,8 +6,9 @@ import bcrypt from "bcryptjs";
 export const authOptions = {
   session: {
     strategy: "jwt",
-    maxAge: 24 * 60 * 60, 
+    maxAge: 2 * 60 * 60, 
   },
+
   providers: [
     CredentialsProvider({
       name: "Credentials",
@@ -42,6 +43,7 @@ export const authOptions = {
           name: user.staffProfile?.firstName || user.username,
           email: user.email,
           role: user.role,
+          designation: user.staffProfile?.designation || null,
         };
       }
     })
@@ -57,6 +59,7 @@ export const authOptions = {
         token.email = user.email;
         token.role = user.role;
         token.name = user.name;
+        token.designation = user.designation;
       }
       return token;
     },
@@ -66,6 +69,7 @@ export const authOptions = {
         session.user.email = token.email;
         session.user.role = token.role;
         session.user.name = token.name;
+        session.user.designation = token.designation;
       }
       return session;
     }

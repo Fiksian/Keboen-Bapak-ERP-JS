@@ -1,4 +1,3 @@
-'use client'
 
 import React from 'react';
 import { Package, Trash2 } from 'lucide-react';

@@ -1,9 +1,7 @@
-'use client';
-
 import React, { useState } from 'react';
 import { 
   X, User, Mail, Phone, Camera, Loader2, 
-  CreditCard, Briefcase, ShieldCheck, UserPlus, Fingerprint, Lock
+  CreditCard, Briefcase, ShieldCheck, UserPlus, Fingerprint, Lock, ChevronDown
 } from 'lucide-react';
 
 const AddStaff = ({ isOpen, onClose }) => {
@@ -20,6 +18,11 @@ const AddStaff = ({ isOpen, onClose }) => {
     gender: 'Male'
   });
 
+  const designationOptions = [
+    'IT Support', 'Farm Worker', 'Accountant', 
+    'Marketing', 'Maintenance', 'New Employee'
+  ];
+
   if (!isOpen) return null;
 
   const handleChange = (e) => {
@@ -29,6 +32,11 @@ const AddStaff = ({ isOpen, onClose }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!formData.designation) {
+      alert("Please select a designation");
+      return;
+    }
+    
     setLoading(true);
 
     try {
@@ -60,7 +68,7 @@ const AddStaff = ({ isOpen, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-in fade-in duration-300">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-in fade-in duration-300 text-left">
       
       <div 
         className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity print:hidden" 
@@ -72,13 +80,12 @@ const AddStaff = ({ isOpen, onClose }) => {
         onClick={(e) => e.stopPropagation()}
       >
         
-        {/* Header Modal */}
         <div className='flex justify-between items-center p-8 border-b border-gray-50 bg-gray-50/50'>
           <div className='flex items-center gap-4'>
             <div className='bg-blue-600 p-3 rounded-2xl text-white shadow-lg shadow-blue-100'>
                 <UserPlus size={24} />
             </div>
-            <div className='text-left'>
+            <div>
               <h2 className='text-xl font-black text-gray-900 uppercase tracking-tight'>Add New Staff</h2>
               <p className='text-xs text-gray-500 font-bold'>Create a new member account and profile</p>
             </div>
@@ -88,9 +95,8 @@ const AddStaff = ({ isOpen, onClose }) => {
           </button>
         </div>
 
-        {/* Body AddStaff */}
         <div className='p-8 max-h-[75vh] overflow-y-auto custom-scrollbar'>
-          <form onSubmit={handleSubmit} className='space-y-8 text-left'>
+          <form onSubmit={handleSubmit} className='space-y-8'>
 
             <div className='flex flex-col items-center justify-center'>
               <div className='relative group'>
@@ -107,7 +113,7 @@ const AddStaff = ({ isOpen, onClose }) => {
 
             <div className='grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6'>
               
-              <div className='space-y-2 text-left'>
+              <div className='space-y-2'>
                 <label className='text-[11px] font-black text-gray-400 uppercase tracking-wider ml-1'>Username</label>
                 <div className='relative'>
                   <Fingerprint size={16} className='absolute left-4 top-1/2 -translate-y-1/2 text-gray-400'/>
@@ -115,7 +121,7 @@ const AddStaff = ({ isOpen, onClose }) => {
                 </div>
               </div>
 
-              <div className='space-y-2 text-left'>
+              <div className='space-y-2'>
                 <label className='text-[11px] font-black text-gray-400 uppercase tracking-wider ml-1'>Password</label>
                 <div className='relative'>
                   <Lock size={16} className='absolute left-4 top-1/2 -translate-y-1/2 text-gray-400'/>
@@ -123,7 +129,7 @@ const AddStaff = ({ isOpen, onClose }) => {
                 </div>
               </div>
 
-              <div className='space-y-2 text-left'>
+              <div className='space-y-2'>
                 <label className='text-[11px] font-black text-gray-400 uppercase tracking-wider ml-1'>First Name</label>
                 <div className='relative'>
                   <User size={16} className='absolute left-4 top-1/2 -translate-y-1/2 text-gray-400'/>
@@ -131,12 +137,12 @@ const AddStaff = ({ isOpen, onClose }) => {
                 </div>
               </div>
 
-              <div className='space-y-2 text-left'>
+              <div className='space-y-2'>
                 <label className='text-[11px] font-black text-gray-400 uppercase tracking-wider ml-1'>Last Name</label>
                 <input name="lastName" required value={formData.lastName} onChange={handleChange} type='text' placeholder='Williams' className='w-full px-5 py-3.5 border border-gray-100 bg-gray-50/30 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white outline-none transition-all text-sm font-bold text-gray-700' />
               </div>
 
-              <div className='space-y-2 text-left'>
+              <div className='space-y-2'>
                 <label className='text-[11px] font-black text-gray-400 uppercase tracking-wider ml-1'>Staff ID (Auto)</label>
                 <div className='relative'>
                   <CreditCard size={16} className='absolute left-4 top-1/2 -translate-y-1/2 text-gray-400'/>
@@ -144,15 +150,27 @@ const AddStaff = ({ isOpen, onClose }) => {
                 </div>
               </div>
 
-              <div className='space-y-2 text-left'>
+              <div className='space-y-2'>
                 <label className='text-[11px] font-black text-gray-400 uppercase tracking-wider ml-1'>Designation</label>
                 <div className='relative'>
-                  <Briefcase size={16} className='absolute left-4 top-1/2 -translate-y-1/2 text-gray-400'/>
-                  <input name="designation" required value={formData.designation} onChange={handleChange} type='text' placeholder='Operational Manager' className='w-full pl-12 pr-4 py-3.5 border border-gray-100 bg-gray-50/30 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white outline-none transition-all text-sm font-bold text-gray-700' />
+                  <Briefcase size={16} className='absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 z-10'/>
+                  <select 
+                    name="designation" 
+                    required 
+                    value={formData.designation} 
+                    onChange={handleChange} 
+                    className='w-full pl-12 pr-10 py-3.5 border border-gray-100 bg-gray-50/30 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white outline-none appearance-none transition-all text-sm font-bold text-gray-700 cursor-pointer'
+                  >
+                    <option value="" disabled>Select Designation</option>
+                    {designationOptions.map(opt => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </select>
+                  <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                 </div>
               </div>
 
-              <div className='space-y-2 text-left'>
+              <div className='space-y-2'>
                 <label className='text-[11px] font-black text-gray-400 uppercase tracking-wider ml-1'>Email Address</label>
                 <div className='relative'>
                   <Mail size={16} className='absolute left-4 top-1/2 -translate-y-1/2 text-gray-400'/>
@@ -160,7 +178,7 @@ const AddStaff = ({ isOpen, onClose }) => {
                 </div>
               </div>
 
-              <div className="space-y-2 text-left">
+              <div className="space-y-2">
                 <label className="text-[11px] font-black text-gray-400 uppercase tracking-wider ml-1">Phone Number</label>
                 <div className="relative">
                   <Phone size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -168,20 +186,21 @@ const AddStaff = ({ isOpen, onClose }) => {
                 </div>
               </div>
 
-              <div className='space-y-2 text-left'>
+              <div className='space-y-2'>
                 <label className="text-[11px] font-black text-gray-400 uppercase tracking-wider ml-1">Access Role</label>
                 <div className='relative'>
                   <ShieldCheck size={16} className='absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 z-10'/>
-                  <select name="role" value={formData.role} onChange={handleChange} className='w-full pl-12 pr-4 py-3.5 border border-gray-100 bg-gray-50/30 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white outline-none appearance-none transition-all text-sm font-bold text-gray-700 cursor-pointer'>
+                  <select name="role" value={formData.role} onChange={handleChange} className='w-full pl-12 pr-10 py-3.5 border border-gray-100 bg-gray-50/30 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white outline-none appearance-none transition-all text-sm font-bold text-gray-700 cursor-pointer'>
                     <option value="Staff">Staff Member</option>
                     <option value="Manager">Manager</option>
                     <option value="Supervisor">Supervisor</option>
                     <option value="Admin">Administrator</option>
                   </select>
+                  <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                 </div>
               </div>
 
-              <div className='space-y-2 text-left'>
+              <div className='space-y-2'>
                 <label className="text-[11px] font-black text-gray-400 uppercase tracking-wider ml-1">Gender</label>
                 <div className='flex items-center gap-4 h-[50px]'>
                   <label className={`flex-1 flex items-center justify-center gap-2 border rounded-2xl cursor-pointer transition-all ${formData.gender === 'Male' ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-100' : 'bg-white border-gray-100 text-gray-500'}`}>  

@@ -1,5 +1,3 @@
-'use client'
-
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   X, Package, Layers, Calendar as CalendarIcon, 
@@ -18,7 +16,6 @@ const ProductionModal = ({ isOpen, onClose, onSubmit }) => {
   
   const dropdownRef = useRef(null);
 
-  // Fetch data stok saat modal dibuka
   useEffect(() => {
     if (isOpen) {
       const fetchItems = async () => {
@@ -36,7 +33,6 @@ const ProductionModal = ({ isOpen, onClose, onSubmit }) => {
     }
   }, [isOpen]);
 
-  // Click outside listener untuk dropdown pencarian material
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -85,7 +81,6 @@ const ProductionModal = ({ isOpen, onClose, onSubmit }) => {
     e.preventDefault();
     setLoading(true);
     
-    // Menggunakan e.currentTarget agar pasti merujuk ke elemen <form>
     const formData = new FormData(e.currentTarget);
     const data = {
       productName: formData.get('productName')?.toString().toUpperCase() || "",
@@ -125,7 +120,6 @@ const ProductionModal = ({ isOpen, onClose, onSubmit }) => {
           </button>
         </div>
 
-        {/* Form Body - Diberi ID untuk dihubungkan dengan tombol footer */}
         <form id="production-form" onSubmit={handleInternalSubmit} className="flex-1 overflow-y-auto p-8 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="md:col-span-3">
@@ -160,7 +154,6 @@ const ProductionModal = ({ isOpen, onClose, onSubmit }) => {
             </div>
           </div>
 
-          {/* BOM Section */}
           <div className="pt-4 border-t border-slate-100" ref={dropdownRef}>
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-2 italic">

@@ -3,7 +3,6 @@ import prisma from "@/lib/prisma";
 
 export async function GET() {
   try {
-    // Mencoba melakukan query sederhana ke database
     const result = await prisma.$queryRaw`SELECT NOW() as server_time`;
     const localTime = new Date(result[0].server_time).toLocaleString("id-ID", {
     timeZone: "Asia/Jakarta",
@@ -13,7 +12,7 @@ export async function GET() {
     status: "Connected",
     database: "PostgreSQL",
     prisma_version: "6.2.1",
-    server_time: localTime, // Akan muncul format Indonesia (WIB)
+    server_time: localTime,
     message: "Koneksi database berjalan dengan sempurna!",
     }, { status: 200 });
 
@@ -27,4 +26,4 @@ export async function GET() {
       hint: "Cek apakah service postgresql sudah jalan (sudo systemctl start postgresql) dan cek URL di .env"
     }, { status: 500 });
   }
-}
+}a

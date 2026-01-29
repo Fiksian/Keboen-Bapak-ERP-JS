@@ -18,7 +18,6 @@ const StaffManager = () => {
   const [selectedStaff, setSelectedStaff] = useState(null);
   const [viewState, setViewState] = useState('LIST');
 
-  // Logic States for Global Components
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;

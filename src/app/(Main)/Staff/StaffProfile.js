@@ -24,10 +24,10 @@ const StaffProfile = ({ staff, onBack, onUpdate }) => {
 
   const isAdmin = session?.user?.role === 'Admin';
 
-  const roleOptions = [ 'Staff', 'Manager', 'Supervisor', 'Admin'];
+  const roleOptions = [ 'Staff', 'Manager', 'Supervisor', 'Admin', 'Test'];
   const designationOptions = [
     'IT Support', 'Farm Worker', 'Accountant', 
-    'Marketing', 'Maintenance', 'New Employee'
+    'Marketing', 'Maintenance', 'New Employee', 'Test Akun'
   ];
 
   const handleChange = (e) => {

@@ -195,6 +195,7 @@ const AddStaff = ({ isOpen, onClose }) => {
                     <option value="Manager">Manager</option>
                     <option value="Supervisor">Supervisor</option>
                     <option value="Admin">Administrator</option>
+                    <option value="Test">Test-Akun</option>
                   </select>
                   <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                 </div>

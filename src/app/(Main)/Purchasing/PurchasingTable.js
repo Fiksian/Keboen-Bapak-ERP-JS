@@ -8,7 +8,7 @@ import {
 const PurchasingTable = ({ data, onStatusUpdate, onDelete, onPrint }) => {
   const { data: session } = useSession();
 
-  const isAuthorized = ["Admin", "Supervisor"].includes(session?.user?.role);
+  const isAuthorized = ["Admin", "Supervisor", "Test"].includes(session?.user?.role);
 
   return (
     <div className="overflow-x-auto">

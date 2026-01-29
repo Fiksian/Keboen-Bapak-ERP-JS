@@ -19,7 +19,7 @@ const ArrivalMonitor = ({ arrivals, onRefresh }) => {
     notes: ''
   });
 
-  const isAuthorized = ["Admin", "Supervisor"].includes(session?.user?.role);
+  const isAuthorized = ["Admin", "Supervisor", "Test"].includes(session?.user?.role);
 
   if (!arrivals || arrivals.length === 0) return null;
 

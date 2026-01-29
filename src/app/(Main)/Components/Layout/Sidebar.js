@@ -18,7 +18,7 @@ const Sidebar = ({ isCollapsed, toggleSidebar, userRole }) => {
       name: 'Dashboard', 
       icon: <LayoutDashboard size={18} />, 
       path: '/Dashboard', 
-      roles: ['Admin', 'Staff', 'Manager', 'Supervisor'] 
+      roles: ['Admin', 'Staff', 'Manager', 'Supervisor', 'Test'] 
     },
     { 
       name: 'Staff', 
@@ -42,25 +42,25 @@ const Sidebar = ({ isCollapsed, toggleSidebar, userRole }) => {
       name: 'Produksi', 
       icon: <Settings size={18} />, 
       path: '/Produksi', 
-      roles: ['Admin', 'Staff', 'Manager','Supervisor'] 
+      roles: ['Admin', 'Staff', 'Manager','Supervisor', 'Test'] 
     },
     { 
       name: 'Warehouse', 
       icon: <Package size={18} />, 
       path: '/Stock', 
-      roles: ['Admin', 'Manager', 'Staff', 'Supervisor'] 
+      roles: ['Admin', 'Manager', 'Staff', 'Supervisor', 'Test'] 
     },
     { 
       name: 'Purchasing', 
       icon: <ShoppingCart size={18} />, 
       path: '/Purchasing', 
-      roles: ['Admin', 'Manager', 'Staff','Supervisor'] 
+      roles: ['Admin', 'Manager', 'Staff','Supervisor', 'Test'] 
     },
     { 
       name: 'Cuaca', 
       icon: <CloudSun size={18} />, 
       path: '/Cuaca', 
-      roles: ['Admin', 'Staff', 'Manager', 'Supervisor'] 
+      roles: ['Admin', 'Staff', 'Manager', 'Supervisor', 'Test'] 
     },
     { 
       name: 'Report', 
@@ -72,13 +72,13 @@ const Sidebar = ({ isCollapsed, toggleSidebar, userRole }) => {
       name: 'Notifications', 
       icon: <Bell size={18} />, 
       path: '/Notifications', 
-      roles: ['Admin', 'Staff', 'Manager', 'Supervisor'] 
+      roles: ['Admin', 'Manager', 'Supervisor'] 
     },
     { 
       name: 'History', 
       icon: <Clock size={18} />, 
       path: '/History', 
-      roles: ['Admin', 'Manager', 'Supervisor'] 
+      roles: ['Admin', 'Manager', 'Supervisor', 'Test'] 
     },
   ];
 

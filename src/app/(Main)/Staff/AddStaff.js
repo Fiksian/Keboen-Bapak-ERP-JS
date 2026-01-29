@@ -68,7 +68,7 @@ const AddStaff = ({ isOpen, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-in fade-in duration-300 text-left">
+    <div className="fixed inset-0 z-100 flex items-center justify-center p-4 animate-in fade-in duration-300 text-left">
       
       <div 
         className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity print:hidden" 
@@ -100,7 +100,7 @@ const AddStaff = ({ isOpen, onClose }) => {
 
             <div className='flex flex-col items-center justify-center'>
               <div className='relative group'>
-                <div className='w-32 h-32 bg-gray-50 rounded-[2rem] border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden transition-all group-hover:border-blue-400 group-hover:bg-blue-50/30'>
+                <div className='w-32 h-32 bg-gray-50 rounded-4xl border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden transition-all group-hover:border-blue-400 group-hover:bg-blue-50/30'>
                     <Camera size={32} className='text-gray-300 group-hover:text-blue-400 transition-colors' />
                     <div className='absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all cursor-pointer'>
                       <span className='text-[10px] text-white font-black uppercase tracking-widest'>Upload</span>

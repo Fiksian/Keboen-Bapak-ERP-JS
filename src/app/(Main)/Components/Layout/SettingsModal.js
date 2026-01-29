@@ -12,7 +12,7 @@ const SettingsModal = ({ isOpen, onClose }) => {
     ];
 
     return (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
             <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-200">
                 <div className="flex items-center justify-between p-6 border-b border-gray-100">
                     <div>

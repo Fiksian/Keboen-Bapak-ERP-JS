@@ -5,7 +5,6 @@ import React from 'react';
 const PrintSTTB = ({ data }) => {
   if (!data) return null;
 
-  // Helper untuk parsing kuantitas dan satuan
   const getQtyDetail = () => {
     if (!data.qty) return { val: '0', unit: 'Unit' };
     const parts = data.qty.toString().split(' ');
@@ -16,10 +15,7 @@ const PrintSTTB = ({ data }) => {
   };
 
   const { val, unit } = getQtyDetail();
-  
-  // PRIORITAS: 
-  // 1. Langsung dari objek (jika sudah di-flatten di StockHistory) 
-  // 2. Dari array receipts (jika passing objek utuh Prisma)
+
   const displaySuratJalan = data.suratJalan || data.receipts?.[0]?.suratJalan || "____________________";
   const displayVehicleNo = data.vehicleNo || data.receipts?.[0]?.vehicleNo || "____________________";
   const displayCondition = data.condition || data.receipts?.[0]?.condition || "GOOD";
@@ -30,11 +26,10 @@ const PrintSTTB = ({ data }) => {
   return (
     <div 
       id="print-area" 
-      className="hidden print:block print:absolute print:inset-0 print:z-[9999] bg-white text-black min-h-screen p-0 print:p-0"
+      className="hidden print:block print:absolute print:inset-0 print:z-9999 bg-white text-black min-h-screen p-0 print:p-0"
     >
       <div className="max-w-[210mm] mx-auto p-12">
         
-        {/* Header STTB */}
         <div className="flex justify-between border-b-4 border-black pb-6 mb-8">
           <div className="text-left">
             <h1 className="text-4xl font-black uppercase italic tracking-tighter leading-none">Surat Tanda Terima Barang</h1>
@@ -52,7 +47,6 @@ const PrintSTTB = ({ data }) => {
           </div>
         </div>
 
-        {/* Info Transaksi & Pengiriman */}
         <div className="grid grid-cols-2 gap-10 mb-10 border-b border-gray-100 pb-8 text-left">
           <div className="space-y-4">
             <div>
@@ -139,7 +133,6 @@ const PrintSTTB = ({ data }) => {
           </table>
         </div>
 
-        {/* Area Catatan & Tanda Tangan */}
         <div className="grid grid-cols-2 gap-10 mt-10 text-left">
           <div className="border-2 border-dashed border-gray-200 p-5 rounded-[24px]">
             <p className="text-[9px] font-bold text-gray-400 uppercase mb-2 italic">Catatan Pemeriksaan Gudang:</p>
@@ -164,7 +157,6 @@ const PrintSTTB = ({ data }) => {
           </div>
         </div>
 
-        {/* Footer Dokumen - Diubah ke mt-20 agar lebih fleksibel saat print */}
         <div className="mt-20 border-t border-gray-200 pt-6">
           <div className="flex justify-between items-end">
             <div className="text-left space-y-1">

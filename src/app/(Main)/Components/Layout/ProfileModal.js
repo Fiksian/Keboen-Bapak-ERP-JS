@@ -52,8 +52,8 @@ const ProfileModal = ({ isOpen, onClose }) => {
     };
 
     return (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-300">
-            <div className="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 border border-gray-100">
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+            <div className="bg-white w-full max-w-sm rounded-4xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 border border-gray-100">
                 
                 {/* Header Banner */}
                 <div className="relative h-28 bg-[#8da070]">
@@ -69,7 +69,7 @@ const ProfileModal = ({ isOpen, onClose }) => {
                 <div className="px-8 pb-8 text-center">
                     {/* Avatar Section */}
                     <div className="relative -mt-14 mb-4 inline-block">
-                        <div className="w-28 h-28 bg-gray-50 border-[6px] border-white rounded-[2rem] shadow-xl flex items-center justify-center text-[#8da070] overflow-hidden">
+                        <div className="w-28 h-28 bg-gray-50 border-[6px] border-white rounded-4xl shadow-xl flex items-center justify-center text-[#8da070] overflow-hidden">
                             <User size={56} strokeWidth={1.5} />
                         </div>
                         <div className="absolute bottom-1 right-1 w-6 h-6 bg-green-500 border-4 border-white rounded-full"></div>

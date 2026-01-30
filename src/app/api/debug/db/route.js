@@ -26,4 +26,4 @@ export async function GET() {
       hint: "Cek apakah service postgresql sudah jalan (sudo systemctl start postgresql) dan cek URL di .env"
     }, { status: 500 });
   }
-}a
+}

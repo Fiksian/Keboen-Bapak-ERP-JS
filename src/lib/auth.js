@@ -31,7 +31,7 @@ export const authOptions = {
         return {
           id: user.id,
           email: user.email,
-          role: user.role, // Pastikan role disertakan
+          role: user.role,
         };
       },
     }),

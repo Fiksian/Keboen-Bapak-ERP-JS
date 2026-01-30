@@ -24,7 +24,6 @@ const ProfileModal = ({ isOpen, onClose }) => {
     const fetchProfile = async () => {
         setLoading(true);
         try {
-            // Mengambil data terbaru dari DB
             const res = await fetch('/api/staff/me');
             if (res.ok) {
                 const data = await res.json();
@@ -41,9 +40,11 @@ const ProfileModal = ({ isOpen, onClose }) => {
 
     const handleLogout = async () => {
         await signOut({ 
-            callbackUrl: '/Login',
-            redirect: true 
+            callbackUrl: '/Login', 
+            redirect: false 
         });
+
+        router.push('/Login');
     };
 
     const handleEditProfile = () => {

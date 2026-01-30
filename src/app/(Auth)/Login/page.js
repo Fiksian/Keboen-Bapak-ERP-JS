@@ -25,7 +25,7 @@ const Login = () => {
       const res = await signIn('credentials', {
         username: formData.username,
         password: formData.password,
-        redirect: false, // Kita handle redirect manual
+        redirect: false,
       });
 
       if (res?.error) {

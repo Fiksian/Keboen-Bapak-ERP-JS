@@ -24,6 +24,19 @@ enum ProductionStatus {
   CANCELLED
 }
 
+// TAMBAHKAN ENUM INI (Tadi Hilang)
+enum PenjualanStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
+// TAMBAHKAN ENUM INI untuk Contact
+enum ContactType {
+  CUSTOMER
+  SUPPLIER
+}
+
 // --- MODELS ---
 
 model User {
@@ -38,7 +51,7 @@ model User {
 }
 
 model Staff {
-  id          String   @id
+  id          String   @id // ID ini akan sama dengan User.id
   email       String   @unique
   user        User     @relation(fields: [id], references: [id], onDelete: Cascade)
   sn          String?
@@ -66,9 +79,7 @@ model Purchasing {
   supplier    String?
   status      PurchaseStatus @default(PENDING)
   isReceived  Boolean        @default(false)
-  
   receipts    Receipt[]
-
   requestedBy String
   approvedBy  String?
   createdAt   DateTime       @default(now())
@@ -77,17 +88,15 @@ model Purchasing {
 
 model Receipt {
   id           String     @id @default(cuid())
-  receiptNo    String     @unique 
+  receiptNo    String     @unique
   purchasingId String
   purchasing   Purchasing @relation(fields: [purchasingId], references: [id])
-  
   suratJalan   String
-  vehicleNo    String     
+  vehicleNo    String
   receivedQty  Float
   receivedBy   String
   condition    String     @default("GOOD")
   notes        String?
-  
   receivedAt   DateTime   @default(now())
 }
 
@@ -104,43 +113,33 @@ model Stock {
   updatedAt       DateTime @updatedAt
 }
 
-// --- NEW PRODUCTION MODELS ---
-
 model Production {
-  id          String           @id @default(cuid())
-  noBatch     String           @unique // Format: PROD/YYYY/MM/001
-  productName String           // PERBAIKAN: @unique DIHAPUS agar satu produk bisa banyak batch
-  targetQty   Float            
-  actualQty   Float?           
-  status      ProductionStatus @default(SCHEDULLING)
-  
-  totalCost   Float            @default(0)
-  unitCost    Float            @default(0)
-
-  startDate   DateTime         @default(now())
+  id          String                @id @default(cuid())
+  noBatch     String                @unique
+  productName String
+  targetQty   Float
+  actualQty   Float?
+  status      ProductionStatus      @default(SCHEDULLING)
+  totalCost   Float                 @default(0)
+  unitCost    Float                 @default(0)
+  startDate   DateTime              @default(now())
   endDate     DateTime?
-  
   components  ProductionComponent[]
-
   createdBy   String
   notes       String?
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
 }
 
 model ProductionComponent {
   id           String     @id @default(cuid())
   productionId String
   production   Production @relation(fields: [productionId], references: [id], onDelete: Cascade)
-  
-  itemName     String     
-  qtyNeeded    Float      
+  itemName     String
+  qtyNeeded    Float
   unit         String     @default("Unit")
-
   createdAt    DateTime   @default(now())
 }
-
-// ---------------------------
 
 model Task {
   id        String   @id @default(cuid())
@@ -164,6 +163,39 @@ model History {
   unit        String   @default("Unit")
   user        String
   notes       String?
-  referenceId String?  
+  referenceId String?
   createdAt   DateTime @default(now())
+}
+
+
+model Penjualan {
+  id          String          @id @default(cuid())
+  invoiceId   String          @unique
+  totalAmount Float
+  status      PenjualanStatus @default(PENDING)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  customerId  String
+  customer    Contact         @relation(fields: [customerId], references: [id])
+  items       PenjualanItem[]
+}
+
+model PenjualanItem {
+  id          String    @id @default(cuid())
+  penjualanId String
+  penjualan   Penjualan @relation(fields: [penjualanId], references: [id], onDelete: Cascade)
+  productName String
+  quantity    Float
+  price       Float
+}
+
+model Contact {
+  id        String      @id @default(cuid())
+  name      String
+  type      ContactType @default(CUSTOMER)
+  email     String?     @unique
+  phone     String?
+  address   String?
+  penjualan Penjualan[]
+  createdAt DateTime    @default(now())
 }

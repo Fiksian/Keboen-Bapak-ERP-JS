@@ -10,7 +10,6 @@ export async function GET() {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    // Pastikan model 'penjualan' diakses dengan huruf kecil (sesuai Prisma Client)
     const sales = await prisma.penjualan.findMany({
       include: {
         customer: {
@@ -36,7 +35,6 @@ export async function GET() {
     return NextResponse.json(formattedData, { status: 200 });
   } catch (error) {
     console.error("API_GET_SALES_ERROR:", error);
-    // Mengembalikan detail error agar kita tahu kolom mana yang dianggap hilang
     return NextResponse.json({ 
       message: "Gagal mengambil data penjualan",
       error: error.message 
@@ -54,13 +52,11 @@ export async function POST(request) {
     const body = await request.json();
     const { invoiceId, customerId, totalAmount, items } = body;
 
-    // Validasi dasar data
     if (!items || items.length === 0) {
       return NextResponse.json({ message: "Item penjualan tidak boleh kosong" }, { status: 400 });
     }
 
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Buat Penjualan
       const sale = await tx.penjualan.create({
         data: {
           invoiceId,
@@ -78,9 +74,7 @@ export async function POST(request) {
         include: { items: true }
       });
 
-      // 2. Update Stok & History
       for (const item of items) {
-        // Gunakan updateMany untuk menghindari error jika item tidak ditemukan secara unik
         await tx.stock.updateMany({
           where: { name: item.name },
           data: {

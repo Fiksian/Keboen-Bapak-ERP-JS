@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:push:local": "dotenv -e .env.local -- npx prisma db push",
+    "db:generate:local": "dotenv -e .env.local -- npx prisma generate",
+    "db:studio:local": "dotenv -e .env.local -- npx prisma studio"
   },
   "dependencies": {
     "@prisma/client": "^6.2.1",
@@ -23,6 +26,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "babel-plugin-react-compiler": "1.0.0",
+    "dotenv-cli": "^11.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.1.1",
     "install": "^0.13.0",
@@ -30,6 +34,6 @@
     "tailwindcss": "^4"
   },
   "prisma": {
-  "seed": "node prisma/seed.js"
+    "seed": "node prisma/seed.js"
   }
 }

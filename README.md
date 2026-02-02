@@ -1,6 +1,8 @@
 # Keboen Bapak ERP (JavaScript Version) 🌿
 
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D%2014.0.0-brightgreen)](https://nodejs.org/)
+[![Docker Support](https://img.shields.io/badge/docker-ready-blue)](https://www.docker.com/)
+[![Prisma](https://img.shields.io/badge/orm-prisma-indigo)](https://www.prisma.io/)
 
 **Keboen Bapak ERP** adalah sistem manajemen sumber daya perusahaan (ERP) yang dirancang khusus untuk digitalisasi operasional pertanian atau perkebunan. Proyek ini dibangun menggunakan ekosistem JavaScript untuk memberikan performa yang cepat dan kemudahan pengembangan.
 
@@ -19,8 +21,10 @@
 - **Runtime**: Node.js
 - **Frontend**: [Next.js]
 - **Backend**: [Masih Pengembangan]
-- **Database**: [Masih Pengembangan]
-- **Styling**: [Tailwind CSS]
+- **Database ORM**: [Prisma](https://www.prisma.io/)
+- **Database Engine**: [PostgreSQL 15](https://www.postgresql.org/)
+- **Styling**: [Tailwind CSS] (https://tailwindcss.com/) & [Lucide React](https://lucide.dev/)
+- **Infrastructure**: [Docker](https://www.docker.com/) & [Nginx Reverse Proxy](https://www.nginx.com/)
 
 ## Referensi
 - Dashboard
@@ -69,6 +73,42 @@ Ikuti langkah-langkah berikut untuk menjalankan proyek ini di mesin lokal Anda:
    ```bash
    npm install
 
-## **Menjalankan Projek**
+3. **Instal Postgresql**
+   Pastikan PostgreSQL sudah terinstal dan berjalan di sistem Anda, kemudian lakukan langkah berikut:
+   ```bash
+    <!-- # Buat file environment dari template (jika ada) atau buat baru -->
+    touch .env
+
+    <!-- # Isi .env dengan kredensial database Anda, contoh: -->
+    DATABASE_URL="postgresql://USER:PASSWORD@localhost:5432/keboen_db"
+    NEXTAUTH_SECRET="rahasia_super_kuat_anda"
+    NEXTAUTH_URL="http://localhost:3000"
+
+4. **Instal Prisma ORM**
+   ```bash
+    <!-- Instal Prisma CLI sebagai devDependency -->
+    npm install prisma --save-dev
+
+    <!-- Instal Prisma Client untuk digunakan di dalam kode aplikasi -->
+    npm install @prisma/client
+
+5. **Persiapan Prisma**
+   ```bash
+    <!-- 1. Inisialisasi Prisma (akan membuat folder 'prisma' dan file 'schema.prisma') -->
+    npx prisma init
+
+    <!-- 2. Sinkronisasi Skema ke Database -->
+    <!-- Perintah ini akan membaca file schema.prisma dan menerapkannya ke PostgreSQL -->
+    npx prisma db push
+
+    <!-- 3. Generate Client -->
+    <!-- Perintah ini untuk memperbarui fungsi autocomplete (IntelliSense) di VS Code Anda -->
+    npx prisma generate
+
+    <!-- 4. (Opsional) Membuka Prisma Studio -->
+    <!-- Gunakan ini jika ingin melihat isi database melalui antarmuka web yang rapi -->
+    npx prisma studio
+
+## **Menjalankan Projek dalam mode Development**
    ```bash
    npm run dev

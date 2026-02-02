@@ -7,7 +7,10 @@ import {
   LayoutDashboard, User, CheckSquare, Package, 
   ShoppingCart, CloudSun, BarChart3, Bell, Settings, ChevronRight, PanelLeftClose,
   PanelLeftOpen, Warehouse,
-  Clock
+  Clock,
+  Store,
+  User2,
+  CircleDollarSign
 } from 'lucide-react';
 
 const Sidebar = ({ isCollapsed, toggleSidebar, userRole }) => {
@@ -21,9 +24,21 @@ const Sidebar = ({ isCollapsed, toggleSidebar, userRole }) => {
       roles: ['Admin', 'Staff', 'Manager', 'Supervisor', 'Test'] 
     },
     { 
+      name: 'Cuaca', 
+      icon: <CloudSun size={18} />, 
+      path: '/Cuaca', 
+      roles: ['Admin', 'Staff', 'Manager', 'Supervisor', 'Test'] 
+    },
+    { 
       name: 'Staff', 
       icon: <User size={18} />, 
       path: '/Staff', 
+      roles: ['Admin']
+    },
+    { 
+      name: 'Contacts', 
+      icon: <User2 size={18} />, 
+      path: '/Contacts', 
       roles: ['Admin']
     },
     { 
@@ -57,10 +72,16 @@ const Sidebar = ({ isCollapsed, toggleSidebar, userRole }) => {
       roles: ['Admin', 'Manager', 'Staff','Supervisor', 'Test'] 
     },
     { 
-      name: 'Cuaca', 
-      icon: <CloudSun size={18} />, 
-      path: '/Cuaca', 
-      roles: ['Admin', 'Staff', 'Manager', 'Supervisor', 'Test'] 
+      name: 'Penjualan', 
+      icon: <Store size={18} />, 
+      path: '/Penjualan', 
+      roles: ['Admin', 'Manager', 'Staff','Supervisor', 'Test'] 
+    },
+    { 
+      name: 'Finance', 
+      icon: <CircleDollarSign size={18} />, 
+      path: '/Finance', 
+      roles: ['Admin', 'Manager'] 
     },
     { 
       name: 'Report', 

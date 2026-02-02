@@ -2,24 +2,24 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-    UserPlus, Search, Filter, 
+    UserPlus, Search, 
     Mail, Phone, MapPin, 
-    Building2, User, ChevronRight,
-    MoreHorizontal, Globe, ArrowUpRight,
+    Building2, User,
+    MoreHorizontal,
     Loader2
 } from 'lucide-react';
+import AddContact from '@/app/(Main)/Contacts/AddContact';
 
 const ContactsPage = () => {
     const [activeTab, setActiveTab] = useState('all');
     const [contacts, setContacts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [isModalOpen, setIsModalOpen] = useState(false);
 
-    // Fungsi untuk mengambil data dari API
     const fetchContacts = async () => {
         try {
             setLoading(true);
-            // Kita mengirimkan activeTab sebagai query parameter 'type'
             const res = await fetch(`/api/contacts?type=${activeTab}`);
             if (res.ok) {
                 const data = await res.json();
@@ -32,12 +32,29 @@ const ContactsPage = () => {
         }
     };
 
-    // Jalankan fetch setiap kali tab berubah
+    const handleDelete = async (id, name) => {
+        if (confirm(`Apakah Anda yakin ingin menghapus "${name}"?`)) {
+            try {
+                const res = await fetch(`/api/contacts?id=${id}`, {
+                    method: 'DELETE',
+                });
+                
+                if (res.ok) {
+                    fetchContacts();
+                } else {
+                    const err = await res.json();
+                    alert(err.message || "Gagal menghapus kontak");
+                }
+            } catch (error) {
+                alert("Terjadi kesalahan koneksi");
+            }
+        }
+    };
+
     useEffect(() => {
         fetchContacts();
     }, [activeTab]);
 
-    // Filter data di sisi client untuk pencarian nama/email
     const filteredContacts = contacts.filter(contact => 
         contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         contact.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -46,19 +63,19 @@ const ContactsPage = () => {
 
     return (
         <div className="min-h-screen bg-gray-50/50 p-4 md:p-8 font-sans">
-            {/* Header Section */}
             <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-black text-gray-900 tracking-tight uppercase">Buku Kontak</h1>
                     <p className="text-sm text-gray-500 font-medium">Kelola data Pelanggan dan Vendor dalam satu tempat</p>
                 </div>
-                <button className="flex items-center justify-center gap-2 bg-[#8da070] hover:bg-[#7a8c61] text-white px-6 py-3 rounded-2xl font-bold transition-all active:scale-95 shadow-lg shadow-[#8da070]/20">
+                <button 
+                    onClick={() => setIsModalOpen(true)}
+                    className="flex items-center justify-center gap-2 bg-[#8da070] hover:bg-[#7a8c61] text-white px-6 py-3 rounded-2xl font-bold transition-all active:scale-95 shadow-lg shadow-[#8da070]/20">
                     <UserPlus size={20} strokeWidth={3} />
                     <span>Tambah Kontak</span>
                 </button>
             </div>
 
-            {/* Filter & Search Bar */}
             <div className="bg-white rounded-3xl border border-gray-100 shadow-sm mb-6 p-2 flex flex-col lg:flex-row gap-4 justify-between items-center">
                 <div className="flex p-1 bg-gray-50 rounded-2xl w-full lg:w-auto">
                     {['all', 'customer', 'supplier'].map((tab) => (
@@ -88,7 +105,6 @@ const ContactsPage = () => {
                 </div>
             </div>
 
-            {/* Content Section */}
             {loading ? (
                 <div className="flex flex-col items-center justify-center py-32 gap-4">
                     <Loader2 className="animate-spin text-[#8da070]" size={48} />
@@ -99,7 +115,6 @@ const ContactsPage = () => {
                     {filteredContacts.length > 0 ? (
                         filteredContacts.map((contact) => (
                             <div key={contact.id} className="group bg-white rounded-4xl border border-gray-100 p-6 shadow-sm hover:shadow-xl hover:border-[#8da070]/20 transition-all duration-300 relative overflow-hidden">
-                                {/* Type Badge */}
                                 <div className={`absolute top-0 right-0 px-6 py-2 rounded-bl-3xl text-[10px] font-black uppercase tracking-[0.2em] ${
                                     contact.type === 'Customer' ? 'bg-blue-50 text-blue-500' : 'bg-[#8da070]/10 text-[#8da070]'
                                 }`}>
@@ -134,12 +149,11 @@ const ContactsPage = () => {
                                 </div>
 
                                 <div className="flex gap-2 border-t border-gray-50 pt-6">
-                                    <button className="flex-1 flex items-center justify-center gap-2 py-3 bg-gray-900 text-white rounded-2xl text-xs font-bold hover:bg-black transition-all active:scale-95">
-                                        <ArrowUpRight size={14} />
-                                        Lihat Detail
-                                    </button>
-                                    <button className="px-4 py-3 bg-gray-50 text-gray-400 rounded-2xl hover:bg-gray-100 transition-all">
-                                        <MoreHorizontal size={18} />
+                                    <button 
+                                        onClick={() => handleDelete(contact.id, contact.name)}
+                                        className="flex-1 flex items-center justify-center gap-2 py-3 bg-red-50 text-red-500 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all active:scale-95"
+                                    >
+                                        Hapus Kontak
                                     </button>
                                 </div>
                             </div>
@@ -157,6 +171,11 @@ const ContactsPage = () => {
                     )}
                 </div>
             )}
+            <AddContact
+                isOpen={isModalOpen} 
+                onClose={() => setIsModalOpen(false)} 
+                onRefresh={fetchContacts} 
+            />
         </div>
     );
 };

@@ -3,15 +3,13 @@ import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
-// GET: Mengambil semua kontak
 export async function GET(request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
-    // Mengambil parameter search dari URL jika ada
     const { searchParams } = new URL(request.url);
-    const type = searchParams.get("type"); // misal: ?type=CUSTOMER
+    const type = searchParams.get("type");
 
     const contacts = await prisma.contact.findMany({
       where: type && type !== "all" ? { 
@@ -19,18 +17,17 @@ export async function GET(request) {
       } : {},
       include: {
         _count: {
-          select: { penjualan: true } // Menghitung jumlah transaksi per kontak
+          select: { penjualan: true }
         }
       },
       orderBy: { name: 'asc' },
     });
 
-    // Formatter agar sesuai dengan kebutuhan UI
     const formattedContacts = contacts.map(c => ({
       id: c.id,
       name: c.name,
-      type: c.type.charAt(0) + c.type.slice(1).toLowerCase(), // CUSTOMER -> Customer
-      contactPerson: c.name, // atau tambahkan field PIC di skema jika perlu
+      type: c.type.charAt(0) + c.type.slice(1).toLowerCase(),
+      contactPerson: c.name,
       email: c.email || "-",
       phone: c.phone || "-",
       address: c.address || "-",
@@ -44,7 +41,6 @@ export async function GET(request) {
   }
 }
 
-// POST: Membuat kontak baru
 export async function POST(request) {
   try {
     const session = await getServerSession(authOptions);
@@ -53,7 +49,6 @@ export async function POST(request) {
     const body = await request.json();
     const { name, type, email, phone, address } = body;
 
-    // Validasi input minimal
     if (!name || !type) {
       return NextResponse.json({ message: "Nama dan Tipe wajib diisi" }, { status: 400 });
     }
@@ -61,7 +56,7 @@ export async function POST(request) {
     const newContact = await prisma.contact.create({
       data: {
         name,
-        type: type.toUpperCase(), // CUSTOMER atau SUPPLIER
+        type: type.toUpperCase(),
         email: email || null,
         phone: phone || null,
         address: address || null,
@@ -72,5 +67,39 @@ export async function POST(request) {
   } catch (error) {
     console.error("POST_CONTACTS_ERROR:", error);
     return NextResponse.json({ message: "Gagal menyimpan kontak" }, { status: 500 });
+  }
+}
+
+export async function DELETE(request) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+
+    if (!id) {
+      return NextResponse.json({ message: "ID diperlukan" }, { status: 400 });
+    }
+
+    const contact = await prisma.contact.findUnique({
+      where: { id },
+      include: { _count: { select: { penjualan: true } } }
+    });
+
+    if (contact?._count.penjualan > 0) {
+      return NextResponse.json({ 
+        message: "Kontak tidak bisa dihapus karena memiliki data transaksi penjualan" 
+      }, { status: 400 });
+    }
+
+    await prisma.contact.delete({
+      where: { id },
+    });
+
+    return NextResponse.json({ message: "Kontak berhasil dihapus" }, { status: 200 });
+  } catch (error) {
+    console.error("DELETE_CONTACT_ERROR:", error);
+    return NextResponse.json({ message: "Gagal menghapus kontak" }, { status: 500 });
   }
 }

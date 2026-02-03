@@ -14,7 +14,6 @@ async function main() {
 
   try {
     await prisma.$transaction(async (tx) => {
-      // 1. Upsert User (Buat jika belum ada)
       const user = await tx.user.upsert({
         where: { email: adminEmail },
         update: {},
@@ -26,12 +25,11 @@ async function main() {
         },
       });
 
-      // 2. Upsert Profil Staff (ID disamakan dengan User.id)
-      await tx.staff.upsert({
+      await tx.staffs.upsert({
         where: { email: adminEmail },
-        update: {},
+        update: { updatedAt: new Date() },
         create: {
-          id: user.id, // Menyamakan ID
+          id: user.id,
           email: adminEmail,
           firstName: "Super",
           lastName: "Admin",
@@ -39,24 +37,34 @@ async function main() {
           staffId: "ADM-001",
           role: "Admin",
           designation: "System Administrator",
+          updatedAt: new Date(),
         },
       });
+
+      await tx.purchasing.upsert({
+        where: { noPO: 'PO-2026-SEED-01' },
+        update: {},
+        create: {
+          noPO: 'PO-2026-SEED-01',
+          item: 'PAKAN AYAM A1',
+          qty: 1000,    
+          unit: 'KG',
+          price: '10000000',
+          category: 'Feed',
+          requestedBy: 'System',
+          status: 'PENDING',
+        },
+      });
+
+      console.log('✅ Seed Admin, Staff, dan Purchasing Berhasil!');
     });
 
-    console.log('✅ Seed Berhasil!');
-    console.log(`📧 Email: ${adminEmail}`);
-    console.log(`🔑 Password: ${adminPassword}`);
   } catch (error) {
     console.error('❌ Gagal melakukan seeding:', error);
     process.exit(1);
+  } finally {
+    await prisma.$disconnect();
   }
 }
 
-main()
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+main();

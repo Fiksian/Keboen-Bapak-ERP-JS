@@ -23,7 +23,8 @@ model Purchasing {
   id          String         @id @default(cuid())
   noPO        String         @unique
   item        String
-  qty         String
+  qty         Float          @default(0)
+  unit        String         @default("KG")
   price       String?
   category    String
   type        String         @default("STOCKS")

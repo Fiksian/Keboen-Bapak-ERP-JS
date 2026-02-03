@@ -24,9 +24,10 @@ const PurchasingTable = ({ data, onStatusUpdate, onDelete, onPrint }) => {
         </thead>
         <tbody className="divide-y divide-gray-50">
           {data.length > 0 ? data.map((req) => {
-            const qtyNum = parseFloat(req.qty?.split(' ')[0]) || 0;
+            const qtyNum = parseFloat(req.qty) || 0;
             const unitPrice = parseInt(req.price) || 0;
             const totalRow = qtyNum * unitPrice;
+            
             const dateCreated = new Date(req.createdAt).toLocaleDateString('id-ID', {
               day: '2-digit', month: 'short', year: 'numeric'
             });
@@ -53,7 +54,9 @@ const PurchasingTable = ({ data, onStatusUpdate, onDelete, onPrint }) => {
                   <div className="flex flex-col">
                     <span className="font-black text-gray-800 uppercase text-xs">{req.item}</span>
                     <div className="flex items-center gap-2 mt-1">
-                      <span className="text-[9px] bg-gray-100 px-2 py-0.5 rounded text-gray-500 font-black">{req.qty}</span>
+                      <span className="text-[9px] bg-gray-100 px-2 py-0.5 rounded text-gray-500 font-black">
+                        {qtyNum.toLocaleString('id-ID')} {req.unit || 'UNIT'}
+                      </span>
                       <span className={`px-2 py-0.5 rounded text-[8px] font-black border ${
                         req.type === 'STOCKS' ? 'text-indigo-600 border-indigo-100 bg-indigo-50' : 'text-purple-600 border-purple-100 bg-purple-50'
                       }`}>

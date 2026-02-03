@@ -6,7 +6,7 @@ import bcrypt from "bcryptjs";
 export const authOptions = {
   session: {
     strategy: "jwt",
-    maxAge: 2 * 60 * 60, 
+    maxAge: 2 * 60 * 60,
   },
 
   providers: [
@@ -24,7 +24,7 @@ export const authOptions = {
         const user = await prisma.user.findUnique({
           where: { username: credentials.username },
           include: {
-            staffProfile: true
+            staffs: true 
           }
         });
 
@@ -40,10 +40,10 @@ export const authOptions = {
 
         return {
           id: user.id,
-          name: user.staffProfile?.firstName || user.username,
+          name: user.staffs?.firstName ? `${user.staffs.firstName} ${user.staffs.lastName}` : user.username,
           email: user.email,
           role: user.role,
-          designation: user.staffProfile?.designation || null,
+          designation: user.staffs?.designation || "Staff",
         };
       }
     })

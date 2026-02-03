@@ -38,9 +38,8 @@ export async function PATCH(request, context) {
       return NextResponse.json({ message: "Barang sudah pernah diterima sebelumnya" }, { status: 400 });
     }
 
-    const qtyParts = purchase.qty.split(' ');
-    const incomingQty = receivedQty || parseFloat(qtyParts[0]) || 0;
-    const unitLabel = qtyParts[1] || "Unit";
+    const incomingQty = receivedQty !== undefined ? parseFloat(receivedQty) : (purchase.qty || 0);
+    const unitLabel = purchase.unit || "Unit";
 
     const result = await prisma.$transaction(async (tx) => {
       
@@ -70,7 +69,7 @@ export async function PATCH(request, context) {
         where: { name: purchase.item }
       });
 
-      const currentQty = existingStock ? parseFloat(existingStock.stock) : 0;
+      const currentQty = existingStock ? existingStock.stock : 0;
       const finalQty = currentQty + incomingQty;
       const finalStatus = getAutoStatus(finalQty);
 
@@ -81,7 +80,8 @@ export async function PATCH(request, context) {
           status: finalStatus, 
           price: purchase.price,
           type: purchase.type,
-          lastPurchasedId: id
+          lastPurchasedId: id,
+          updatedAt: currentTime
         },
         create: {
           name: purchase.item,

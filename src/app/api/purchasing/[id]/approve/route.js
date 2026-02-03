@@ -50,7 +50,8 @@ export async function PATCH(request, context) {
           item: purchase.item,
           category: purchase.category || "General",
           type: purchase.type || "STOCKS",
-          quantity: parseFloat(purchase.qty) || 0,
+          quantity: purchase.qty || 0,
+          unit: purchase.unit || "Unit",
           user: userName,
           notes: status === 'PENDING' 
             ? `Persetujuan PO ${purchase.noPO} dibatalkan (Revoke) oleh ${userName}.`

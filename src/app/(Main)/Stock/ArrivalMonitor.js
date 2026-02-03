@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { 
   Clock, PackageCheck, X, FileText, 
@@ -91,8 +90,12 @@ const ArrivalMonitor = ({ arrivals, onRefresh }) => {
                 <p className="font-black text-gray-800 uppercase text-xs tracking-tight">{arrival.item}</p>
               </div>
               <div className="flex gap-2">
-                <span className="text-[9px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded font-bold uppercase">{arrival.qty}</span>
-                <span className="text-[9px] text-orange-400 font-bold uppercase tracking-tighter self-center">{arrival.supplier || 'Vendor'}</span>
+                <span className="text-[9px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded font-bold uppercase">
+                  {(parseFloat(arrival.qty) || 0).toLocaleString('id-ID')} {arrival.unit || 'UNIT'}
+                </span>
+                <span className="text-[9px] text-orange-400 font-bold uppercase tracking-tighter self-center truncate max-w-[80px]">
+                  {arrival.supplier || 'Vendor'}
+                </span>
               </div>
             </div>
 
@@ -125,6 +128,13 @@ const ArrivalMonitor = ({ arrivals, onRefresh }) => {
                   </p>
                 </div>
                 <button onClick={() => setSelectedArrival(null)} className="p-2 hover:bg-slate-100 rounded-full text-slate-400"><X size={20} /></button>
+              </div>
+
+              <div className="mb-6 p-4 bg-slate-50 rounded-2xl border border-slate-100 italic">
+                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Expected Item:</p>
+                 <p className="text-sm font-black text-slate-700 uppercase">
+                    {selectedArrival.item} ({(parseFloat(selectedArrival.qty) || 0).toLocaleString('id-ID')} {selectedArrival.unit})
+                 </p>
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-4 text-left">

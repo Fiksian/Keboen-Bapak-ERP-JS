@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 
 export async function PATCH(request, { params }) {
   try {
@@ -10,8 +10,7 @@ export async function PATCH(request, { params }) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    const resolvedParams = await params;
-    const { id } = resolvedParams;
+    const { id } = await params;
 
     if (!id || id === 'undefined') {
       return NextResponse.json({ message: "ID Staff tidak valid" }, { status: 400 });
@@ -20,7 +19,7 @@ export async function PATCH(request, { params }) {
     const body = await request.json();
     const { firstName, lastName, phone, gender, designation, role, email } = body;
 
-    const oldStaff = await prisma.staff.findUnique({
+    const oldStaff = await prisma.staffs.findUnique({
       where: { id: id },
     });
 
@@ -83,28 +82,37 @@ export async function PATCH(request, { params }) {
 export async function DELETE(request, { params }) {
   try {
     const session = await getServerSession(authOptions);
+    
     if (!session || session.user.role !== "Admin") {
       return NextResponse.json({ message: "Hanya Admin yang diizinkan" }, { status: 403 });
     }
 
-    const resolvedParams = await params;
-    const { id } = resolvedParams;
-
+    const { id } = await params;
     if (!id) return NextResponse.json({ message: "ID diperlukan" }, { status: 400 });
 
-    const staff = await prisma.staff.findUnique({ where: { id: id } });
+    const staff = await prisma.staff.findUnique({ 
+      where: { id: id } 
+    });
 
     if (!staff) {
       return NextResponse.json({ message: "Staff tidak ditemukan" }, { status: 404 });
     }
 
-    await prisma.user.delete({
-      where: { email: staff.email }
-    });
+    await prisma.$transaction([
+      prisma.user.delete({
+        where: { email: staff.email }
+      }),
+      prisma.staff.delete({
+        where: { id: id }
+      })
+    ]);
 
     return NextResponse.json({ message: "Data berhasil dihapus" }, { status: 200 });
   } catch (error) {
     console.error("STAFF_DELETE_ERROR:", error);
-    return NextResponse.json({ message: "Gagal menghapus data" }, { status: 500 });
+    return NextResponse.json({ 
+      message: "Gagal menghapus data",
+      detail: error.message 
+    }, { status: 500 });
   }
 }

@@ -11,15 +11,15 @@ export async function GET() {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    const staffs = await prisma.staff.findMany({
+    const staffs = await prisma.staffs.findMany({
       where: {
-        user: {
+        User: {
           id: { not: undefined }
         }
       },
       orderBy: { createdAt: 'desc' },
       include: {
-        user: { 
+        User: { 
           select: { 
             username: true,
             email: true, 

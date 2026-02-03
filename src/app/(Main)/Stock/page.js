@@ -5,7 +5,6 @@ import { Database, Loader2, History } from 'lucide-react';
 import ArrivalMonitor from './ArrivalMonitor';
 import StatCards from './StatCard';
 import StockTable from './StockTable';
-import InventoryTable from './InventoryTable';
 import EditStock from './EditStock';
 import StockHistory from './StockHistory';
 import SearchInput from '@/app/(Main)/Components/SeachInput'; 
@@ -54,9 +53,9 @@ const StockInventory = () => {
     setIsModalOpen(true);
   };
 
- 
-  const currentData = allData.filter(item => {
-    const matchesTab = item.type?.toUpperCase() === activeTab.toUpperCase();
+  const filteredData = allData.filter(item => {
+    const matchesTab = item.type?.toLowerCase() === activeTab.toLowerCase();
+    
     const query = searchQuery.toLowerCase();
     const itemName = (item.name || item.item || "").toLowerCase();
     const category = (item.category || "").toLowerCase();
@@ -95,10 +94,14 @@ const StockInventory = () => {
                 setActiveTab(tab);
                 setSearchQuery('');
               }} 
-              className={`pb-4 text-sm font-bold transition-all relative capitalize ${activeTab === tab ? 'text-blue-600' : 'text-gray-400 cursor-pointer hover:text-gray-600'}`}
+              className={`pb-4 text-sm font-black transition-all relative capitalize tracking-widest ${
+                activeTab === tab ? 'text-indigo-600' : 'text-gray-400 cursor-pointer hover:text-gray-600'
+              }`}
             >
-              {tab === 'stocks' ? 'Stocks' : 'Inventory (Bahan & Alat)'}
-              {activeTab === tab && <div className="absolute bottom-0 left-0 w-full h-1 bg-blue-600 rounded-t-full" />}
+              {tab === 'stocks' ? 'Finished Goods' : 'Inventory (Bahan & Alat)'}
+              {activeTab === tab && (
+                <div className="absolute bottom-0 left-0 w-full h-1 bg-indigo-600 rounded-t-full shadow-[0_-2px_10px_rgba(79,70,229,0.3)]" />
+              )}
             </button>
           ))}
         </div>
@@ -107,27 +110,29 @@ const StockInventory = () => {
           <SearchInput 
             value={searchQuery} 
             onChange={setSearchQuery} 
-            placeholder={`Cari ${activeTab === 'stocks' ? 'nama produk...' : 'bahan & alat...'}`} 
+            placeholder={`Cari di ${activeTab === 'stocks' ? 'stok produk...' : 'bahan & logistik...'}`} 
           />
         </div>
       </div>
 
-      <StatCards data={currentData} />
+      <StatCards data={filteredData} />
 
       <div className="bg-white rounded-[32px] p-8 shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
         <div className="text-left">
           <h2 className="text-2xl font-black text-gray-800 uppercase italic tracking-tight">
-            {activeTab === 'stocks' ? 'STOCKS' : 'INTERNAL'}
+            {activeTab === 'stocks' ? 'STOCK MANAGEMENT' : 'INTERNAL LOGISTICS'}
           </h2>
-          <p className="text-gray-400 text-sm mt-1 font-medium italic text-left">Status stok berubah otomatis sesuai kuantitas riil.</p>
+          <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest mt-1 italic text-left">
+            Real-time synchronization with production & warehouse
+          </p>
         </div>
         
         <div className="flex items-center gap-3">
           <button 
             onClick={() => setIsHistoryOpen(true)}
-            className="flex items-center gap-2 px-6 py-4 bg-white hover:bg-gray-50 text-gray-700 rounded-2xl border border-gray-200 font-bold text-[10px] uppercase tracking-widest transition-all active:scale-95 shadow-sm group cursor-pointer"
+            className="flex items-center gap-2 px-6 py-4 bg-white hover:bg-slate-50 text-slate-700 rounded-2xl border border-slate-200 font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 shadow-sm group cursor-pointer"
           >
-            <History size={16} className="text-blue-600 group-hover:rotate-[-45deg] transition-transform" />
+            <History size={16} className="text-indigo-600 group-hover:rotate-[-45deg] transition-transform" />
             Log Penerimaan
           </button>
         </div>
@@ -135,21 +140,24 @@ const StockInventory = () => {
 
       <div className="bg-white rounded-[32px] shadow-sm border border-gray-100 overflow-hidden">
         {loading ? (
-          <div className="p-20 flex flex-col items-center justify-center space-y-4">
-            <Loader2 className="animate-spin text-blue-600" size={40} />
-            <p className="text-gray-400 font-bold uppercase tracking-widest text-[10px] italic">Synchronizing Stock Levels...</p>
+          <div className="p-24 flex flex-col items-center justify-center space-y-4">
+            <Loader2 className="animate-spin text-indigo-600" size={40} />
+            <p className="text-gray-400 font-black uppercase tracking-widest text-[10px] italic">Accessing database records...</p>
           </div>
-        ) : currentData.length > 0 ? (
-          activeTab === 'stocks' ? (
-            <StockTable data={currentData} onEdit={handleEdit} onRefresh={fetchAllStocks} />
-          ) : (
-            <InventoryTable data={currentData} onEdit={handleEdit} onRefresh={fetchAllStocks} />
-          )
+        ) : filteredData.length > 0 ? (
+          <StockTable 
+            data={filteredData} 
+            onEdit={handleEdit} 
+            onRefresh={fetchAllStocks} 
+            type={activeTab === 'stocks' ? 'stock' : 'inventory'}
+          />
         ) : (
-          <div className="p-20 text-center flex flex-col items-center justify-center">
-            <Database size={40} className="text-gray-100 mb-4" />
-            <p className="text-gray-400 font-bold uppercase tracking-widest text-[10px] italic">
-              {searchQuery ? `Hasil pencarian "${searchQuery}" tidak ditemukan` : "Belum ada data di database."}
+          <div className="p-24 text-center flex flex-col items-center justify-center">
+            <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-4">
+              <Database size={32} className="text-slate-200" />
+            </div>
+            <p className="text-slate-400 font-black uppercase tracking-widest text-[10px] italic">
+              {searchQuery ? `No results for "${searchQuery}"` : "Database is currently empty."}
             </p>
           </div>
         )}

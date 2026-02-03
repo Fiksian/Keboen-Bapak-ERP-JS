@@ -8,16 +8,42 @@ const PurchasingStats = ({ requests }) => {
   
   const totalCostValue = requests?.reduce((acc, curr) => {
     if (curr?.status !== 'APPROVED' && curr?.status !== 'RECEIVED') return acc;
-    const qtyNum = parseFloat(curr.qty?.split(' ')[0]) || 0;
+    
+    const qtyNum = parseFloat(curr.qty) || 0;
     const unitPrice = parseInt(curr.price) || 0;
+    
     return acc + (qtyNum * unitPrice);
   }, 0) || 0;
 
   const stats = [
-    { title: "TOTAL PO", value: totalRequests.toString(), trend: "Semua pengajuan", icon: <ShoppingCart className="text-blue-500" size={20} />, bgIcon: "bg-blue-50" },
-    { title: "APPROVED VALUE", value: totalCostValue.toLocaleString('id-ID'), trend: "Nilai PO valid", icon: <Wallet className="text-purple-500" size={20} />, bgIcon: "bg-purple-50" },
-    { title: "WAITING", value: totalPending.toString(), trend: "Butuh persetujuan", icon: <Clock className="text-orange-500" size={20} />, bgIcon: "bg-orange-50" },
-    { title: "RECEIVED", value: totalReceived.toString(), trend: "Sudah di gudang", icon: <PackageCheck className="text-green-500" size={20} />, bgIcon: "bg-green-50" }
+    { 
+      title: "TOTAL PO", 
+      value: totalRequests.toString(), 
+      trend: "Semua pengajuan", 
+      icon: <ShoppingCart className="text-blue-500" size={20} />, 
+      bgIcon: "bg-blue-50" 
+    },
+    { 
+      title: "APPROVED VALUE", 
+      value: totalCostValue.toLocaleString('id-ID'), 
+      trend: "Nilai PO valid", 
+      icon: <Wallet className="text-purple-500" size={20} />, 
+      bgIcon: "bg-purple-50" 
+    },
+    { 
+      title: "WAITING", 
+      value: totalPending.toString(), 
+      trend: "Butuh persetujuan", 
+      icon: <Clock className="text-orange-500" size={20} />, 
+      bgIcon: "bg-orange-50" 
+    },
+    { 
+      title: "RECEIVED", 
+      value: totalReceived.toString(), 
+      trend: "Sudah di gudang", 
+      icon: <PackageCheck className="text-green-500" size={20} />, 
+      bgIcon: "bg-green-50" 
+    }
   ];
 
   return (

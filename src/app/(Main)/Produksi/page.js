@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Factory, Plus, MoreVertical, Loader2, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
-import ProductionModal from './ProductionModal';
+import AddProduction from './AddProduction';
 
 const ProductionModule = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -173,7 +173,7 @@ const ProductionModule = () => {
         </table>
       </div>
 
-      <ProductionModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSubmit={handleSubmit} />
+      <AddProduction isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSubmit={handleSubmit} />
     </div>
   );
 };

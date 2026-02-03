@@ -39,7 +39,7 @@ const Sidebar = ({ isCollapsed, toggleSidebar, userRole }) => {
       name: 'Contacts', 
       icon: <User2 size={18} />, 
       path: '/Contacts', 
-      roles: ['Admin']
+      roles: ['Admin', 'Test', 'Staff']
     },
     { 
       name: 'Tasks', 

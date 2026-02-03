@@ -73,7 +73,7 @@ export async function POST(request) {
     }
 
     const qtyAsString = qty.toString();
-    const amountValue = amount.toString();
+    const priceValue = price.toString();
     const qtyAsNumber = parseFloat(qty) || 0;
 
     const result = await prisma.$transaction(async (tx) => {
@@ -83,7 +83,7 @@ export async function POST(request) {
           supplier: supplier || "Supplier Umum",
           item: item,
           qty: qtyAsString,         
-          amount: amountValue,  
+          price: priceValue,  
           requestedBy: userName,
           approvedBy: null,     
           category: category || "General", 

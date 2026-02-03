@@ -4,7 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { 
   History, ArrowUpRight, ArrowDownLeft, 
   Search, FileSpreadsheet, Loader2,
-  User, Package, X, Calendar as CalendarIcon
+  User, Package, X, Calendar as CalendarIcon,
+  ShoppingBag, RotateCcw, Trash2
 } from 'lucide-react';
 import Pagination from '@/app/(Main)/Components/Pagination';
 
@@ -41,7 +42,7 @@ const HistoryTransaksi = () => {
   const filteredLogs = logs.filter(log => {
     const matchesFilter = filter === 'ALL' || log.type === filter;
     
-    const searchString = `${log.itemName} ${log.description} ${log.user} ${log.referenceId}`.toLowerCase();
+    const searchString = `${log.itemName} ${log.description} ${log.user} ${log.referenceId} ${log.rawAction}`.toLowerCase();
     const matchesSearch = searchString.includes(searchTerm.toLowerCase());
     
     const logDate = new Date(log.createdAt).setHours(0,0,0,0);
@@ -67,6 +68,15 @@ const HistoryTransaksi = () => {
     setEndDate('');
   };
 
+  const getActionIcon = (action) => {
+    switch (action) {
+      case 'PENJUALAN': return <ShoppingBag size={12} className="text-orange-500" />;
+      case 'PEMBATALAN': return <RotateCcw size={12} className="text-green-500" />;
+      case 'PENGHAPUSAN': return <Trash2 size={12} className="text-red-500" />;
+      default: return <Package size={12} className="text-blue-500" />;
+    }
+  };
+
   return (
     <div className="p-6 bg-[#f8f9fa] min-h-full space-y-8 animate-in fade-in duration-500 text-gray-800">
       
@@ -76,8 +86,8 @@ const HistoryTransaksi = () => {
             <History className="text-blue-600" size={28} />
             System Audit Trail
           </h2>
-          <p className="text-gray-400 text-sm mt-1 font-medium italic text-balance">
-            Rekam jejak otomatis perpindahan barang, stok, dan otorisasi user.
+          <p className="text-gray-400 text-sm mt-1 font-medium italic">
+            Monitoring pergerakan stok, invoice penjualan, dan restock otomatis secara real-time.
           </p>
         </div>
         <div className="flex gap-2">
@@ -138,7 +148,7 @@ const HistoryTransaksi = () => {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-blue-500 transition-colors" size={16} />
             <input 
               type="text" 
-              placeholder="Search item, notes, or user..." 
+              placeholder="Cari item, nomor invoice, atau user..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-12 pr-10 py-3 bg-gray-50 border border-transparent rounded-2xl text-xs font-bold focus:bg-white focus:border-blue-100 outline-none transition-all w-full shadow-inner"
@@ -152,12 +162,12 @@ const HistoryTransaksi = () => {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="text-gray-400 text-[10px] font-black uppercase tracking-widest border-b border-gray-50">
-                <th className="px-8 py-6 italic">Timestamp</th>
-                <th className="px-6 py-6 italic">Transaction Details</th>
-                <th className="px-6 py-6 italic text-center">Type</th>
-                <th className="px-6 py-6 italic text-center">PIC / User</th>
-                <th className="px-6 py-6 italic text-center">Changes</th>
-                <th className="px-8 py-6 italic text-right">Ref</th>
+                <th className="px-8 py-6 italic">Waktu & Tanggal</th>
+                <th className="px-6 py-6 italic">Rincian Transaksi</th>
+                <th className="px-6 py-6 italic text-center">Status</th>
+                <th className="px-6 py-6 italic text-center">Otorisator</th>
+                <th className="px-6 py-6 italic text-center">Perubahan</th>
+                <th className="px-8 py-6 italic text-right">Referensi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -165,7 +175,7 @@ const HistoryTransaksi = () => {
                 <tr>
                   <td colSpan="6" className="py-20 text-center">
                     <Loader2 className="animate-spin mx-auto text-blue-600 mb-2" />
-                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Synchronizing Logs...</span>
+                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Sinkronisasi Audit Log...</span>
                   </td>
                 </tr>
               ) : currentLogs.length > 0 ? (
@@ -177,14 +187,14 @@ const HistoryTransaksi = () => {
                           {new Date(log.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
                         </span>
                         <span className="text-[10px] text-gray-400 font-bold uppercase">
-                          {new Date(log.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                          {new Date(log.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} WIB
                         </span>
                       </div>
                     </td>
                     <td className="px-6 py-6">
                       <div className="flex flex-col gap-1">
                         <div className="flex items-center gap-2">
-                          <Package size={12} className="text-blue-500" />
+                          {getActionIcon(log.rawAction)}
                           <span className="font-black text-gray-800 uppercase text-[11px] tracking-tight">{log.itemName}</span>
                         </div>
                         <span className="text-[10px] text-gray-400 font-bold uppercase italic leading-tight max-w-xs">{log.description}</span>
@@ -213,8 +223,8 @@ const HistoryTransaksi = () => {
                       </div>
                     </td>
                     <td className="px-8 py-6 text-right">
-                      <span className="font-mono text-[10px] text-blue-400 font-black bg-blue-50 px-2 py-1 rounded-lg border border-blue-100">
-                        #{log.referenceId || 'LOG-INF'}
+                      <span className="font-mono text-[10px] text-blue-600 font-black bg-blue-50 px-2 py-1 rounded-lg border border-blue-100">
+                        {log.rawAction === 'PENJUALAN' || log.rawAction === 'PEMBATALAN' ? log.referenceId : `#${log.referenceId}`}
                       </span>
                     </td>
                   </tr>
@@ -224,7 +234,7 @@ const HistoryTransaksi = () => {
                   <td colSpan="6" className="px-8 py-20 text-center">
                     <div className="flex flex-col items-center gap-2 opacity-30">
                       <History size={48} />
-                      <span className="text-[10px] font-black uppercase tracking-widest">No matching logs found.</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest">Tidak ada riwayat audit yang ditemukan.</span>
                     </div>
                   </td>
                 </tr>

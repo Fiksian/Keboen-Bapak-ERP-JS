@@ -40,6 +40,8 @@ export async function POST(request) {
     const session = await getServerSession(authOptions);
     if (!session) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
+    const currentUser = session.user.name || session.user.username || "Unknown User";
+
     const body = await request.json();
     const { customerId, totalAmount, items } = body;
 
@@ -71,6 +73,7 @@ export async function POST(request) {
             create: items.map((item) => ({
               productName: item.name,
               quantity: parseFloat(item.quantity),
+              unit: item.unit || "Unit",
               price: parseFloat(item.price),
             })),
           },
@@ -91,8 +94,9 @@ export async function POST(request) {
             category: "Sales",
             type: "OUT",
             quantity: parseFloat(item.quantity),
-            user: session.user.username || "System",
-            notes: `Invoice: ${newInvoiceId}`,
+            unit: item.unit || "Unit",
+            user: currentUser,
+            notes: `Penjualan Invoice: ${newInvoiceId}`,
             referenceId: sale.id
           }
         });
@@ -112,6 +116,7 @@ export async function PATCH(request) {
     const session = await getServerSession(authOptions);
     if (!session) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
+    const currentUser = session.user.name || session.user.username || "Unknown User";
     const { id, status } = await request.json();
 
     const result = await prisma.$transaction(async (tx) => {
@@ -136,8 +141,9 @@ export async function PATCH(request) {
               category: "Sales",
               type: "IN",
               quantity: item.quantity,
-              user: session.user.username || "System",
-              notes: `Restock Otomatis (Status: CANCELLED - ${id})`,
+              unit: item.unit || "Unit",
+              user: currentUser,
+              notes: `Restock Pembatalan (Invoice: ${id}) oleh ${currentUser}`,
               referenceId: existingSale.id
             }
           });
@@ -162,6 +168,7 @@ export async function DELETE(request) {
     const session = await getServerSession(authOptions);
     if (!session) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
+    const currentUser = session.user.name || session.user.username || "Unknown User";
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
 
@@ -187,8 +194,9 @@ export async function DELETE(request) {
               category: "Sales",
               type: "IN",
               quantity: item.quantity,
-              user: session.user.username || "System",
-              notes: `Restock Otomatis (Dihapus: ${id})`,
+              unit: item.unit || "Unit",
+              user: currentUser,
+              notes: `Restock Penghapusan Transaksi (Invoice: ${id}) oleh ${currentUser}`,
               referenceId: sale.id
             }
           });

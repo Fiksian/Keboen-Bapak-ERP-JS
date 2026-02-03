@@ -8,64 +8,15 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// --- ENUMS ---
-
-enum PurchaseStatus {
-  PENDING
-  APPROVED
-  REJECTED
-  RECEIVED
-}
-
-enum ProductionStatus {
-  SCHEDULLING
-  IN_PROGRESS
-  COMPLETED
-  CANCELLED
-}
-
-// TAMBAHKAN ENUM INI (Tadi Hilang)
-enum PenjualanStatus {
-  PENDING
-  COMPLETED
-  CANCELLED
-}
-
-// TAMBAHKAN ENUM INI untuk Contact
-enum ContactType {
-  CUSTOMER
-  SUPPLIER
-}
-
-// --- MODELS ---
-
 model User {
-  id           String   @id @default(cuid())
-  username     String   @unique
-  email        String   @unique
-  password     String
-  phone        String?
-  role         String   @default("Staff")
-  createdAt    DateTime @default(now())
-  staffProfile Staff?
-}
-
-model Staff {
-  id          String   @id // ID ini akan sama dengan User.id
-  email       String   @unique
-  user        User     @relation(fields: [id], references: [id], onDelete: Cascade)
-  sn          String?
-  firstName   String
-  lastName    String
-  gender      String
-  staffId     String   @unique
-  phone       String?
-  role        String
-  designation String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@map("staffs")
+  id        String   @id @default(cuid())
+  username  String   @unique
+  email     String   @unique
+  password  String
+  phone     String?
+  role      String   @default("Staff")
+  createdAt DateTime @default(now())
+  staffs    staffs?
 }
 
 model Purchasing {
@@ -73,24 +24,23 @@ model Purchasing {
   noPO        String         @unique
   item        String
   qty         String
-  amount      String?
+  price       String?
   category    String
   type        String         @default("STOCKS")
   supplier    String?
   status      PurchaseStatus @default(PENDING)
   isReceived  Boolean        @default(false)
-  receipts    Receipt[]
   requestedBy String
   approvedBy  String?
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
+  receipts    Receipt[]
 }
 
 model Receipt {
   id           String     @id @default(cuid())
   receiptNo    String     @unique
   purchasingId String
-  purchasing   Purchasing @relation(fields: [purchasingId], references: [id])
   suratJalan   String
   vehicleNo    String
   receivedQty  Float
@@ -98,6 +48,7 @@ model Receipt {
   condition    String     @default("GOOD")
   notes        String?
   receivedAt   DateTime   @default(now())
+  purchasing   Purchasing @relation(fields: [purchasingId], references: [id])
 }
 
 model Stock {
@@ -124,21 +75,21 @@ model Production {
   unitCost    Float                 @default(0)
   startDate   DateTime              @default(now())
   endDate     DateTime?
-  components  ProductionComponent[]
   createdBy   String
   notes       String?
   createdAt   DateTime              @default(now())
   updatedAt   DateTime              @updatedAt
+  components  ProductionComponent[]
 }
 
 model ProductionComponent {
   id           String     @id @default(cuid())
   productionId String
-  production   Production @relation(fields: [productionId], references: [id], onDelete: Cascade)
   itemName     String
   qtyNeeded    Float
   unit         String     @default("Unit")
   createdAt    DateTime   @default(now())
+  production   Production @relation(fields: [productionId], references: [id], onDelete: Cascade)
 }
 
 model Task {
@@ -167,26 +118,26 @@ model History {
   createdAt   DateTime @default(now())
 }
 
-
 model Penjualan {
   id          String          @id @default(cuid())
   invoiceId   String          @unique
   totalAmount Float
-  status      PenjualanStatus @default(PENDING)
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
-  customerId  String
-  customer    Contact         @relation(fields: [customerId], references: [id])
+  customerId  String?
+  status      String          @default("PENDING")
+  customer    Contact?        @relation(fields: [customerId], references: [id])
   items       PenjualanItem[]
 }
 
 model PenjualanItem {
   id          String    @id @default(cuid())
   penjualanId String
-  penjualan   Penjualan @relation(fields: [penjualanId], references: [id], onDelete: Cascade)
   productName String
   quantity    Float
   price       Float
+  unit        String?   @default("Unit")
+  penjualan   Penjualan @relation(fields: [penjualanId], references: [id])
 }
 
 model Contact {
@@ -196,6 +147,47 @@ model Contact {
   email     String?     @unique
   phone     String?
   address   String?
-  penjualan Penjualan[]
   createdAt DateTime    @default(now())
+  penjualan Penjualan[]
+}
+
+model staffs {
+  id          String   @id
+  email       String   @unique
+  sn          String?
+  firstName   String
+  lastName    String
+  gender      String
+  staffId     String   @unique
+  phone       String?
+  role        String
+  designation String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime
+  User        User     @relation(fields: [id], references: [id], onDelete: Cascade)
+}
+
+enum PurchaseStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  RECEIVED
+}
+
+enum ProductionStatus {
+  SCHEDULLING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum PenjualanStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
+enum ContactType {
+  CUSTOMER
+  SUPPLIER
 }

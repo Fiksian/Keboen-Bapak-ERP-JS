@@ -15,7 +15,7 @@ const AddPurchasing = ({ isOpen, onClose, onAdd }) => {
     item: "",
     qty: 0,
     unit: "Kg",
-    amount: 0,
+    price: 0,
     category: "Pakan",
     type: "STOCKS"
   };
@@ -27,7 +27,7 @@ const AddPurchasing = ({ isOpen, onClose, onAdd }) => {
     onClose();
   }, [onClose]);
 
-  const totalHarga = formData.qty * formData.amount;
+  const totalHarga = formData.qty * formData.price;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -37,7 +37,7 @@ const AddPurchasing = ({ isOpen, onClose, onAdd }) => {
       supplier: formData.supplier.toUpperCase(),
       item: formData.item.toUpperCase(),         
       qty: `${formData.qty} ${formData.unit}`,
-      amount: formData.amount.toString(),
+      price: formData.price.toString(),
       type: formData.type,     
       category: formData.category
     };
@@ -180,7 +180,7 @@ const AddPurchasing = ({ isOpen, onClose, onAdd }) => {
             <label className="text-[10px] font-black text-blue-600 uppercase tracking-widest italic ml-1">Harga Satuan (Rp)</label>
             <div className="relative">
               <CreditCard className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-              <input required type="number" className="w-full bg-blue-50/30 border border-blue-100 rounded-2xl pl-12 pr-5 py-4 text-sm font-bold outline-none focus:border-blue-500 uppercase" placeholder="" value={formData.amount} onChange={(e) => setFormData({...formData, amount: parseFloat(e.target.value) || 0})} />
+              <input required type="number" className="w-full bg-blue-50/30 border border-blue-100 rounded-2xl pl-12 pr-5 py-4 text-sm font-bold outline-none focus:border-blue-500 uppercase" placeholder="" value={formData.price} onChange={(e) => setFormData({...formData, price: parseFloat(e.target.value) || 0})} />
             </div>
           </div>
 

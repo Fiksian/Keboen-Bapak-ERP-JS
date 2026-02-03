@@ -25,7 +25,7 @@ const PurchasingTable = ({ data, onStatusUpdate, onDelete, onPrint }) => {
         <tbody className="divide-y divide-gray-50">
           {data.length > 0 ? data.map((req) => {
             const qtyNum = parseFloat(req.qty?.split(' ')[0]) || 0;
-            const unitPrice = parseInt(req.amount) || 0;
+            const unitPrice = parseInt(req.price) || 0;
             const totalRow = qtyNum * unitPrice;
             const dateCreated = new Date(req.createdAt).toLocaleDateString('id-ID', {
               day: '2-digit', month: 'short', year: 'numeric'

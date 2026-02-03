@@ -22,20 +22,24 @@ export async function GET() {
         "PURCHASE_APPROVED", 
         "MANUAL_ADD",
         "PRODUCTION_IN",
-        "PRODUCTION_REFUND"
+        "PRODUCTION_REFUND",
+        "PEMBATALAN",
+        "PENGHAPUSAN" 
       ];
 
       const outgoingActions = [
         "STOCK_OUT",
         "MANUAL_REMOVE",
         "PRODUCTION_OUT",
-        "PRODUCTION_CONSUMPTION"
+        "PRODUCTION_CONSUMPTION",
+        "PENJUALAN"
       ];
       
       let type = "OUTGOING"; 
-      if (incomingActions.includes(log.action)) {
+
+      if (log.type === "IN" || incomingActions.includes(log.action)) {
         type = "INCOMING";
-      } else if (outgoingActions.includes(log.action)) {
+      } else if (log.type === "OUT" || outgoingActions.includes(log.action)) {
         type = "OUTGOING";
       } else {
         type = log.quantity > 0 ? "INCOMING" : "OUTGOING";
@@ -49,7 +53,7 @@ export async function GET() {
         type: type,
         quantity: Math.abs(log.quantity), 
         unit: log.unit || "Unit", 
-        referenceId: log.id.substring(0, 8).toUpperCase(), 
+        referenceId: log.referenceId || log.id.substring(0, 8).toUpperCase(), 
         user: log.user,
         category: log.category,
         storageType: log.type,

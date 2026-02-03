@@ -79,7 +79,7 @@ export async function PATCH(request, context) {
         update: {
           stock: finalQty,
           status: finalStatus, 
-          price: purchase.amount,
+          price: purchase.price,
           type: purchase.type,
           lastPurchasedId: id
         },
@@ -89,7 +89,7 @@ export async function PATCH(request, context) {
           stock: finalQty,
           unit: unitLabel,
           type: purchase.type || "STOCKS",
-          price: purchase.amount,
+          price: purchase.price,
           status: finalStatus,
           lastPurchasedId: id
         }

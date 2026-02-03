@@ -9,7 +9,7 @@ const PurchasingStats = ({ requests }) => {
   const totalCostValue = requests?.reduce((acc, curr) => {
     if (curr?.status !== 'APPROVED' && curr?.status !== 'RECEIVED') return acc;
     const qtyNum = parseFloat(curr.qty?.split(' ')[0]) || 0;
-    const unitPrice = parseInt(curr.amount) || 0;
+    const unitPrice = parseInt(curr.price) || 0;
     return acc + (qtyNum * unitPrice);
   }, 0) || 0;
 

@@ -30,6 +30,12 @@ const Sidebar = ({ isCollapsed, toggleSidebar, userRole }) => {
       roles: ['Admin', 'Staff', 'Manager', 'Supervisor', 'Test'] 
     },
     { 
+      name: 'Report', 
+      icon: <BarChart3 size={18} />, 
+      path: '/Report', 
+      roles: ['Admin', 'Manager'] 
+    },
+    { 
       name: 'Staff', 
       icon: <User size={18} />, 
       path: '/Staff', 
@@ -81,12 +87,6 @@ const Sidebar = ({ isCollapsed, toggleSidebar, userRole }) => {
       name: 'Finance', 
       icon: <CircleDollarSign size={18} />, 
       path: '/Finance', 
-      roles: ['Admin', 'Manager'] 
-    },
-    { 
-      name: 'Report', 
-      icon: <BarChart3 size={18} />, 
-      path: '/Report', 
       roles: ['Admin', 'Manager'] 
     },
     { 

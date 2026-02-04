@@ -24,11 +24,15 @@ export async function GET() {
         "PRODUCTION_IN",
         "PRODUCTION_REFUND",
         "PEMBATALAN",
-        "PENGHAPUSAN" 
+        "PENGHAPUSAN",
+        "INCOME",
+        "FINANCE_IN"
       ];
 
       const outgoingActions = [
         "STOCK_OUT",
+        "FINANCE_OUT",
+        "FINANCE_DELETE",
         "MANUAL_REMOVE",
         "PRODUCTION_OUT",
         "PRODUCTION_CONSUMPTION",

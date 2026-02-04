@@ -8,7 +8,6 @@ export const authOptions = {
     strategy: "jwt",
     maxAge: 2 * 60 * 60,
   },
-
   providers: [
     CredentialsProvider({
       name: "Credentials",
@@ -17,34 +16,40 @@ export const authOptions = {
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
-        if (!credentials?.username || !credentials?.password) {
-          throw new Error("Username dan password wajib diisi");
-        }
-
-        const user = await prisma.user.findUnique({
-          where: { username: credentials.username },
-          include: {
-            staffs: true 
+        try {
+          if (!credentials?.username || !credentials?.password) {
+            throw new Error("Username dan password wajib diisi");
           }
-        });
 
-        if (!user) {
-          throw new Error("Username tidak terdaftar");
+          const user = await prisma.user.findUnique({
+            where: { username: credentials.username },
+            include: {
+              staffs: true 
+            }
+          });
+
+          if (!user) {
+            throw new Error("Username tidak terdaftar");
+          }
+
+          const isPasswordValid = await bcrypt.compare(credentials.password, user.password);
+
+          if (!isPasswordValid) {
+            throw new Error("Password salah");
+          }
+
+          return {
+            id: user.id,
+            name: user.staffs?.firstName 
+              ? `${user.staffs.firstName} ${user.staffs.lastName || ''}`.trim() 
+              : user.username,
+            email: user.email,
+            role: user.role,
+            designation: user.staffs?.designation || "Staff",
+          };
+        } catch (error) {
+          throw new Error(error.message);
         }
-
-        const isPasswordValid = await bcrypt.compare(credentials.password, user.password);
-
-        if (!isPasswordValid) {
-          throw new Error("Password salah");
-        }
-
-        return {
-          id: user.id,
-          name: user.staffs?.firstName ? `${user.staffs.firstName} ${user.staffs.lastName}` : user.username,
-          email: user.email,
-          role: user.role,
-          designation: user.staffs?.designation || "Staff",
-        };
       }
     })
   ],
@@ -73,6 +78,11 @@ export const authOptions = {
       }
       return session;
     }
+  },
+  logger: {
+    error(code, metadata) {
+      console.error(`NEXTAUTH_ERROR: ${code}`, metadata);
+    },
   }
 };
 

@@ -168,6 +168,21 @@ model staffs {
   User        User     @relation(fields: [id], references: [id], onDelete: Cascade)
 }
 
+model Transaction {
+  id          String   @id @default(cuid())
+  trxNo       String   @unique // Contoh: TRX-202602-001
+  category    String   // Operasional, Gaji, Penjualan, Pembelian, dll
+  description String?
+  amount      Float    
+  type        String   // "INCOME" atau "EXPENSE"
+  date        DateTime @default(now())
+  method      String   @default("CASH") // CASH, BANK TRANSFER, dll
+  createdBy   String
+  referenceId String?  // ID dari Penjualan atau Purchasing
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
 enum PurchaseStatus {
   PENDING
   APPROVED

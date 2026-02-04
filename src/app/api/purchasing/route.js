@@ -34,10 +34,22 @@ const getStandardizedData = (amountRaw, unitRaw) => {
       standardizedUnit = unit;
   }
 
-  return { 
-    value: standardizedQty, 
-    unit: standardizedUnit 
-  };
+  return { value: standardizedQty, unit: standardizedUnit };
+};
+
+const generateFinanceTrxNo = async (tx) => {
+  const datePrefix = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+  const lastTrx = await tx.transaction.findFirst({
+    where: { trxNo: { startsWith: `TRX-${datePrefix}` } },
+    orderBy: { trxNo: 'desc' }
+  });
+
+  let nextNum = "001";
+  if (lastTrx) {
+    const lastNum = parseInt(lastTrx.trxNo.split("-")[2]);
+    nextNum = String(lastNum + 1).padStart(3, "0");
+  }
+  return `TRX-${datePrefix}-${nextNum}`;
 };
 
 export async function GET() {
@@ -58,13 +70,12 @@ export async function GET() {
 export async function POST(request) {
   try {
     const session = await getServerSession(authOptions);
-
-    if (!session || !session.user) {
+    if (!session?.user) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
     const body = await request.json();
-    const { supplier, item, qty, unit, price, category, type } = body;
+    const { supplier, item, qty, unit, price, category, type, method } = body;
     const userName = session.user.name || "Unknown User";
 
     if (!item || qty === undefined || !price) {
@@ -75,28 +86,21 @@ export async function POST(request) {
     }
 
     const standardized = getStandardizedData(qty, unit);
+    const totalPrice = standardized.value * parseFloat(price);
 
     const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const datePattern = `${year}/${month}`;
-
+    const datePattern = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}`;
     const lastPO = await prisma.purchasing.findFirst({
       where: { noPO: { contains: `PO/${datePattern}` } },
       orderBy: { noPO: 'desc' }
     });
 
     let nextNumber = 1;
-    if (lastPO && lastPO.noPO) {
+    if (lastPO?.noPO) {
       const parts = lastPO.noPO.split('/');
-      const lastSequence = parseInt(parts[parts.length - 1]);
-      if (!isNaN(lastSequence)) {
-        nextNumber = lastSequence + 1;
-      }
+      nextNumber = parseInt(parts[parts.length - 1]) + 1;
     }
-
-    const sequenceStr = String(nextNumber).padStart(3, '0');
-    const autoNoPO = `PO/${datePattern}/${sequenceStr}`;
+    const autoNoPO = `PO/${datePattern}/${String(nextNumber).padStart(3, '0')}`;
 
     const result = await prisma.$transaction(async (tx) => {
       const newPurchase = await tx.purchasing.create({
@@ -106,12 +110,26 @@ export async function POST(request) {
           item: item,
           qty: standardized.value,
           unit: standardized.unit,
-          price: price.toString(),  
+          price: price.toString(),
           requestedBy: userName,
-          category: category || "General", 
-          type: type || "STOCKS", 
+          category: category || "General",
+          type: type || "STOCKS",
           status: "PENDING",
           isReceived: false,
+        }
+      });
+
+      const financeTrxNo = await generateFinanceTrxNo(tx);
+      await tx.transaction.create({
+        data: {
+          trxNo: financeTrxNo,
+          category: 'Pengadaan',
+          description: `Pembelian ${item} (${autoNoPO})`,
+          amount: totalPrice,
+          type: 'EXPENSE',
+          date: new Date(),
+          method: method || "CASH",
+          createdBy: userName
         }
       });
 
@@ -120,11 +138,11 @@ export async function POST(request) {
           action: "PURCHASE_REQUEST_AUTO",
           item: item,
           category: category || "General",
-          type: type || "STOCKS",
+          type: "MONEY",
           quantity: standardized.value,
           unit: standardized.unit,
           user: userName,
-          notes: `Membuat PO: ${autoNoPO}. Input user: ${qty} ${unit}.`
+          notes: `Membuat PO: ${autoNoPO} & Transaksi: ${financeTrxNo}. Total: Rp${totalPrice.toLocaleString('id-ID')}`
         }
       });
 
@@ -135,17 +153,7 @@ export async function POST(request) {
 
   } catch (error) {
     console.error("POST_PURCHASING_ERROR:", error);
-    
-    if (error.code === 'P2002') {
-      return NextResponse.json(
-        { message: "Nomor PO ganda terdeteksi, silakan coba lagi." }, 
-        { status: 409 }
-      );
-    }
-
-    return NextResponse.json(
-      { message: "Gagal membuat pengadaan", error: error.message }, 
-      { status: 500 }
-    );
+    if (error.code === 'P2002') return NextResponse.json({ message: "Nomor PO ganda" }, { status: 409 });
+    return NextResponse.json({ message: "Gagal membuat pengadaan", error: error.message }, { status: 500 });
   }
 }

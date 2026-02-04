@@ -46,7 +46,7 @@ export async function PATCH(request, { params }) {
         });
       }
 
-      const updatedStaff = await tx.staff.update({
+      const updatedStaff = await tx.staffs.update({
         where: { id: id },
         data: {
           firstName,
@@ -55,12 +55,13 @@ export async function PATCH(request, { params }) {
           gender,
           email, 
           ...(isAdmin && { designation, role }),
+          updatedAt: new Date()
         },
       });
 
       if (isAdmin && role) {
         await tx.user.update({
-          where: { email: email || oldStaff.email },
+          where: { id: id },
           data: { role: role }
         });
       }
@@ -90,7 +91,7 @@ export async function DELETE(request, { params }) {
     const { id } = await params;
     if (!id) return NextResponse.json({ message: "ID diperlukan" }, { status: 400 });
 
-    const staff = await prisma.staff.findUnique({ 
+    const staff = await prisma.staffs.findUnique({ 
       where: { id: id } 
     });
 
@@ -98,16 +99,25 @@ export async function DELETE(request, { params }) {
       return NextResponse.json({ message: "Staff tidak ditemukan" }, { status: 404 });
     }
 
-    await prisma.$transaction([
-      prisma.user.delete({
-        where: { email: staff.email }
-      }),
-      prisma.staff.delete({
-        where: { id: id }
-      })
-    ]);
+    await prisma.$transaction(async (tx) => {
+        await tx.history.create({
+            data: {
+                action: "STAFF_DELETE",
+                item: `${staff.firstName} ${staff.lastName}`,
+                category: "HUMAN_RESOURCE",
+                type: "STAFF",
+                quantity: 0,
+                user: session.user.name || "Admin",
+                notes: `Menghapus staff ID: ${staff.staffId}`
+            }
+        });
 
-    return NextResponse.json({ message: "Data berhasil dihapus" }, { status: 200 });
+        await tx.user.delete({
+            where: { id: id }
+        });
+    });
+
+    return NextResponse.json({ message: "Data staff dan akun user berhasil dihapus" }, { status: 200 });
   } catch (error) {
     console.error("STAFF_DELETE_ERROR:", error);
     return NextResponse.json({ 

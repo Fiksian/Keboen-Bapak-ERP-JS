@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route"; // Pastikan path ini benar
 import bcrypt from "bcryptjs";
 
 export async function GET() {
@@ -12,11 +12,6 @@ export async function GET() {
     }
 
     const staffs = await prisma.staffs.findMany({
-      where: {
-        User: {
-          id: { not: undefined }
-        }
-      },
       orderBy: { createdAt: 'desc' },
       include: {
         User: { 
@@ -56,13 +51,9 @@ export async function POST(request) {
       password 
     } = body;
 
-    if (!username || !firstName || !email || !password) {
+    if (!username || !firstName || !email || !password || !gender || !designation) {
       return NextResponse.json({ message: "Data tidak lengkap!" }, { status: 400 });
     }
-
-    const currentYear = new Date().getFullYear();
-    const count = await prisma.staff.count();
-    const generatedStaffId = `STF-${currentYear}-${(count + 1).toString().padStart(3, '0')}`;
 
     const existingUser = await prisma.user.findFirst({
       where: {
@@ -74,6 +65,10 @@ export async function POST(request) {
       return NextResponse.json({ message: "Email atau Username sudah digunakan!" }, { status: 400 });
     }
 
+    const currentYear = new Date().getFullYear();
+    const count = await prisma.staffs.count(); 
+    const generatedStaffId = `STF-${currentYear}-${(count + 1).toString().padStart(3, '0')}`;
+
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const result = await prisma.$transaction(async (tx) => {
@@ -83,27 +78,42 @@ export async function POST(request) {
           email,
           password: hashedPassword,
           role: role || "Staff",
+          phone: phone || null
         }
       });
 
-      const newStaff = await tx.staff.create({
+      const newStaff = await tx.staffs.create({
         data: {
           id: newUser.id,
           firstName,
           lastName,
           gender,
           staffId: generatedStaffId,
-          phone,
+          phone: phone || null,
           role: role || "Staff",
           designation,
           email,
+          updatedAt: new Date()
         }
       });
 
-      return { newUser, newStaff };
+      await tx.history.create({
+        data: {
+          action: "STAFF_CREATE",
+          item: `${firstName} ${lastName}`,
+          category: "HUMAN_RESOURCE",
+          type: "STAFF",
+          quantity: 1,
+          unit: "PERSON",
+          user: session.user.name || "Admin",
+          notes: `Menambah staff baru: ${generatedStaffId}`
+        }
+      });
+
+      return newStaff;
     });
 
-    return NextResponse.json(result.newStaff, { status: 201 });
+    return NextResponse.json(result, { status: 201 });
 
   } catch (error) {
     console.error("POST_STAFF_ERROR:", error);

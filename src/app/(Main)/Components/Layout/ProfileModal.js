@@ -56,7 +56,6 @@ const ProfileModal = ({ isOpen, onClose }) => {
         <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-300">
             <div className="bg-white w-full max-w-sm rounded-4xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 border border-gray-100">
                 
-                {/* Header Banner */}
                 <div className="relative h-28 bg-[#8da070]">
                     <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-white via-transparent to-transparent"></div>
                     <button 
@@ -68,7 +67,6 @@ const ProfileModal = ({ isOpen, onClose }) => {
                 </div>
                 
                 <div className="px-8 pb-8 text-center">
-                    {/* Avatar Section */}
                     <div className="relative -mt-14 mb-4 inline-block">
                         <div className="w-28 h-28 bg-gray-50 border-[6px] border-white rounded-4xl shadow-xl flex items-center justify-center text-[#8da070] overflow-hidden">
                             <User size={56} strokeWidth={1.5} />
@@ -83,14 +81,12 @@ const ProfileModal = ({ isOpen, onClose }) => {
                         </div>
                     ) : (
                         <>
-                            {/* Name, Title & Username */}
                             <div className="mb-6">
                                 <h3 className="text-2xl font-black text-gray-900 tracking-tight leading-tight">
                                     {profile ? `${profile.firstName} ${profile.lastName}` : "User Name"}
                                 </h3>
                                 
                                 <div className="flex flex-col items-center gap-2 mt-2">
-                                    {/* Designation Badge */}
                                     <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#8da070]/10 text-[#8da070] rounded-full">
                                         <Briefcase size={12} strokeWidth={3} />
                                         <span className="text-[10px] font-black uppercase tracking-wider">
@@ -98,7 +94,6 @@ const ProfileModal = ({ isOpen, onClose }) => {
                                         </span>
                                     </div>
                                     
-                                    {/* USERNAME DISPLAY */}
                                     <div className="flex items-center gap-1 text-gray-400 font-bold text-xs lowercase italic">
                                         <AtSign size={12} />
                                         <span>{profile?.username || profile?.email?.split('@')[0] || 'username'}</span>
@@ -106,7 +101,6 @@ const ProfileModal = ({ isOpen, onClose }) => {
                                 </div>
                             </div>
 
-                            {/* Info List */}
                             <div className="space-y-2 text-left mb-8">
                                 <div className="group flex items-center gap-4 p-4 bg-gray-50 rounded-2xl border border-transparent hover:border-[#8da070]/20 hover:bg-white transition-all">
                                     <div className="bg-white p-2 rounded-lg shadow-sm">
@@ -133,7 +127,6 @@ const ProfileModal = ({ isOpen, onClose }) => {
                                 </div>
                             </div>
 
-                            {/* Action Buttons */}
                             <div className="flex flex-col gap-3">
                                 <button 
                                     onClick={handleEditProfile}

@@ -10,6 +10,7 @@ export default function DashboardLayout({ children }) {
   const router = useRouter();
   const { data: session, status } = useSession(); 
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isOpenMobile, setIsOpenMobile] = useState(false);
 
   useEffect(() => {
     if (status === 'unauthenticated') {

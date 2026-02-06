@@ -68,26 +68,26 @@ const AddStaff = ({ isOpen, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-100 flex items-center justify-center p-4 animate-in fade-in duration-300 text-left">
+    <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center p-0 md:p-4 animate-in fade-in duration-300 text-left">
       
       <div 
-        className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity print:hidden" 
+        className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity print:hidden" 
         onClick={onClose} 
       />
       
       <div 
-        className='relative z-10 bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden border border-gray-100'
+        className='relative z-10 bg-white w-full max-w-2xl rounded-t-[2.5rem] md:rounded-[2.5rem] shadow-2xl animate-in slide-in-from-bottom md:zoom-in-95 duration-300 overflow-hidden border border-gray-100 flex flex-col max-h-[95vh] md:max-h-[90vh]'
         onClick={(e) => e.stopPropagation()}
       >
         
-        <div className='flex justify-between items-center p-8 border-b border-gray-50 bg-gray-50/50'>
-          <div className='flex items-center gap-4'>
-            <div className='bg-blue-600 p-3 rounded-2xl text-white shadow-lg shadow-blue-100'>
-                <UserPlus size={24} />
+        <div className='flex justify-between items-center p-6 md:p-8 border-b border-gray-50 bg-gray-50/50 shrink-0'>
+          <div className='flex items-center gap-3 md:gap-4'>
+            <div className='bg-blue-600 p-2.5 md:p-3 rounded-2xl text-white shadow-lg shadow-blue-100'>
+                <UserPlus size={20} className="md:w-6 md:h-6" />
             </div>
             <div>
-              <h2 className='text-xl font-black text-gray-900 uppercase tracking-tight'>Add New Staff</h2>
-              <p className='text-xs text-gray-500 font-bold'>Create a new member account and profile</p>
+              <h2 className='text-lg md:text-xl font-black text-gray-900 uppercase tracking-tight italic'>Add New Staff</h2>
+              <p className='text-[10px] md:text-xs text-gray-500 font-bold uppercase tracking-tighter opacity-70'>Create new account profile</p>
             </div>
           </div>
           <button onClick={onClose} className='p-2 hover:bg-white hover:shadow-md rounded-full transition-all cursor-pointer active:scale-90'>
@@ -95,63 +95,63 @@ const AddStaff = ({ isOpen, onClose }) => {
           </button>
         </div>
 
-        <div className='p-8 max-h-[75vh] overflow-y-auto custom-scrollbar'>
-          <form onSubmit={handleSubmit} className='space-y-8'>
+        <div className='p-6 md:p-8 overflow-y-auto custom-scrollbar flex-1 bg-white'>
+          <form id="add-staff-form" onSubmit={handleSubmit} className='space-y-6 md:space-y-8'>
 
-            <div className='flex flex-col items-center justify-center'>
+            <div className='flex flex-col items-center justify-center mb-4'>
               <div className='relative group'>
-                <div className='w-32 h-32 bg-gray-50 rounded-4xl border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden transition-all group-hover:border-blue-400 group-hover:bg-blue-50/30'>
-                    <Camera size={32} className='text-gray-300 group-hover:text-blue-400 transition-colors' />
+                <div className='w-24 h-24 md:w-32 md:h-32 bg-gray-50 rounded-[2rem] md:rounded-4xl border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden transition-all group-hover:border-blue-400 group-hover:bg-blue-50/30'>
+                    <Camera size={24} className='text-gray-300 group-hover:text-blue-400 transition-colors' />
                     <div className='absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all cursor-pointer'>
-                      <span className='text-[10px] text-white font-black uppercase tracking-widest'>Upload</span>
+                      <span className='text-[8px] md:text-[10px] text-white font-black uppercase tracking-widest'>Upload</span>
                     </div>
                 </div>
                 <input type='file' className='absolute inset-0 opacity-0 cursor-pointer' disabled={loading} />
               </div>
-              <p className='text-[10px] text-gray-400 mt-3 font-bold uppercase tracking-tighter'>JPG, PNG or WEBP (MAX. 2MB)</p>
+              <p className='text-[8px] md:text-[10px] text-gray-400 mt-3 font-bold uppercase tracking-widest italic'>JPG, PNG or WEBP (MAX. 2MB)</p>
             </div>
 
-            <div className='grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6'>
+            <div className='grid grid-cols-1 md:grid-cols-2 gap-x-6 md:gap-x-8 gap-y-4 md:gap-y-6'>
               
-              <div className='space-y-2'>
-                <label className='text-[11px] font-black text-gray-400 uppercase tracking-wider ml-1'>Username</label>
+              <div className='space-y-1.5'>
+                <label className='text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1'>Username</label>
                 <div className='relative'>
                   <Fingerprint size={16} className='absolute left-4 top-1/2 -translate-y-1/2 text-gray-400'/>
-                  <input name="username" required value={formData.username} onChange={handleChange} type='text' placeholder='sandra.w' className='w-full pl-12 pr-4 py-3.5 border border-gray-100 bg-gray-50/30 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white outline-none transition-all text-sm font-bold text-gray-700' />
+                  <input name="username" required value={formData.username} onChange={handleChange} type='text' placeholder='sandra.w' className='w-full pl-11 pr-4 py-3 md:py-3.5 border border-gray-100 bg-gray-50/50 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white outline-none transition-all text-sm font-bold text-gray-700' />
                 </div>
               </div>
 
-              <div className='space-y-2'>
-                <label className='text-[11px] font-black text-gray-400 uppercase tracking-wider ml-1'>Password</label>
+              <div className='space-y-1.5'>
+                <label className='text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1'>Password</label>
                 <div className='relative'>
                   <Lock size={16} className='absolute left-4 top-1/2 -translate-y-1/2 text-gray-400'/>
-                  <input name="password" required value={formData.password} onChange={handleChange} type='password' placeholder='••••••••' className='w-full pl-12 pr-4 py-3.5 border border-gray-100 bg-gray-50/30 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white outline-none transition-all text-sm font-bold text-gray-700' />
+                  <input name="password" required value={formData.password} onChange={handleChange} type='password' placeholder='••••••••' className='w-full pl-11 pr-4 py-3 md:py-3.5 border border-gray-100 bg-gray-50/50 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white outline-none transition-all text-sm font-bold text-gray-700' />
                 </div>
               </div>
 
-              <div className='space-y-2'>
-                <label className='text-[11px] font-black text-gray-400 uppercase tracking-wider ml-1'>First Name</label>
+              <div className='space-y-1.5'>
+                <label className='text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1'>First Name</label>
                 <div className='relative'>
                   <User size={16} className='absolute left-4 top-1/2 -translate-y-1/2 text-gray-400'/>
-                  <input name="firstName" required value={formData.firstName} onChange={handleChange} type='text' placeholder='Sandra' className='w-full pl-12 pr-4 py-3.5 border border-gray-100 bg-gray-50/30 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white outline-none transition-all text-sm font-bold text-gray-700' />
+                  <input name="firstName" required value={formData.firstName} onChange={handleChange} type='text' placeholder='Sandra' className='w-full pl-11 pr-4 py-3 md:py-3.5 border border-gray-100 bg-gray-50/50 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white outline-none transition-all text-sm font-bold text-gray-700' />
                 </div>
               </div>
 
-              <div className='space-y-2'>
-                <label className='text-[11px] font-black text-gray-400 uppercase tracking-wider ml-1'>Last Name</label>
-                <input name="lastName" required value={formData.lastName} onChange={handleChange} type='text' placeholder='Williams' className='w-full px-5 py-3.5 border border-gray-100 bg-gray-50/30 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white outline-none transition-all text-sm font-bold text-gray-700' />
+              <div className='space-y-1.5'>
+                <label className='text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1'>Last Name</label>
+                <input name="lastName" required value={formData.lastName} onChange={handleChange} type='text' placeholder='Williams' className='w-full px-4 md:px-5 py-3 md:py-3.5 border border-gray-100 bg-gray-50/50 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white outline-none transition-all text-sm font-bold text-gray-700' />
               </div>
 
-              <div className='space-y-2'>
-                <label className='text-[11px] font-black text-gray-400 uppercase tracking-wider ml-1'>Staff ID (Auto)</label>
+              <div className='space-y-1.5'>
+                <label className='text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1'>Staff ID (Auto)</label>
                 <div className='relative'>
                   <CreditCard size={16} className='absolute left-4 top-1/2 -translate-y-1/2 text-gray-400'/>
-                  <input disabled value="WILL BE GENERATED" className='w-full pl-12 pr-4 py-3.5 border border-gray-100 bg-gray-100/50 rounded-2xl text-xs font-bold text-gray-400 italic cursor-not-allowed' />
+                  <input disabled value="SYSTEM GENERATED" className='w-full pl-11 pr-4 py-3 md:py-3.5 border border-gray-100 bg-gray-100/50 rounded-2xl text-[10px] font-black text-gray-400 italic cursor-not-allowed uppercase' />
                 </div>
               </div>
 
-              <div className='space-y-2'>
-                <label className='text-[11px] font-black text-gray-400 uppercase tracking-wider ml-1'>Designation</label>
+              <div className='space-y-1.5'>
+                <label className='text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1'>Designation</label>
                 <div className='relative'>
                   <Briefcase size={16} className='absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 z-10'/>
                   <select 
@@ -159,7 +159,7 @@ const AddStaff = ({ isOpen, onClose }) => {
                     required 
                     value={formData.designation} 
                     onChange={handleChange} 
-                    className='w-full pl-12 pr-10 py-3.5 border border-gray-100 bg-gray-50/30 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white outline-none appearance-none transition-all text-sm font-bold text-gray-700 cursor-pointer'
+                    className='w-full pl-11 pr-10 py-3 md:py-3.5 border border-gray-100 bg-gray-50/50 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white outline-none appearance-none transition-all text-sm font-bold text-gray-700 cursor-pointer'
                   >
                     <option value="" disabled>Select Designation</option>
                     {designationOptions.map(opt => (
@@ -170,27 +170,27 @@ const AddStaff = ({ isOpen, onClose }) => {
                 </div>
               </div>
 
-              <div className='space-y-2'>
-                <label className='text-[11px] font-black text-gray-400 uppercase tracking-wider ml-1'>Email Address</label>
+              <div className='space-y-1.5 md:col-span-2'>
+                <label className='text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1'>Email Address</label>
                 <div className='relative'>
                   <Mail size={16} className='absolute left-4 top-1/2 -translate-y-1/2 text-gray-400'/>
-                  <input name="email" required value={formData.email} onChange={handleChange} type="email" placeholder="sandra@keboenbapak.com" className="w-full pl-12 pr-4 py-3.5 border border-gray-100 bg-gray-50/30 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white outline-none transition-all text-sm font-bold text-gray-700" />
+                  <input name="email" required value={formData.email} onChange={handleChange} type="email" placeholder="sandra@keboenbapak.com" className="w-full pl-11 pr-4 py-3 md:py-3.5 border border-gray-100 bg-gray-50/50 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white outline-none transition-all text-sm font-bold text-gray-700" />
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-[11px] font-black text-gray-400 uppercase tracking-wider ml-1">Phone Number</label>
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Phone Number</label>
                 <div className="relative">
                   <Phone size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input name="phone" required value={formData.phone} onChange={handleChange} type="tel" placeholder="08123456789" className="w-full pl-12 pr-4 py-3.5 border border-gray-100 bg-gray-50/30 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white outline-none transition-all text-sm font-bold text-gray-700" />
+                  <input name="phone" required value={formData.phone} onChange={handleChange} type="tel" placeholder="08123456789" className="w-full pl-11 pr-4 py-3 md:py-3.5 border border-gray-100 bg-gray-50/50 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white outline-none transition-all text-sm font-bold text-gray-700" />
                 </div>
               </div>
 
-              <div className='space-y-2'>
-                <label className="text-[11px] font-black text-gray-400 uppercase tracking-wider ml-1">Access Role</label>
+              <div className='space-y-1.5'>
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Access Role</label>
                 <div className='relative'>
                   <ShieldCheck size={16} className='absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 z-10'/>
-                  <select name="role" value={formData.role} onChange={handleChange} className='w-full pl-12 pr-10 py-3.5 border border-gray-100 bg-gray-50/30 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white outline-none appearance-none transition-all text-sm font-bold text-gray-700 cursor-pointer'>
+                  <select name="role" value={formData.role} onChange={handleChange} className='w-full pl-11 pr-10 py-3 md:py-3.5 border border-gray-100 bg-gray-50/50 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white outline-none appearance-none transition-all text-sm font-bold text-gray-700 cursor-pointer'>
                     <option value="Staff">Staff Member</option>
                     <option value="Manager">Manager</option>
                     <option value="Supervisor">Supervisor</option>
@@ -201,28 +201,40 @@ const AddStaff = ({ isOpen, onClose }) => {
                 </div>
               </div>
 
-              <div className='space-y-2'>
-                <label className="text-[11px] font-black text-gray-400 uppercase tracking-wider ml-1">Gender</label>
-                <div className='flex items-center gap-4 h-[50px]'>
-                  <label className={`flex-1 flex items-center justify-center gap-2 border rounded-2xl cursor-pointer transition-all ${formData.gender === 'Male' ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-100' : 'bg-white border-gray-100 text-gray-500'}`}>  
+              <div className='space-y-1.5 md:col-span-2'>
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Gender Selection</label>
+                <div className='flex items-center gap-3 h-[48px] md:h-[50px]'>
+                  <label className={`flex-1 flex items-center justify-center gap-2 border rounded-2xl cursor-pointer transition-all h-full ${formData.gender === 'Male' ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-100' : 'bg-gray-50 border-gray-100 text-gray-400'}`}>  
                     <input type='radio' name='gender' value="Male" checked={formData.gender === 'Male'} onChange={handleChange} className='hidden' />
-                    <span className='text-xs font-black uppercase'>Male</span>
+                    <span className='text-[10px] font-black uppercase italic'>Male</span>
                   </label>
-                  <label className={`flex-1 flex items-center justify-center gap-2 border rounded-2xl cursor-pointer transition-all ${formData.gender === 'Female' ? 'bg-pink-500 border-pink-500 text-white shadow-lg shadow-pink-100' : 'bg-white border-gray-100 text-gray-500'}`}>  
+                  <label className={`flex-1 flex items-center justify-center gap-2 border rounded-2xl cursor-pointer transition-all h-full ${formData.gender === 'Female' ? 'bg-pink-500 border-pink-500 text-white shadow-lg shadow-pink-100' : 'bg-gray-50 border-gray-100 text-gray-400'}`}>  
                     <input type='radio' name='gender' value="Female" checked={formData.gender === 'Female'} onChange={handleChange} className='hidden' />
-                    <span className='text-xs font-black uppercase'>Female</span>
+                    <span className='text-[10px] font-black uppercase italic'>Female</span>
                   </label>
                 </div>
               </div>
             </div>
-
-            <div className='flex gap-4 pt-8 border-t border-gray-50'>
-              <button type='button' onClick={onClose} disabled={loading} className='flex-1 py-4 text-xs font-black text-gray-400 uppercase tracking-widest hover:bg-gray-50 rounded-2xl transition-all cursor-pointer'>Cancel</button>
-              <button type='submit' disabled={loading} className='flex-[2] py-4 text-xs font-black bg-blue-600 text-white hover:bg-black rounded-2xl shadow-xl shadow-blue-100 transition-all flex items-center justify-center gap-3 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer'>
-                {loading ? <Loader2 size={18} className='animate-spin' /> : <span>Submit & Create Account</span>}
-              </button>
-            </div>
           </form>
+        </div>
+
+        <div className='p-6 md:p-8 border-t border-gray-50 bg-white flex flex-col-reverse md:flex-row gap-3 md:gap-4 shrink-0'>
+          <button 
+            type='button' 
+            onClick={onClose} 
+            disabled={loading} 
+            className='w-full md:flex-1 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest hover:bg-gray-50 rounded-2xl transition-all cursor-pointer'
+          >
+            Cancel
+          </button>
+          <button 
+            type='submit' 
+            form="add-staff-form"
+            disabled={loading} 
+            className='w-full md:flex-[2] py-4 text-[10px] font-black bg-gray-900 text-white hover:bg-blue-600 rounded-2xl shadow-xl transition-all flex items-center justify-center gap-3 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer uppercase tracking-widest italic'
+          >
+            {loading ? <Loader2 size={18} className='animate-spin' /> : <span>Create Account Profile</span>}
+          </button>
         </div>
       </div>
     </div>  

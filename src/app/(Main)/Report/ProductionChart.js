@@ -1,41 +1,85 @@
+'use client'
+
 import React from 'react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 
 const ProductionChart = ({ data = [] }) => {
-  const COLORS = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6'];
+  const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#6366f1'];
 
   return (
-    <div className="bg-white rounded-[32px] p-8 shadow-sm border border-gray-100 h-full">
-      <h3 className="font-bold text-gray-700 mb-8 uppercase tracking-tight text-sm">Status Produksi (Batch)</h3>
-      <div className="flex flex-col md:flex-row items-center justify-between gap-8">
-        <div className="h-[250px] w-full md:w-[250px]">
+    <div className="bg-white rounded-[24px] md:rounded-[32px] p-5 md:p-8 shadow-sm border border-gray-100 h-full flex flex-col">
+      <div className="flex items-center justify-between mb-4 md:mb-8 shrink-0">
+        <h3 className="font-black text-gray-700 uppercase tracking-tighter md:tracking-tight text-xs md:text-sm italic md:not-italic">
+          Status Produksi <span className="text-blue-500 font-black">(Batch)</span>
+        </h3>
+        <div className="flex gap-1">
+          <div className="w-1 h-1 rounded-full bg-gray-200"></div>
+          <div className="w-1 h-1 rounded-full bg-gray-200"></div>
+          <div className="w-1 h-1 rounded-full bg-blue-500"></div>
+        </div>
+      </div>
+
+      <div className="flex flex-col xl:flex-row items-center justify-center gap-6 md:gap-8 flex-1">
+        <div className="h-[200px] w-[200px] md:h-[250px] md:w-[250px] relative shrink-0">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
                 data={data}
-                innerRadius={60}
-                outerRadius={80}
-                paddingAngle={5}
+                innerRadius={window?.innerWidth < 768 ? 55 : 65}
+                outerRadius={window?.innerWidth < 768 ? 75 : 85}
+                paddingAngle={8}
                 dataKey="value"
+                stroke="none"
               >
                 {data.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  <Cell 
+                    key={`cell-${index}`} 
+                    fill={COLORS[index % COLORS.length]} 
+                    className="hover:opacity-80 transition-opacity cursor-pointer"
+                  />
                 ))}
               </Pie>
               <Tooltip 
-                contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                contentStyle={{ 
+                  borderRadius: '16px', 
+                  border: 'none', 
+                  boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)',
+                  fontSize: '12px',
+                  fontWeight: '900',
+                  textTransform: 'uppercase'
+                }}
+                itemStyle={{ color: '#1f2937' }}
               />
             </PieChart>
           </ResponsiveContainer>
+          
+          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none">Total</span>
+            <span className="text-xl md:text-2xl font-black text-gray-800 italic">
+              {data.reduce((a, b) => a + (b.value || 0), 0)}
+            </span>
+          </div>
         </div>
-        <div className="space-y-4 w-full flex-1">
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 gap-2 md:gap-3 w-full flex-1">
           {data.map((item, idx) => (
-            <div key={idx} className="flex justify-between items-center p-3 rounded-2xl hover:bg-gray-50 transition-all border border-transparent hover:border-gray-100">
+            <div 
+              key={idx} 
+              className="flex justify-between items-center p-3 md:p-4 bg-gray-50/50 rounded-2xl hover:bg-white hover:shadow-md transition-all border border-transparent hover:border-gray-100 group"
+            >
               <div className="flex items-center gap-3">
-                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[idx % COLORS.length] }}></div>
-                <span className="text-xs font-bold text-gray-600 uppercase tracking-tighter">{item.name}</span>
+                <div 
+                  className="w-2.5 h-2.5 rounded-full shadow-sm" 
+                  style={{ backgroundColor: COLORS[idx % COLORS.length] }}
+                ></div>
+                <span className="text-[10px] md:text-xs font-black text-gray-500 group-hover:text-gray-800 uppercase tracking-tighter transition-colors">
+                  {item.name}
+                </span>
               </div>
-              <span className="text-sm font-black text-gray-800">{item.value} Batch</span>
+              <div className="flex items-baseline gap-1">
+                <span className="text-xs md:text-sm font-black text-gray-800 italic">{item.value}</span>
+                <span className="text-[8px] md:text-[10px] font-bold text-gray-400 uppercase">Bth</span>
+              </div>
             </div>
           ))}
         </div>

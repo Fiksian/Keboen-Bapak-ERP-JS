@@ -43,3 +43,15 @@ next-env.d.ts
 
 /src/generated/prisma
 /prisma/migrations
+
+# Sertifikat SSL & Log Certbot
+certbot/conf/
+certbot/www/
+certbot/logs/
+
+# Database Data
+postgres_data/
+
+# OS files
+.DS_Store
+thumbs.db

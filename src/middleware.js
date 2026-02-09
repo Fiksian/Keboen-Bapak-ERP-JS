@@ -28,6 +28,6 @@ export const config = {
     "/Cuaca/:path*",
     "/Kandang/:path*",
     "/Components/:path*",
-    "/api/:path*", // Opsional: Proteksi juga API staff agar tidak bisa ditembak dari luar
+    "/api/:path*",
   ],
 };

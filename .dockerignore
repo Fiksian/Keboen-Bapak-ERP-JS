@@ -3,6 +3,7 @@ node_modules
 .next
 out
 build
+certbot
 
 # Git
 .git
@@ -36,4 +37,6 @@ Thumbs.db
 
 # Prisma (Hanya abaikan sqlite jika memakainya, 
 # tapi biarkan folder prisma/ tetap ter-copy karena butuh schema.prisma)
-# !prisma/schema.prisma
+!prisma/schema.prisma
+
+*.pem

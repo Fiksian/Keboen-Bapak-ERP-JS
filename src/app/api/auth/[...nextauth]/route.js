@@ -6,7 +6,7 @@ import bcrypt from "bcryptjs";
 export const authOptions = {
   session: {
     strategy: "jwt",
-    maxAge: 2 * 60 * 60,
+    maxAge: 2 * 60 * 60, // 2 jam
   },
   providers: [
     CredentialsProvider({
@@ -39,7 +39,7 @@ export const authOptions = {
           }
 
           return {
-            id: user.id,
+            id: String(user.id),
             name: user.staffs?.firstName 
               ? `${user.staffs.firstName} ${user.staffs.lastName || ''}`.trim() 
               : user.username,
@@ -48,6 +48,7 @@ export const authOptions = {
             designation: user.staffs?.designation || "Staff",
           };
         } catch (error) {
+          console.error("AUTH_AUTHORIZE_ERROR:", error.message);
           throw new Error(error.message);
         }
       }
@@ -55,10 +56,11 @@ export const authOptions = {
   ],
   pages: {
     signIn: '/Login',
+    error: '/Login', 
   },
   secret: process.env.NEXTAUTH_SECRET,
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id;
         token.email = user.email;
@@ -66,6 +68,11 @@ export const authOptions = {
         token.name = user.name;
         token.designation = user.designation;
       }
+      
+      if (trigger === "update" && session) {
+        return { ...token, ...session.user };
+      }
+
       return token;
     },
     async session({ session, token }) {
@@ -77,6 +84,22 @@ export const authOptions = {
         session.user.designation = token.designation;
       }
       return session;
+    },
+    async redirect({ url, baseUrl }) {
+      if (url.startsWith("/")) return `${baseUrl}${url}`;
+      else if (new URL(url).origin === baseUrl) return url;
+      return `${baseUrl}/Dashboard`;
+    },
+  },
+  cookies: {
+    sessionToken: {
+      name: process.env.NODE_ENV === 'production' ? `__Secure-next-auth.session-token` : `next-auth.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: process.env.NODE_ENV === 'production'
+      }
     }
   },
   logger: {

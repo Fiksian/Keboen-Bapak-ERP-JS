@@ -5,17 +5,21 @@ import { Settings2, UserCircle, Menu, X } from 'lucide-react';
 import ProfileModal from './ProfileModal';
 import SettingsModal from './SettingsModal';
 
-const Header = ({ onLogout, isMobileMenuOpen, toggleMobileMenu }) => {
+const Header = ({ user, onLogout, isMobileMenuOpen, toggleMobileMenu }) => {
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
+    const userName = user?.name
+    const userRole = user?.role
+
     return (
-        <header className="sticky top-0 z-[90] bg-[#8da070] text-white px-4 md:px-8 py-3.5 flex items-center justify-between shadow-md h-16 md:h-20">
+        <header className="sticky top-0 z-[40] bg-[#8da070] text-white px-4 md:px-8 py-3.5 flex items-center justify-between shadow-md h-16 md:h-20">
             
             <div className="flex items-center gap-3">
                 <button 
                     onClick={toggleMobileMenu}
                     className="md:hidden p-2 -ml-2 hover:bg-white/20 rounded-xl transition-all active:scale-90 flex items-center justify-center"
+                    aria-label="Toggle Menu"
                 >
                     {isMobileMenuOpen ? <X size={24} strokeWidth={2.5} /> : <Menu size={24} strokeWidth={2.5} />}
                 </button>
@@ -56,12 +60,16 @@ const Header = ({ onLogout, isMobileMenuOpen, toggleMobileMenu }) => {
                         <div className="w-8 h-8 md:w-10 md:h-10 bg-white/10 rounded-xl flex items-center justify-center overflow-hidden border border-white/20 group-hover:border-yellow-200 transition-colors">
                             <UserCircle className="w-6 h-6 md:w-8 md:h-8 text-white group-hover:text-yellow-100" />
                         </div>
-                        <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-400 border-[3px] border-[#8da070] rounded-full"></div>
+                        <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-400 border-[3px] border-[#8da070] rounded-full shadow-sm"></div>
                     </div>
                     
                     <div className="hidden md:flex flex-col items-start leading-tight text-left">
-                        <span className="text-[10px] font-black uppercase tracking-wider group-hover:text-yellow-100 transition-colors">Account</span>
-                        <span className="text-[8px] text-white/60 font-black uppercase italic tracking-widest leading-none">Verified Staff</span>
+                        <span className="text-[10px] font-black uppercase tracking-wider group-hover:text-yellow-100 transition-colors">
+                            {userName}
+                        </span>
+                        <span className="text-[8px] text-white/60 font-black uppercase italic tracking-widest leading-none">
+                            {userRole}
+                        </span>
                     </div>
                 </button>
             </div>
@@ -70,6 +78,7 @@ const Header = ({ onLogout, isMobileMenuOpen, toggleMobileMenu }) => {
                 isOpen={isProfileOpen} 
                 onClose={() => setIsProfileOpen(false)} 
                 onLogout={onLogout}
+                user={user}
             />
             <SettingsModal 
                 isOpen={isSettingsOpen} 

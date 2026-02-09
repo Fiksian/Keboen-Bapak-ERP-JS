@@ -59,8 +59,8 @@ services:
     networks:
       - keboen_network
 
-Sertifikat otomatis (Buka komentar di VPS)
- certbot:
+# Sertifikat otomatis (Buka komentar di VPS)
+  certbot:
    image: certbot/certbot
    container_name: keboen_certbot
    volumes:

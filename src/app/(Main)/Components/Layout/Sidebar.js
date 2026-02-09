@@ -30,7 +30,7 @@ const Sidebar = ({ isCollapsed, toggleSidebar, userRole, isOpenMobile, onCloseMo
     { name: 'Purchasing', icon: <ShoppingCart size={18} />, path: '/Purchasing', roles: ['Admin', 'Manager', 'Staff','Supervisor', 'Test'] },
     { name: 'Penjualan', icon: <Store size={18} />, path: '/Penjualan', roles: ['Admin', 'Manager', 'Staff','Supervisor', 'Test'] },
     { name: 'Finance', icon: <CircleDollarSign size={18} />, path: '/Finance', roles: ['Admin', 'Manager','Test'] },
-    { name: 'Notifications', icon: <Bell size={18} />, path: '/Notifications', roles: ['Admin', 'Manager', 'Supervisor'] },
+    // { name: 'Notifications', icon: <Bell size={18} />, path: '/Notifications', roles: ['Admin', 'Manager', 'Supervisor'] },
     { name: 'History', icon: <Clock size={18} />, path: '/History', roles: ['Admin', 'Manager', 'Supervisor', 'Test'] },
   ];
 

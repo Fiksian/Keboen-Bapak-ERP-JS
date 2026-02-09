@@ -1,4 +1,4 @@
-const { PrismaClient } = require('@prisma/client');
+const { PrismaClient, PurchaseStatus, ContactType, ProductionStatus } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
 
 const prisma = new PrismaClient();
@@ -8,15 +8,16 @@ async function main() {
   const adminUsername = "Admin";
   const adminPassword = "123456";
 
-  console.log('--- Memulai Proses Seeding ---');
+  console.log('--- Memulai Proses Seeding ERP Keboen Bapak (Lokal) ---');
   
   const hashedPassword = await bcrypt.hash(adminPassword, 10);
 
   try {
     await prisma.$transaction(async (tx) => {
+      // 1. SEED USER & STAFF (Admin)
       const user = await tx.user.upsert({
         where: { email: adminEmail },
-        update: {},
+        update: { password: hashedPassword },
         create: {
           username: adminUsername,
           email: adminEmail,
@@ -41,24 +42,105 @@ async function main() {
         },
       });
 
-      await tx.purchasing.upsert({
-        where: { noPO: 'PO-2026-SEED-01' },
+      // 2. SEED CONTACTS (Supplier & Customer)
+      const supplier = await tx.contact.upsert({
+        where: { email: 'supplier.pakan@email.com' },
         update: {},
         create: {
-          noPO: 'PO-2026-SEED-01',
-          item: 'PAKAN AYAM A1',
-          qty: 1000,    
-          unit: 'KG',
-          price: '10000000',
-          category: 'Feed',
-          requestedBy: 'System',
-          status: 'PENDING',
-        },
+          name: 'PT Pakan Jaya',
+          type: ContactType.SUPPLIER,
+          email: 'supplier.pakan@email.com',
+          phone: '021-555666',
+          address: 'Kawasan Industri Jakarta',
+        }
       });
 
-      console.log('✅ Seed Admin, Staff, dan Purchasing Berhasil!');
-    });
+      await tx.contact.upsert({
+        where: { email: 'customer1@email.com' },
+        update: {},
+        create: {
+          name: 'Toko Berkah Telur',
+          type: ContactType.CUSTOMER,
+          email: 'customer1@email.com',
+          phone: '0812999000',
+          address: 'Pasar Minggu, Jakarta',
+        }
+      });
 
+      // 3. SEED STOCKS
+      await tx.stock.upsert({
+        where: { name: 'Pakan Ayam Starter' },
+        update: {},
+        create: {
+          name: 'Pakan Ayam Starter',
+          category: 'Feed',
+          stock: 500,
+          unit: 'KG',
+          type: 'STOCKS',
+          price: '15000',
+        }
+      });
+
+      // 4. SEED PURCHASING
+      await tx.purchasing.upsert({
+        where: { noPO: 'PO-2026-001' },
+        update: {},
+        create: {
+          noPO: 'PO-2026-001',
+          item: 'Pakan Ayam Starter',
+          qty: 1000,
+          unit: 'KG',
+          category: 'Feed',
+          supplier: 'PT Pakan Jaya',
+          requestedBy: 'Admin',
+          status: PurchaseStatus.PENDING,
+        }
+      });
+
+      // 5. SEED PRODUCTION
+      await tx.production.upsert({
+        where: { noBatch: 'BATCH-001' },
+        update: {},
+        create: {
+          noBatch: 'BATCH-001',
+          productName: 'Telur Ayam Grade A',
+          targetQty: 100,
+          status: ProductionStatus.SCHEDULLING,
+          createdBy: 'Admin',
+          components: {
+            create: [
+              { itemName: 'Pakan Ayam Starter', qtyNeeded: 50, unit: 'KG' }
+            ]
+          }
+        }
+      });
+
+      // 6. SEED TASKS
+      await tx.task.create({
+        data: {
+          title: 'Cek kesehatan ayam kandang A',
+          time: '08:00',
+          priority: 'High',
+          category: 'Maintenance',
+          assignee: 'Admin',
+        }
+      });
+
+      // 7. SEED TRANSACTION (Initial Balance)
+      await tx.transaction.create({
+        data: {
+          trxNo: 'TRX-INIT-2026',
+          category: 'Modal Awal',
+          amount: 50000000,
+          type: 'INCOME',
+          method: 'BANK TRANSFER',
+          createdBy: 'Admin',
+          description: 'Saldo awal operasional keboen bapak',
+        }
+      });
+
+      console.log('✅ Seeding Selesai: Data Admin, Contact, Stock, Production, dan Task telah dibuat.');
+    });
   } catch (error) {
     console.error('❌ Gagal melakukan seeding:', error);
     process.exit(1);

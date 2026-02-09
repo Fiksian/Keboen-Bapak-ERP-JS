@@ -14,7 +14,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      test: ["CMD-SHELL", "pg_isready -U $${DB_USER} -d $${DB_NAME}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -22,7 +22,9 @@ services:
       - keboen_network
 
   app:
-    build: .
+    build: 
+      context: .
+      dockerfile: Dockerfile
     container_name: keboen_bapak_app
     restart: always
     expose:
@@ -32,6 +34,8 @@ services:
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
       NEXTAUTH_URL: ${NEXTAUTH_URL}
       AUTH_TRUST_HOST: "true"
+    env_file:
+      - .env
     depends_on:
       db:
         condition: service_healthy
@@ -44,27 +48,27 @@ services:
     restart: always
     ports:
       - "80:80"
-      - "443:443"
+      # - "443:443"
     volumes:
-      - ./nginx/conf:/etc/nginx/conf.d
-      - ./certbot/conf:/etc/letsencrypt:ro
-      - ./certbot/www:/var/www/certbot:ro
+      - ./nginx/conf:/etc/nginx/conf.d:ro # Read-only agar aman
+      # Buka komentar di bawah jika sudah di VPS untuk SSL
+      # - ./certbot/conf:/etc/letsencrypt:ro
+      # - ./certbot/www:/var/www/certbot:ro
     depends_on:
       - app
     networks:
       - keboen_network
 
-# Buat lokal, hapus jika '#' di luar lokal
-
-  certbot:
-    image: certbot/certbot
-    container_name: keboen_certbot
-    volumes:
-      - ./certbot/conf:/etc/letsencrypt
-      - ./certbot/www:/var/www/certbot
-    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
-    networks:
-      - keboen_network
+# Sertifikat otomatis (Buka komentar di VPS)
+#  certbot:
+#    image: certbot/certbot
+#    container_name: keboen_certbot
+#    volumes:
+#      - ./certbot/conf:/etc/letsencrypt
+#      - ./certbot/www:/var/www/certbot
+#    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew --deploy-hook \"docker kill -s HUP keboen_proxy\"; sleep 12h & wait $${!}; done;'"
+#    networks:
+#      - keboen_network
 
 networks:
   keboen_network:

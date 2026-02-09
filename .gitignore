@@ -1,5 +1,3 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
 # dependencies
 /node_modules
 /.pnp
@@ -23,6 +21,7 @@
 # misc
 .DS_Store
 *.pem
+thumbs.db
 
 # debug
 npm-debug.log*
@@ -30,9 +29,12 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# env files
+.env
 .env.local
+.env.production
+.env.development
+.env.*.local
 
 # vercel
 .vercel
@@ -41,20 +43,13 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# Prisma
 /src/generated/prisma
-/prisma/migrations
+!/prisma/schema.prisma
+!/prisma/seed.js
 
-# Sertifikat SSL & Log Certbot
+# Docker & Infrastructure (Lokal & VPS)
 certbot/conf/
 certbot/www/
 certbot/logs/
-
-# Database Data
 postgres_data/
-
-# OS files
-.DS_Store
-thumbs.db
-
-# Dockerfile
-# docker-compose.yml

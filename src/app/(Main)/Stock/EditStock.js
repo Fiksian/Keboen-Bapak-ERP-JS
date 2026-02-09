@@ -91,7 +91,7 @@ const EditStock = ({ isOpen, onClose, itemData, fetchAllStocks }) => {
       onClick={handleClose} 
     >
       <div 
-        className="bg-white w-full max-w-xl rounded-t-[32px] md:rounded-[32px] shadow-2xl border border-gray-100 overflow-hidden animate-in slide-in-from-bottom md:zoom-in duration-300 flex flex-col max-h-[95vh] md:max-h-none"
+        className="bg-white w-full max-w-xl rounded-t-[32px] md:rounded-[32px] shadow-2xl border border-gray-100 overflow-hidden animate-in slide-in-from-bottom md:zoom-in duration-300 flex flex-col max-h-full md:max-h-none"
         onClick={(e) => e.stopPropagation()} 
       >
         

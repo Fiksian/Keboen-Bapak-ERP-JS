@@ -38,13 +38,13 @@ const Sidebar = ({ isCollapsed, toggleSidebar, userRole, isOpenMobile, onCloseMo
     <>
       {isOpenMobile && (
         <div 
-          className="fixed inset-0 bg-black/50 z-[100] md:hidden transition-opacity duration-300"
+          className="fixed inset-0 bg-black/50 md:hidden transition-opacity duration-300"
           onClick={onCloseMobile}
         />
       )}
 
       <aside className={`
-        fixed inset-y-0 left-0 z-[110] bg-white border-r flex flex-col h-full shadow-md transition-all duration-300
+        fixed inset-y-0 left-0 bg-white border-r flex flex-col h-full shadow-md transition-all duration-300
         ${isOpenMobile ? 'translate-x-0 w-64' : '-translate-x-full w-64'} 
         md:relative md:translate-x-0 
         ${isCollapsed ? 'md:w-20' : 'md:w-64'}

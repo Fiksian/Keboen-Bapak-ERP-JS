@@ -37,19 +37,18 @@ const Sidebar = ({ isCollapsed, toggleSidebar, userRole, isOpenMobile, onCloseMo
     <>
       {isOpenMobile && (
         <div 
-          className="fixed inset-0 bg-black/60 md:hidden transition-opacity duration-300 z-[45] backdrop-blur-sm"
+          className="fixed inset-0 bg-black/60 md:hidden transition-opacity duration-300 z-45 backdrop-blur-sm"
           onClick={onCloseMobile}
         />
       )}
 
       <aside className={`
-        fixed inset-y-0 left-0 bg-white border-r flex flex-col h-full shadow-2xl md:shadow-md transition-all duration-300
+        fixed inset-y-0 left-0 bg-white border-r flex flex-col h-full shadow-2xl md:shadow-md transition-all duration-300 z-50
         ${isOpenMobile ? 'translate-x-0 w-72' : '-translate-x-full w-72'} 
         md:relative md:translate-x-0 
         ${isCollapsed ? 'md:w-20' : 'md:w-64'}
       `}>
         
-        {/* Header Sidebar Mobile */}
         <div className="flex items-center justify-between px-6 py-5 md:hidden border-b bg-gray-50/50">
            <div className="flex items-center gap-2">
               <div className="w-8 h-8 bg-[#8da070] rounded-lg flex items-center justify-center shadow-sm">
@@ -65,7 +64,6 @@ const Sidebar = ({ isCollapsed, toggleSidebar, userRole, isOpenMobile, onCloseMo
            </button>
         </div>
 
-        {/* Menu Items */}
         <nav className="flex-1 py-4 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-gray-200">
           {menuItems.map((item) => {
             if (!item.roles.includes(userRole)) return null;

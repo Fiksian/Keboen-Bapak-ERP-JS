@@ -55,3 +55,6 @@ postgres_data/
 # OS files
 .DS_Store
 thumbs.db
+
+# Dockerfile
+# docker-compose.yml

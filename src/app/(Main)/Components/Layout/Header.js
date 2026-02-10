@@ -13,7 +13,7 @@ const Header = ({ user, onLogout, isMobileMenuOpen, toggleMobileMenu }) => {
     const userRole = user?.role
 
     return (
-        <header className="sticky top-0 z-[40] bg-[#8da070] text-white px-4 md:px-8 py-3.5 flex items-center justify-between shadow-md h-16 md:h-20">
+        <header className="sticky top-0 z-60 bg-[#8da070] text-white px-4 md:px-8 py-3.5 flex items-center justify-between shadow-md h-16 md:h-20">
             
             <div className="flex items-center gap-3">
                 <button 

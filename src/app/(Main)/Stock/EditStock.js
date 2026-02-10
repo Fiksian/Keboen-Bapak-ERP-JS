@@ -129,8 +129,8 @@ const EditStock = ({ isOpen, onClose, itemData, fetchAllStocks }) => {
                     value={formData.type}
                     onChange={(e) => setFormData({...formData, type: e.target.value})}
                   >
-                    <option value="STOCKS">STOCKS (SALABLE)</option>
-                    <option value="INVENTORY">INVENTORY (RAW)</option>
+                    <option value="STOCKS">STOCKS</option>
+                    <option value="INVENTORY">INVENTORY</option>
                   </select>
                   <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
                 </div>

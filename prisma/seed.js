@@ -14,7 +14,6 @@ async function main() {
 
   try {
     await prisma.$transaction(async (tx) => {
-      // 1. SEED USER & STAFF (Admin)
       const user = await tx.user.upsert({
         where: { email: adminEmail },
         update: { password: hashedPassword },
@@ -42,7 +41,6 @@ async function main() {
         },
       });
 
-      // 2. SEED CONTACTS (Supplier & Customer)
       const supplier = await tx.contact.upsert({
         where: { email: 'supplier.pakan@email.com' },
         update: {},
@@ -67,7 +65,6 @@ async function main() {
         }
       });
 
-      // 3. SEED STOCKS
       await tx.stock.upsert({
         where: { name: 'Pakan Ayam Starter' },
         update: {},
@@ -81,7 +78,6 @@ async function main() {
         }
       });
 
-      // 4. SEED PURCHASING
       await tx.purchasing.upsert({
         where: { noPO: 'PO-2026-001' },
         update: {},
@@ -90,6 +86,7 @@ async function main() {
           item: 'Pakan Ayam Starter',
           qty: 1000,
           unit: 'KG',
+          price: '1000000',
           category: 'Feed',
           supplier: 'PT Pakan Jaya',
           requestedBy: 'Admin',
@@ -97,7 +94,6 @@ async function main() {
         }
       });
 
-      // 5. SEED PRODUCTION
       await tx.production.upsert({
         where: { noBatch: 'BATCH-001' },
         update: {},
@@ -115,7 +111,6 @@ async function main() {
         }
       });
 
-      // 6. SEED TASKS
       await tx.task.create({
         data: {
           title: 'Cek kesehatan ayam kandang A',
@@ -126,7 +121,6 @@ async function main() {
         }
       });
 
-      // 7. SEED TRANSACTION (Initial Balance)
       await tx.transaction.create({
         data: {
           trxNo: 'TRX-INIT-2026',

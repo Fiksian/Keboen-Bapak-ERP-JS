@@ -3,7 +3,6 @@ import { PrismaClient } from "@prisma/client";
 const prismaClientSingleton = () => {
   return new PrismaClient({
     log: [
-      { emit: 'stdout', level: 'query' },
       { emit: 'stdout', level: 'error' },
       { emit: 'stdout', level: 'warn' },
       { emit: 'stdout', level: 'info' },

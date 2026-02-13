@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { startOfDay, startOfWeek, startOfMonth } from "date-fns";
 
 export async function GET(request) {
   try {
@@ -10,65 +11,144 @@ export async function GET(request) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
+    const { searchParams } = new URL(request.url);
+    const range = searchParams.get("range") || "Daily";
+
+    let startDate;
+    const now = new Date();
+
+    switch (range) {
+      case "Weekly":
+        startDate = startOfWeek(now, { weekStartsOn: 1 });
+        break;
+      case "Monthly":
+        startDate = startOfMonth(now);
+        break;
+      default:
+        startDate = startOfDay(now);
+    }
+
+    const dateFilter = { gte: startDate };
+
     const [
-      financeStats,
-      salesStats,
-      productionSummary,
-      criticalStocks,
-      staffStats,
-      recentLogs,
-      totalStockCount,
-      totalStaffCount
+      transactions,
+      purchases,
+      stocks,
+      productions,
+      penjualan,
+      staffList,
+      histories,
+      tasks
     ] = await Promise.all([
-      prisma.transaction.groupBy({
-        by: ['type'],
-        _sum: { amount: true }
+      prisma.transaction.findMany({ 
+        where: { date: dateFilter }, 
+        orderBy: { date: 'desc' } 
       }),
-      prisma.penjualan.aggregate({
-        _sum: { totalAmount: true },
-        _count: { id: true }
+      prisma.purchasing.findMany({ 
+        where: { createdAt: dateFilter },
+        include: { receipts: true },
+        orderBy: { createdAt: 'desc' } 
       }),
-      prisma.production.groupBy({
-        by: ['status'],
-        _count: { id: true }
+      prisma.stock.findMany({ 
+        orderBy: { name: 'asc' } 
       }),
-      prisma.stock.findMany({
-        where: { stock: { lt: 10 } },
-        select: { name: true, stock: true, unit: true, type: true }
+      prisma.production.findMany({ 
+        where: { createdAt: dateFilter },
+        include: { components: true },
+        orderBy: { createdAt: 'desc' } 
       }),
-      prisma.staffs.groupBy({
-        by: ['designation'],
-        _count: { id: true }
+      prisma.penjualan.findMany({ 
+        where: { createdAt: dateFilter },
+        include: { customer: true, items: true },
+        orderBy: { createdAt: 'desc' } 
       }),
-      prisma.history.findMany({
-        take: 10,
+      prisma.staffs.findMany({ 
+        orderBy: { designation: 'asc' } 
+      }),
+      prisma.history.findMany({ 
+        where: { createdAt: dateFilter },
+        take: 100,
         orderBy: { createdAt: 'desc' },
       }),
-      prisma.stock.count(),
-      prisma.staffs.count()
+      prisma.task.findMany({ 
+        where: { createdAt: dateFilter },
+        orderBy: { createdAt: 'desc' } 
+      })
     ]);
 
-    const income = financeStats.find(s => s.type === "INCOME")?._sum.amount || 0;
-    const expense = financeStats.find(s => s.type === "EXPENSE")?._sum.amount || 0;
+    const income = transactions
+      .filter(t => t.type === "INCOME")
+      .reduce((sum, t) => sum + t.amount, 0);
+      
+    const expense = transactions
+      .filter(t => t.type === "EXPENSE")
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    const totalSales = penjualan.reduce((sum, s) => sum + s.totalAmount, 0);
+
+    const prodStats = productions.reduce((acc, curr) => {
+      if (curr.status) {
+        acc[curr.status] = (acc[curr.status] || 0) + 1;
+      }
+      return acc;
+    }, {});
+
+    const productionSummary = Object.keys(prodStats).map(status => ({
+      status: status,
+      count: prodStats[status]
+    }));
 
     return NextResponse.json({
       finance: {
         totalIncome: income,
         totalExpense: expense,
         netBalance: income - expense,
-        totalSalesInvoice: salesStats._sum.totalAmount || 0,
-        salesCount: salesStats._count.id
+        totalSalesInvoice: totalSales,
+        salesCount: penjualan.length
       },
-      production: productionSummary,
+      production: productionSummary, 
       inventory: {
-        criticalItems: criticalStocks,
-        totalItems: totalStockCount
+        criticalItems: stocks.filter(s => s.stock < 10),
+        totalItems: stocks.length
       },
       hr: {
-        totalStaff: totalStaffCount,
-        byDesignation: staffStats
+        totalStaff: staffList.length,
       },
-      activities: recentLogs
+      activities: histories.slice(0, 20),
+
+      raw: {
+        transactions: transactions.map(({ id, referenceId, createdAt, updatedAt, ...rest }) => ({
+          ...rest,
+          tanggal: new Date(rest.date || createdAt).toLocaleString('id-ID')
+        })),
+        purchases: purchases.map(({ id, updatedAt, receipts, ...rest }) => ({
+          ...rest,
+          totalReceived: receipts?.reduce((sum, r) => sum + r.receivedQty, 0) || 0,
+          receiptStatus: rest.isReceived ? "SELESAI" : "PENDING"
+        })),
+        stocks: stocks.map(({ id, lastPurchasedId, updatedAt, ...rest }) => rest),
+        productions: productions.map(({ id, updatedAt, components, ...rest }) => ({
+          ...rest,
+          componentCount: components?.length || 0
+        })),
+        penjualan: penjualan.map(({ id, customerId, updatedAt, customer, items, ...rest }) => ({
+          ...rest,
+          customerName: customer?.name || "Umum",
+          totalItems: items?.length || 0
+        })),
+        staffList: staffList.map(({ id, User, updatedAt, ...rest }) => rest),
+        tasks: tasks.map(({ id, updatedAt, ...rest }) => ({
+          ...rest,
+          status: rest.completed ? "SELESAI" : "PENDING"
+        })),
+        histories: histories.map(({ id, ...rest }) => rest)
+      },
+
+      config: {
+        range,
+        startDate: startDate.toISOString(),
+        entityName: "Keboen Bapak Management"
+      }
     }, { status: 200 });
 
   } catch (error) {

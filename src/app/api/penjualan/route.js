@@ -46,7 +46,7 @@ export async function GET() {
     return NextResponse.json(formattedData, { status: 200 });
   } catch (error) {
     console.error("API_GET_SALES_ERROR:", error);
-    return NextResponse.json({ message: "Gagal mengambil data", error: error.message }, { status: 500 });
+    return NextResponse.json({ message: "Gagal mengambil data" }, { status: 500 });
   }
 }
 
@@ -69,8 +69,8 @@ export async function POST(request) {
 
       let nextNumber = 1;
       if (lastSaleToday) {
-        const lastNumber = parseInt(lastSaleToday.invoiceId.split('/').pop());
-        nextNumber = lastNumber + 1;
+        const parts = lastSaleToday.invoiceId.split('/');
+        nextNumber = parseInt(parts[parts.length - 1]) + 1;
       }
       const newInvoiceId = `INV/${dateString}/${String(nextNumber).padStart(3, '0')}`;
 
@@ -93,21 +93,30 @@ export async function POST(request) {
       });
 
       for (const item of items) {
-        await tx.stock.updateMany({
-          where: { name: item.name },
-          data: { stock: { decrement: parseFloat(item.quantity) } }
+        const qty = parseFloat(item.quantity);
+        
+        const updateResult = await tx.stock.updateMany({
+          where: { 
+            name: item.name,
+            stock: { gte: qty }
+          },
+          data: { stock: { decrement: qty } }
         });
+
+        if (updateResult.count === 0) {
+          throw new Error(`Stok untuk "${item.name}" tidak mencukupi atau barang tidak ditemukan.`);
+        }
 
         await tx.history.create({
           data: {
-            action: "SALES_PENDING",
+            action: "SALES_OUT",
             item: item.name,
             category: "Sales",
-            type: "OUT",
-            quantity: parseFloat(item.quantity),
+            type: "STOCKS",
+            quantity: -qty,
             unit: item.unit || "Unit",
             user: currentUser,
-            notes: `Booking stok untuk Invoice: ${newInvoiceId}`,
+            notes: `Penjualan Invoice: ${newInvoiceId}`,
             referenceId: sale.id
           }
         });
@@ -117,8 +126,8 @@ export async function POST(request) {
 
     return NextResponse.json(result, { status: 201 });
   } catch (error) {
-    console.error("API_POST_SALES_ERROR:", error);
-    return NextResponse.json({ message: "Gagal simpan transaksi", details: error.message }, { status: 500 });
+    console.error("API_POST_SALES_ERROR:", error.message);
+    return NextResponse.json({ message: error.message }, { status: 400 });
   }
 }
 
@@ -153,27 +162,27 @@ export async function PATCH(request) {
             createdBy: currentUser
           }
         });
-
-        await tx.history.create({
-          data: {
-            action: "FINANCE_IN",
-            item: "Dana Penjualan",
-            category: "FINANCE",
-            type: "MONEY",
-            quantity: existingSale.totalAmount,
-            unit: "IDR",
-            user: currentUser,
-            notes: `Invoice ${id} telah lunas/diselesaikan`,
-            referenceId: existingSale.id
-          }
-        });
       }
 
-      if (status === "CANCELLED" && existingSale.status !== "CANCELLED") {
+      if (status === "CANCELLED" && existingSale.status === "PENDING") {
         for (const item of existingSale.items) {
-          await tx.stock.updateMany({
+          await tx.stock.update({
             where: { name: item.productName },
             data: { stock: { increment: item.quantity } }
+          });
+
+          await tx.history.create({
+            data: {
+              action: "SALES_REFUND",
+              item: item.productName,
+              category: "Sales",
+              type: "STOCKS",
+              quantity: item.quantity,
+              unit: item.unit,
+              user: currentUser,
+              notes: `Refund stok: Invoice ${id} dibatalkan`,
+              referenceId: existingSale.id
+            }
           });
         }
       }
@@ -186,8 +195,8 @@ export async function PATCH(request) {
 
     return NextResponse.json(result, { status: 200 });
   } catch (error) {
-    console.error("API_PATCH_STATUS_ERROR:", error);
-    return NextResponse.json({ message: error.message || "Gagal update status" }, { status: 500 });
+    console.error("API_PATCH_STATUS_ERROR:", error.message);
+    return NextResponse.json({ message: error.message }, { status: 500 });
   }
 }
 
@@ -207,9 +216,9 @@ export async function DELETE(request) {
 
       if (!sale) throw new Error("Transaksi tidak ditemukan");
 
-      if (sale.status !== "CANCELLED") {
+      if (sale.status === "PENDING") {
         for (const item of sale.items) {
-          await tx.stock.updateMany({
+          await tx.stock.update({
             where: { name: item.productName },
             data: { stock: { increment: item.quantity } }
           });
@@ -224,7 +233,7 @@ export async function DELETE(request) {
 
     return NextResponse.json(result, { status: 200 });
   } catch (error) {
-    console.error("API_DELETE_SALES_ERROR:", error);
+    console.error("API_DELETE_SALES_ERROR:", error.message);
     return NextResponse.json({ message: error.message }, { status: 500 });
   }
 }

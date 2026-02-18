@@ -31,18 +31,29 @@ export async function POST(request) {
     const { name, category, stock, unit, type, price, status } = body;
     
     const targetUnit = getBaseUnit(unit);
-    
     const convertedInputQty = convertQty(stock, unit, targetUnit);
-    
     const inputQty = cleanNumber(convertedInputQty);
 
     const existingStock = await prisma.stock.findUnique({
       where: { name: name }
     });
 
-    const totalQty = existingStock 
-      ? cleanNumber(existingStock.stock + inputQty) 
-      : inputQty;
+    const currentQty = existingStock ? cleanNumber(existingStock.stock) : 0;
+
+    if (inputQty < 0 && (currentQty + inputQty < 0)) {
+      return NextResponse.json(
+        { 
+          success: false,
+          message: `Update Gagal: Stok tidak boleh di bawah nol.`,
+          detail: `Stok saat ini ${currentQty} ${targetUnit}, Anda mencoba mengurangi ${Math.abs(inputQty)} ${targetUnit}.`,
+          currentStock: currentQty,
+          insufficientBy: Math.abs(currentQty + inputQty)
+        }, 
+        { status: 400 }
+      );
+    }
+
+    const totalQty = cleanNumber(currentQty + inputQty);
 
     const determineStatus = (qty) => {
       if (qty <= 0) return "OUT_OF_STOCK";
@@ -73,7 +84,12 @@ export async function POST(request) {
       },
     });
 
-    return NextResponse.json(result, { status: 201 });
+    return NextResponse.json({
+      success: true,
+      message: "Data stok berhasil diperbarui",
+      data: result
+    }, { status: 201 });
+
   } catch (error) {
     console.error("POST_STOCK_ERROR:", error);
     

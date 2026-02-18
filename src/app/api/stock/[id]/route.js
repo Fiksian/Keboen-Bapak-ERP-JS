@@ -5,7 +5,7 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 
 const getAutoStatus = (quantity) => {
   const qty = parseFloat(quantity) || 0;
-  if (qty <= 0) return "SOLD OUT";
+  if (qty <= 0) return "OUT_OF_STOCK";
   if (qty <= 10) return "LIMITED";
   return "READY";
 };
@@ -25,6 +25,14 @@ export async function PATCH(request, context) {
     }
 
     const newStockValue = parseFloat(body.stock) || 0;
+
+    if (newStockValue < 0) {
+      return NextResponse.json(
+        { message: "Gagal: Stok tidak boleh bernilai negatif (di bawah nol)." }, 
+        { status: 400 }
+      );
+    }
+
     const diff = newStockValue - oldStock.stock;
     const autoStatus = getAutoStatus(newStockValue);
 
@@ -87,7 +95,7 @@ export async function DELETE(request, context) {
           type: itemToDelete.type,
           quantity: -itemToDelete.stock,
           user: session?.user?.name || "System",
-          notes: "Item dihapus dari sistem"
+          notes: `Item dihapus. Stok terakhir: ${itemToDelete.stock}`
         }
       })
     ]);

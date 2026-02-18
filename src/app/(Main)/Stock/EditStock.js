@@ -87,7 +87,7 @@ const EditStock = ({ isOpen, onClose, itemData, fetchAllStocks }) => {
 
   return (
     <div 
-      className="fixed inset-0 z-[200] flex items-end md:items-center justify-center p-0 md:p-4 bg-slate-900/40 backdrop-blur-sm transition-all duration-300"
+      className="fixed inset-0 z-[200] w-full h-full md:h-screen flex items-end md:items-center justify-center p-0 md:p-4 bg-slate-900/40 backdrop-blur-sm transition-all duration-300"
       onClick={handleClose} 
     >
       <div 

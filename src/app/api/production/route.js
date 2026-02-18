@@ -32,23 +32,18 @@ export async function POST(request) {
     const datePattern = `${year}/${month}`; 
 
     const lastBatch = await prisma.production.findFirst({
-      where: { 
-        noBatch: { startsWith: `PROD/${datePattern}` } 
-      },
+      where: { noBatch: { startsWith: `PROD/${datePattern}` } },
       orderBy: { createdAt: 'desc' } 
     });
 
     let nextNumber = 1;
-    if (lastBatch && lastBatch.noBatch) {
+    if (lastBatch?.noBatch) {
       const parts = lastBatch.noBatch.split('/');
       const lastSequence = parseInt(parts[parts.length - 1]); 
-      if (!isNaN(lastSequence)) {
-        nextNumber = lastSequence + 1;
-      }
+      if (!isNaN(lastSequence)) nextNumber = lastSequence + 1;
     }
 
-    const sequenceStr = String(nextNumber).padStart(3, '0');
-    const autoNoBatch = `PROD/${datePattern}/${sequenceStr}`;
+    const autoNoBatch = `PROD/${datePattern}/${String(nextNumber).padStart(3, '0')}`;
 
     const result = await prisma.$transaction(async (tx) => {
       const processedIngredients = [];
@@ -90,11 +85,16 @@ export async function POST(request) {
 
       for (const ing of processedIngredients) {
         const updated = await tx.stock.updateMany({
-          where: { name: ing.itemName, stock: { gte: ing.qtyNeeded } },
+          where: { 
+            name: ing.itemName, 
+            stock: { gte: ing.qtyNeeded }
+          },
           data: { stock: { decrement: ing.qtyNeeded } }
         });
 
-        if (updated.count === 0) throw new Error(`Stok ${ing.itemName} tidak cukup.`);
+        if (updated.count === 0) {
+          throw new Error(`Stok ${ing.itemName} tidak cukup untuk memulai produksi.`);
+        }
 
         await tx.history.create({
           data: {
@@ -102,11 +102,11 @@ export async function POST(request) {
             item: ing.itemName,
             category: ing.category,
             type: "STOCKS",
-            quantity: ing.qtyNeeded,
+            quantity: -ing.qtyNeeded,
             unit: ing.unit,
             user: userName,
             referenceId: order.noBatch,
-            notes: `PEMAKAIAN BAHAN UNTUK PRODUKSI: ${productName}`
+            notes: `PEMAKAIAN BAHAN UNTUK BATCH: ${order.noBatch}`
           }
         });
       }
@@ -115,7 +115,7 @@ export async function POST(request) {
 
     return NextResponse.json(result, { status: 201 });
   } catch (error) {
-    console.error("POST_ERROR:", error.message);
+    console.error("POST_PRODUCTION_ERROR:", error.message);
     return NextResponse.json({ message: error.message }, { status: 400 });
   }
 }
@@ -136,7 +136,7 @@ export async function PATCH(request) {
       });
 
       if (!currentOrder || currentOrder.status !== "IN_PROGRESS") {
-        throw new Error("Batch tidak ditemukan atau tidak aktif.");
+        throw new Error("Batch tidak ditemukan atau sudah tidak aktif.");
       }
 
       if (status === "COMPLETED") {
@@ -152,7 +152,7 @@ export async function PATCH(request) {
           }
         });
 
-        await tx.stock.upsert({
+        const updatedStock = await tx.stock.upsert({
           where: { name: order.productName },
           update: { 
             stock: { increment: finalQty }, 
@@ -178,7 +178,7 @@ export async function PATCH(request) {
             unit: "UNIT",
             user: userName,
             referenceId: order.noBatch,
-            notes: `HASIL JADI PRODUKSI BATCH: ${order.noBatch}`
+            notes: `HASIL JADI PRODUKSI BATCH: ${order.noBatch}. Total stok: ${updatedStock.stock}`
           }
         });
         return order;
@@ -191,7 +191,7 @@ export async function PATCH(request) {
         });
 
         for (const comp of currentOrder.components) {
-          await tx.stock.updateMany({
+          await tx.stock.update({
             where: { name: comp.itemName },
             data: { stock: { increment: comp.qtyNeeded } }
           });
@@ -206,7 +206,7 @@ export async function PATCH(request) {
               unit: comp.unit,
               user: userName,
               referenceId: order.noBatch,
-              notes: `REFUND STOK: BATCH ${order.noBatch} DIBATALKAN`
+              notes: `PENGEMBALIAN BAHAN: BATCH ${order.noBatch} DIBATALKAN`
             }
           });
         }
@@ -216,7 +216,7 @@ export async function PATCH(request) {
 
     return NextResponse.json(result);
   } catch (error) {
-    console.error("PATCH_ERROR:", error.message);
+    console.error("PATCH_PRODUCTION_ERROR:", error.message);
     return NextResponse.json({ message: error.message }, { status: 500 });
   }
 }

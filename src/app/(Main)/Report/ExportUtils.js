@@ -133,17 +133,6 @@ export const exportToExcel = async (data, type = 'Daily') => {
   }));
   styleHeader(sheetHistory, '6B7280');
 
-  const sheetTask = workbook.addWorksheet('Tugas & Jadwal');
-  sheetTask.columns = [
-    { header: 'Judul Tugas', key: 'title', width: 30 },
-    { header: 'Kategori', key: 'category', width: 15 },
-    { header: 'Prioritas', key: 'priority', width: 12 },
-    { header: 'Assignee', key: 'assignee', width: 20 },
-    { header: 'Status', key: 'status', width: 15 },
-  ];
-  raw.tasks.forEach(t => sheetTask.addRow(t));
-  styleHeader(sheetTask, 'EC4899');
-
   const sheetStaff = workbook.addWorksheet('Karyawan');
   sheetStaff.columns = [
     { header: 'Staff ID', key: 'staffId', width: 15 },

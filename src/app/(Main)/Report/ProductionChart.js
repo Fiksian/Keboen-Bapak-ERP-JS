@@ -40,11 +40,6 @@ const ProductionChart = ({ data = [] }) => {
         <h3 className="font-black text-gray-700 uppercase tracking-tighter md:tracking-tight text-xs md:text-sm italic md:not-italic">
           Status Produksi <span className="text-blue-500 font-black">(Batch)</span>
         </h3>
-        <div className="flex gap-1">
-          <div className="w-1 h-1 rounded-full bg-gray-200"></div>
-          <div className="w-1 h-1 rounded-full bg-gray-200"></div>
-          <div className="w-1 h-1 rounded-full bg-blue-500"></div>
-        </div>
       </div>
 
       <div className="flex flex-col xl:flex-row items-center justify-center gap-6 md:gap-8 flex-1">

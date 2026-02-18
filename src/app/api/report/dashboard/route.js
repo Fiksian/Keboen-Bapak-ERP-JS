@@ -38,7 +38,6 @@ export async function GET(request) {
       penjualan,
       staffList,
       histories,
-      tasks
     ] = await Promise.all([
       prisma.transaction.findMany({ 
         where: { date: dateFilter }, 
@@ -69,10 +68,6 @@ export async function GET(request) {
         where: { createdAt: dateFilter },
         take: 100,
         orderBy: { createdAt: 'desc' },
-      }),
-      prisma.task.findMany({ 
-        where: { createdAt: dateFilter },
-        orderBy: { createdAt: 'desc' } 
       })
     ]);
 
@@ -137,10 +132,6 @@ export async function GET(request) {
           totalItems: items?.length || 0
         })),
         staffList: staffList.map(({ id, User, updatedAt, ...rest }) => rest),
-        tasks: tasks.map(({ id, updatedAt, ...rest }) => ({
-          ...rest,
-          status: rest.completed ? "SELESAI" : "PENDING"
-        })),
         histories: histories.map(({ id, ...rest }) => rest)
       },
 

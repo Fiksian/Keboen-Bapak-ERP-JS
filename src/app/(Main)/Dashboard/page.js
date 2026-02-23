@@ -25,10 +25,10 @@ export default function DashboardPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 mb-4 md:mb-8">
         <div className="space-y-1">
           <h1 className="text-xl md:text-2xl font-black text-gray-900 uppercase tracking-tight leading-none">
-            Dashboard Overview
+            Dashboard
           </h1>
           <p className="text-gray-500 text-xs md:text-sm font-bold italic">
-            Sistem ERP Keboen Bapak <span className="text-blue-600 font-black">v0.2</span>
+            Sistem ERP Keboen Bapak
           </p>
         </div>
 
@@ -38,7 +38,7 @@ export default function DashboardPage() {
             className="w-full sm:w-auto flex items-center justify-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-xl font-black text-[11px] md:text-xs shadow-xl shadow-blue-100 hover:bg-blue-700 transition-all active:scale-95 uppercase tracking-widest"
           >
             <Users size={16} />
-            MANAGE STAFF
+            Manage Staff
           </Link>
         )}
       </div>

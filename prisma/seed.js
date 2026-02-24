@@ -8,6 +8,27 @@ async function main() {
   const adminUsername = "Admin";
   const adminPassword = "123456";
 
+  const testUsers = [
+    {
+      email: "staff1@test.com",
+      username: "Staff_Satu",
+      password: "password123",
+      role: "Staff",
+      firstName: "Test",
+      lastName: "Staff One",
+      staffId: "STF-001",
+    },
+    {
+      email: "staff2@test.com",
+      username: "Staff_Dua",
+      password: "password123",
+      role: "Staff",
+      firstName: "Test",
+      lastName: "Staff Two",
+      staffId: "STF-002",
+    },
+  ];
+
   console.log('--- Memulai Proses Seeding ERP Keboen Bapak (Lokal) ---');
   
   const hashedPassword = await bcrypt.hash(adminPassword, 10);
@@ -41,7 +62,38 @@ async function main() {
         },
       });
 
-      const supplier = await tx.contact.upsert({
+      for (const testData of testUsers) {
+        const hashedTestPassword = await bcrypt.hash(testData.password, 10);
+        
+        const testUser = await tx.user.upsert({
+          where: { email: testData.email },
+          update: { password: hashedTestPassword },
+          create: {
+            username: testData.username,
+            email: testData.email,
+            password: hashedTestPassword,
+            role: testData.role,
+          },
+        });
+
+        await tx.staffs.upsert({
+          where: { email: testData.email },
+          update: { updatedAt: new Date() },
+          create: {
+            id: testUser.id,
+            email: testData.email,
+            firstName: testData.firstName,
+            lastName: testData.lastName,
+            gender: "Male",
+            staffId: testData.staffId,
+            role: testData.role,
+            designation: "Testing Account",
+            updatedAt: new Date(),
+          },
+        });
+      }
+
+      await tx.contact.upsert({
         where: { email: 'supplier.pakan@email.com' },
         update: {},
         create: {
@@ -133,7 +185,7 @@ async function main() {
         }
       });
 
-      console.log('✅ Seeding Selesai: Data Admin, Contact, Stock, Production, dan Task telah dibuat.');
+      console.log('✅ Seeding Selesai: Semua data berhasil dibuat.');
     });
   } catch (error) {
     console.error('❌ Gagal melakukan seeding:', error);

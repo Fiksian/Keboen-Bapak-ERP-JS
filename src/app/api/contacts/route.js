@@ -26,8 +26,10 @@ export async function GET(request) {
     const formattedContacts = contacts.map(c => ({
       id: c.id,
       name: c.name,
+      nik: c.nik || "-",
+      companyName: c.companyName || "-",
       type: c.type.charAt(0) + c.type.slice(1).toLowerCase(),
-      contactPerson: c.name,
+      displayName: c.companyName ? `${c.companyName} (u.p. ${c.name})` : c.name,
       email: c.email || "-",
       phone: c.phone || "-",
       address: c.address || "-",
@@ -47,7 +49,7 @@ export async function POST(request) {
     if (!session) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
     const body = await request.json();
-    const { name, type, email, phone, address } = body;
+    const { name, type, email, phone, address, nik, companyName } = body;
 
     if (!name || !type) {
       return NextResponse.json({ message: "Nama dan Tipe wajib diisi" }, { status: 400 });
@@ -57,6 +59,8 @@ export async function POST(request) {
       data: {
         name,
         type: type.toUpperCase(),
+        nik: nik || null,
+        companyName: companyName || null,
         email: email || null,
         phone: phone || null,
         address: address || null,
@@ -66,6 +70,9 @@ export async function POST(request) {
     return NextResponse.json(newContact, { status: 201 });
   } catch (error) {
     console.error("POST_CONTACTS_ERROR:", error);
+    if (error.code === 'P2002') {
+      return NextResponse.json({ message: "NIK atau Email sudah terdaftar" }, { status: 400 });
+    }
     return NextResponse.json({ message: "Gagal menyimpan kontak" }, { status: 500 });
   }
 }
@@ -78,9 +85,7 @@ export async function DELETE(request) {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
 
-    if (!id) {
-      return NextResponse.json({ message: "ID diperlukan" }, { status: 400 });
-    }
+    if (!id) return NextResponse.json({ message: "ID diperlukan" }, { status: 400 });
 
     const contact = await prisma.contact.findUnique({
       where: { id },
@@ -93,10 +98,7 @@ export async function DELETE(request) {
       }, { status: 400 });
     }
 
-    await prisma.contact.delete({
-      where: { id },
-    });
-
+    await prisma.contact.delete({ where: { id } });
     return NextResponse.json({ message: "Kontak berhasil dihapus" }, { status: 200 });
   } catch (error) {
     console.error("DELETE_CONTACT_ERROR:", error);

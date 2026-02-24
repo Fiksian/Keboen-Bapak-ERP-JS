@@ -142,14 +142,16 @@ model PenjualanItem {
 }
 
 model Contact {
-  id        String      @id @default(cuid())
-  name      String
-  type      ContactType @default(CUSTOMER)
-  email     String?     @unique
-  phone     String?
-  address   String?
-  createdAt DateTime    @default(now())
-  penjualan Penjualan[]
+  id            String      @id @default(cuid())
+  name          String
+  nik           String?     @unique
+  companyName   String?
+  type          ContactType @default(CUSTOMER)
+  email         String?     @unique
+  phone         String?
+  address       String?
+  createdAt     DateTime    @default(now())
+  penjualan     Penjualan[]
 }
 
 model staffs {
@@ -170,15 +172,15 @@ model staffs {
 
 model Transaction {
   id          String   @id @default(cuid())
-  trxNo       String   @unique // Contoh: TRX-202602-001
-  category    String   // Operasional, Gaji, Penjualan, Pembelian, dll
+  trxNo       String   @unique
+  category    String
   description String?
   amount      Float    
-  type        String   // "INCOME" atau "EXPENSE"
+  type        String
   date        DateTime @default(now())
-  method      String   @default("CASH") // CASH, BANK TRANSFER, dll
+  method      String   @default("CASH")
   createdBy   String
-  referenceId String?  // ID dari Penjualan atau Purchasing
+  referenceId String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }

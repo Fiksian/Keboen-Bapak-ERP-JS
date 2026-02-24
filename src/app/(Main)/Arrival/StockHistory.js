@@ -1,11 +1,11 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   X, History, ArrowDownLeft, Calendar, FileText, 
-  Hash, Loader2, UserCheck, Clock, Printer, Truck 
+  Hash, Loader2, UserCheck, Clock, Printer, Truck, Scale 
 } from 'lucide-react';
-import PrintSTTB from '@/app/(Main)/Components/Stock/PrintSTTB';
+import PrintSTTB from '@/app/(Main)/Components/Arrival/PrintSTTB';
 
 const StockHistory = ({ isOpen, onClose }) => {
   const [history, setHistory] = useState([]);
@@ -48,7 +48,10 @@ const StockHistory = ({ isOpen, onClose }) => {
       receivedBy: mainReceipt.receivedBy,
       receivedAt: mainReceipt.receivedAt,
       condition: mainReceipt.condition,
-      notes: mainReceipt.notes
+      notes: mainReceipt.notes,
+      grossWeight: mainReceipt.grossWeight,
+      tareWeight: mainReceipt.tareWeight,
+      netWeight: mainReceipt.netWeight
     };
     
     setSelectedLog(printData);
@@ -77,7 +80,7 @@ const StockHistory = ({ isOpen, onClose }) => {
             </div>
             <div className="text-left">
               <h2 className="text-lg md:text-xl font-black text-slate-800 uppercase italic tracking-tighter leading-none">Log Penerimaan</h2>
-              <p className="text-[9px] md:text-[10px] text-blue-600 font-bold uppercase tracking-widest mt-1">Inbound Tracking</p>
+              <p className="text-[9px] md:text-[10px] text-blue-600 font-bold uppercase tracking-widest mt-1">Inbound Tracking & Weights</p>
             </div>
           </div>
           <button 
@@ -102,11 +105,11 @@ const StockHistory = ({ isOpen, onClose }) => {
                 <div key={log.id} className="bg-white p-5 md:p-6 rounded-[24px] md:rounded-[32px] border border-slate-100 shadow-sm flex flex-col gap-4 group hover:border-blue-500 transition-all duration-300">
                   
                   <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
-                    <div className="flex gap-3 md:gap-4 w-full sm:w-auto">
+                    <div className="flex gap-3 md:gap-4 w-full sm:w-auto text-left min-w-0 flex-1">
                       <div className="p-3 bg-green-50 text-green-600 rounded-2xl h-fit shrink-0">
                         <ArrowDownLeft size={20} strokeWidth={3} />
                       </div>
-                      <div className="text-left min-w-0 flex-1">
+                      <div className="min-w-0 flex-1">
                         <h4 className="font-black text-slate-800 uppercase text-xs md:text-sm tracking-tight leading-tight truncate">
                           {log.item}
                         </h4>
@@ -123,7 +126,7 @@ const StockHistory = ({ isOpen, onClose }) => {
                     
                     <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto gap-2">
                       <div className="bg-green-600 text-white px-3 py-1.5 md:px-4 md:py-2 rounded-xl md:rounded-2xl text-[10px] md:text-xs font-black italic shadow-lg shadow-green-100">
-                        + {log.qty} {log.unit || 'UNIT'}
+                        + {mainReceipt.receivedQty} {log.unit || 'UNIT'}
                       </div>
                       <button 
                         onClick={() => handlePrintLog(log)}
@@ -134,7 +137,25 @@ const StockHistory = ({ isOpen, onClose }) => {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 xs:grid-cols-2 gap-4 pt-4 border-t border-slate-50 text-left">
+                  <div className="grid grid-cols-3 gap-2 p-3 bg-orange-50/50 rounded-2xl border border-orange-100/50">
+                    <div className="text-left">
+                      <p className="text-[7px] font-black text-orange-400 uppercase tracking-widest leading-none mb-1">Gross (Isi)</p>
+                      <p className="text-[10px] font-black text-slate-700 leading-none">{mainReceipt.grossWeight || 0} <span className="text-[8px] text-slate-400">kg</span></p>
+                    </div>
+                    <div className="text-left border-x border-orange-100 px-2">
+                      <p className="text-[7px] font-black text-orange-400 uppercase tracking-widest leading-none mb-1">Tare (Kosong)</p>
+                      <p className="text-[10px] font-black text-slate-700 leading-none">{mainReceipt.tareWeight || 0} <span className="text-[8px] text-slate-400">kg</span></p>
+                    </div>
+                    <div className="text-left pl-1">
+                      <p className="text-[7px] font-black text-orange-600 uppercase tracking-widest leading-none mb-1">Netto (Bersih)</p>
+                      <div className="flex items-center gap-1">
+                        <Scale size={8} className="text-orange-600" />
+                        <p className="text-[10px] font-black text-orange-700 leading-none">{mainReceipt.netWeight || 0} <span className="text-[8px]">kg</span></p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 xs:grid-cols-2 gap-4 pt-2 text-left">
                     <div className="space-y-2">
                       <p className="text-[8px] md:text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">Arrival Info</p>
                       <div className="flex flex-col gap-1.5">

@@ -2,20 +2,16 @@
 
 import React, { useState, useEffect } from 'react';
 import { Database, Loader2, History, Package, Box } from 'lucide-react';
-import ArrivalMonitor from './ArrivalMonitor';
 import StatCards from './StatCard';
 import StockTable from './StockTable';
 import EditStock from './EditStock';
-import StockHistory from './StockHistory';
 import SearchInput from '@/app/(Main)/Components/SeachInput'; 
 
 const StockInventory = () => {
   const [activeTab, setActiveTab] = useState('stocks'); 
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
   const [allData, setAllData] = useState([]);
-  const [pendingArrivals, setPendingArrivals] = useState([]);
   const [loading, setLoading] = useState(true);
   
   const [searchQuery, setSearchQuery] = useState('');
@@ -34,18 +30,8 @@ const StockInventory = () => {
     }
   };
 
-  const fetchPendingArrivals = async () => {
-    try {
-      const res = await fetch('/api/stock/pending');
-      if (res.ok) setPendingArrivals(await res.json());
-    } catch (error) {
-      console.error("Gagal mengambil data antrean:", error);
-    }
-  };
-
   useEffect(() => { 
     fetchAllStocks(); 
-    fetchPendingArrivals();
   }, []);
 
   const handleEdit = (item) => {
@@ -73,16 +59,6 @@ const StockInventory = () => {
         itemData={selectedItem}
       />
 
-      <StockHistory 
-        isOpen={isHistoryOpen} 
-        onClose={() => setIsHistoryOpen(false)} 
-      />
-
-      <ArrivalMonitor 
-        arrivals={pendingArrivals} 
-        onRefresh={() => { fetchAllStocks(); fetchPendingArrivals(); }} 
-      />
-
       <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 border-b border-gray-200">
         <div className="flex overflow-x-auto no-scrollbar gap-6 md:gap-8 scroll-smooth">
           {[
@@ -107,14 +83,6 @@ const StockInventory = () => {
             </button>
           ))}
         </div>
-
-        <div className="pb-4 w-full xl:w-72">
-          <SearchInput 
-            value={searchQuery} 
-            onChange={setSearchQuery} 
-            placeholder={`Search ${activeTab === 'stocks' ? 'products...' : 'logistics...'}`} 
-          />
-        </div>
       </div>
 
       <StatCards data={filteredData} />
@@ -131,14 +99,13 @@ const StockInventory = () => {
             </p>
           </div>
         </div>
-        
-        <button 
-          onClick={() => setIsHistoryOpen(true)}
-          className="w-full sm:w-auto flex items-center justify-center gap-3 px-6 py-4 bg-gray-900 md:bg-white md:hover:bg-slate-50 text-white md:text-slate-700 rounded-2xl border border-transparent md:border-slate-200 font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 shadow-xl md:shadow-sm group cursor-pointer italic"
-        >
-          <History size={16} className="text-indigo-400 md:text-indigo-600 group-hover:rotate-[-45deg] transition-transform" />
-          Arrival Logs
-        </button>
+        <div className="pb-4 w-full xl:w-72">
+          <SearchInput 
+            value={searchQuery} 
+            onChange={setSearchQuery} 
+            placeholder={`Search ${activeTab === 'stocks' ? 'products...' : 'logistics...'}`} 
+          />
+        </div>
       </div>
 
       <div className="bg-white rounded-[24px] md:rounded-[32px] shadow-sm border border-gray-100 overflow-hidden">

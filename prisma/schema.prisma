@@ -45,6 +45,9 @@ model Receipt {
   suratJalan   String
   vehicleNo    String
   receivedQty  Float
+  grossWeight  Float      @default(0) // Berat Isi
+  tareWeight   Float      @default(0) // Berat Kosong
+  netWeight    Float      @default(0) // Netto
   receivedBy   String
   condition    String     @default("GOOD")
   notes        String?

@@ -6,6 +6,8 @@ const PrintSTTB = ({ data }) => {
   if (!data) return null;
 
   const getQtyDetail = () => {
+    if (data.netWeight) return { val: data.netWeight, unit: 'KG' };
+    
     if (!data.qty) return { val: '0', unit: 'Unit' };
     const parts = data.qty.toString().split(' ');
     return {
@@ -22,6 +24,9 @@ const PrintSTTB = ({ data }) => {
   const displayNotes = data.notes || data.receipts?.[0]?.notes || "Tidak ada catatan tambahan.";
   const displayReceivedAt = data.receivedAt || data.receipts?.[0]?.receivedAt || new Date();
   const displayReceivedBy = data.receivedBy || data.receipts?.[0]?.receivedBy || "System";
+  const gross = data.grossWeight || data.receipts?.[0]?.grossWeight || 0;
+  const tare = data.tareWeight || data.receipts?.[0]?.tareWeight || 0;
+  const net = data.netWeight || data.receipts?.[0]?.netWeight || 0;
 
   return (
     <div 
@@ -47,7 +52,7 @@ const PrintSTTB = ({ data }) => {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-10 mb-10 border-b border-gray-100 pb-8 text-left">
+        <div className="grid grid-cols-2 gap-10 mb-8 border-b border-gray-100 pb-8 text-left">
           <div className="space-y-4">
             <div>
               <p className="text-[10px] font-bold text-gray-400 uppercase italic mb-1">Dikirim Oleh (Vendor):</p>
@@ -88,8 +93,7 @@ const PrintSTTB = ({ data }) => {
           </div>
         </div>
 
-        {/* Tabel Detail Barang */}
-        <div className="mb-10 text-left">
+        <div className="mb-6 text-left">
           <p className="text-[10px] font-black uppercase mb-3 text-gray-400 italic">Rincian Item Yang Diterima:</p>
           <table className="w-full border-collapse">
             <thead>
@@ -124,13 +128,31 @@ const PrintSTTB = ({ data }) => {
                       <div className={`w-4 h-4 border border-black rounded-sm flex items-center justify-center text-[8px] font-bold ${displayCondition !== 'GOOD' ? 'bg-black text-white' : ''}`}>
                          {displayCondition !== 'GOOD' ? '✓' : ''}
                       </div>
-                      <span className="text-[11px] font-bold uppercase">Rusak / Tidak Lengkap</span>
+                      <span className="text-[11px] font-bold uppercase">Rusak / Bermasalah</span>
                     </div>
                   </div>
                 </td>
               </tr>
             </tbody>
           </table>
+        </div>
+
+        <div className="mb-10 p-5 bg-gray-50 border-2 border-black rounded-2xl">
+          <p className="text-[10px] font-black uppercase mb-4 text-black italic text-left">Verifikasi Timbangan (Kg):</p>
+          <div className="grid grid-cols-3 gap-8">
+            <div className="text-left border-l-2 border-gray-200 pl-4">
+              <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-1">Berat Isi (Gross)</p>
+              <p className="text-xl font-black tracking-tight">{gross.toFixed(2)} KG</p>
+            </div>
+            <div className="text-left border-l-2 border-gray-200 pl-4">
+              <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-1">Berat Kosong (Tare)</p>
+              <p className="text-xl font-black tracking-tight">{tare.toFixed(2)} KG</p>
+            </div>
+            <div className="text-left border-l-2 border-black pl-4 bg-white py-2 shadow-sm">
+              <p className="text-[9px] font-black text-black uppercase tracking-widest mb-1 italic">Netto (Bersih)</p>
+              <p className="text-2xl font-black tracking-tighter text-black underline decoration-2">{net.toFixed(2)} KG</p>
+            </div>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-10 mt-10 text-left">
@@ -157,7 +179,7 @@ const PrintSTTB = ({ data }) => {
           </div>
         </div>
 
-        <div className="mt-20 border-t border-gray-200 pt-6">
+        <div className="mt-16 border-t border-gray-200 pt-6">
           <div className="flex justify-between items-end">
             <div className="text-left space-y-1">
               <p className="text-[8px] text-gray-400 italic font-bold">

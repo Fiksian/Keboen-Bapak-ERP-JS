@@ -19,8 +19,17 @@ export async function PATCH(request, context) {
 
     const { id } = await context.params; 
     const body = await request.json(); 
-    
-    const { suratJalan, vehicleNo, condition, notes, receivedQty, receivedBy } = body; 
+    const { 
+      suratJalan, 
+      vehicleNo, 
+      condition, 
+      notes, 
+      receivedQty, 
+      receivedBy,
+      beratIsi,   
+      beratKosong, 
+      netto       
+    } = body; 
 
     const userName = receivedBy || session.user.name || "Warehouse Admin";
     const currentTime = new Date();
@@ -38,7 +47,7 @@ export async function PATCH(request, context) {
       return NextResponse.json({ message: "Barang sudah pernah diterima sebelumnya" }, { status: 400 });
     }
 
-    const incomingQty = receivedQty !== undefined ? parseFloat(receivedQty) : (purchase.qty || 0);
+    const incomingQty = netto !== undefined ? parseFloat(netto) : (receivedQty !== undefined ? parseFloat(receivedQty) : (purchase.qty || 0));
     const unitLabel = purchase.unit || "Unit";
 
     const result = await prisma.$transaction(async (tx) => {
@@ -50,6 +59,9 @@ export async function PATCH(request, context) {
           suratJalan: suratJalan || "TANPA-SJ",
           vehicleNo: vehicleNo || "N/A",
           receivedQty: incomingQty,
+          grossWeight: parseFloat(beratIsi) || 0,
+          tareWeight: parseFloat(beratKosong) || 0,
+          netWeight: parseFloat(netto) || 0, 
           receivedBy: userName,
           condition: condition || "GOOD",
           notes: notes || "",
@@ -105,7 +117,7 @@ export async function PATCH(request, context) {
           unit: unitLabel,
           user: userName,
           referenceId: receipt.id,
-          notes: `PO: ${purchase.noPO} | SJ: ${suratJalan} | Kendaraan: ${vehicleNo}`
+          notes: `PO: ${purchase.noPO} | Netto: ${netto}kg (B.Isi: ${beratIsi} - B.Kosong: ${beratKosong}) | SJ: ${suratJalan}`
         }
       });
 

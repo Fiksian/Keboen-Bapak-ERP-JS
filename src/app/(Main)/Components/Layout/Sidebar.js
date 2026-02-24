@@ -11,7 +11,8 @@ import {
   Store,
   User2,
   CircleDollarSign,
-  X
+  X,
+  Calendar
 } from 'lucide-react';
 
 const Sidebar = ({ isCollapsed, toggleSidebar, userRole, isOpenMobile, onCloseMobile }) => {
@@ -19,18 +20,19 @@ const Sidebar = ({ isCollapsed, toggleSidebar, userRole, isOpenMobile, onCloseMo
 
   const menuItems = [
     { name: 'Dashboard', icon: <LayoutDashboard size={18} />, path: '/Dashboard', roles: ['Admin', 'Staff', 'Manager', 'Supervisor', 'Test'] },
-    { name: 'Cuaca', icon: <CloudSun size={18} />, path: '/Cuaca', roles: ['Admin', 'Staff', 'Manager', 'Supervisor', 'Test'] },
-    { name: 'Report', icon: <BarChart3 size={18} />, path: '/Report', roles: ['Admin', 'Manager', 'Test'] },
+    { name: 'Cuaca', icon: <CloudSun size={18} />, path: '/Cuaca', roles: ['Admin', 'Test'] },
+    { name: 'Report', icon: <BarChart3 size={18} />, path: '/Report', roles: ['Admin'] },
     { name: 'Staff', icon: <User size={18} />, path: '/Staff', roles: ['Admin'] },
     { name: 'Contacts', icon: <User2 size={18} />, path: '/Contacts', roles: ['Admin', 'Test', 'Staff'] },
     { name: 'Tasks', icon: <CheckSquare size={18} />, path: '/Tasks', roles: ['Admin'] },
-    { name: 'Kandang', icon: <Warehouse size={18} />, path: '/Kandang', roles: ['Admin', 'Staff', 'Supervisor'] },
-    { name: 'Produksi', icon: <Settings size={18} />, path: '/Produksi', roles: ['Admin', 'Staff', 'Manager','Supervisor', 'Test'] },
-    { name: 'Warehouse', icon: <Package size={18} />, path: '/Stock', roles: ['Admin', 'Manager', 'Staff', 'Supervisor', 'Test'] },
-    { name: 'Purchasing', icon: <ShoppingCart size={18} />, path: '/Purchasing', roles: ['Admin', 'Manager', 'Staff','Supervisor', 'Test'] },
-    { name: 'Penjualan', icon: <Store size={18} />, path: '/Penjualan', roles: ['Admin', 'Manager', 'Staff','Supervisor', 'Test'] },
-    { name: 'Finance', icon: <CircleDollarSign size={18} />, path: '/Finance', roles: ['Admin', 'Manager','Test'] },
-    { name: 'History', icon: <Clock size={18} />, path: '/History', roles: ['Admin', 'Manager', 'Supervisor', 'Test'] },
+    { name: 'Kandang', icon: <Warehouse size={18} />, path: '/Kandang', roles: [] },
+    { name: 'Produksi', icon: <Settings size={18} />, path: '/Produksi', roles: ['Admin','Test'] },
+    { name: 'Arrival', icon: <Clock size={18} />, path: '/Arrival', roles: ['Admin', 'Test'] },
+    { name: 'Warehouse', icon: <Package size={18} />, path: '/Stock', roles: ['Admin', 'Test'] },
+    { name: 'Purchasing', icon: <ShoppingCart size={18} />, path: '/Purchasing', roles: ['Admin', 'Test'] },
+    { name: 'Penjualan', icon: <Store size={18} />, path: '/Penjualan', roles: ['Admin',] },
+    { name: 'Finance', icon: <CircleDollarSign size={18} />, path: '/Finance', roles: ['Admin'] },
+    { name: 'History', icon: <Calendar size={18} />, path: '/History', roles: ['Admin', 'Manager', 'Supervisor', 'Test'] },
   ];
 
   return (

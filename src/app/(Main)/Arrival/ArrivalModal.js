@@ -101,7 +101,7 @@ const ArrivalModal = ({
                     step="0.01"
                     placeholder="0.00"
                     disabled={isSubmitting}
-                    className="w-full bg-white border border-slate-200 rounded-xl py-2 px-3 text-xs font-black outline-none focus:border-orange-500 transition-all appearance-none"
+                    className="w-full text-slate-600 bg-white border border-slate-200 rounded-xl py-2 px-3 text-xs font-black outline-none focus:border-orange-500 transition-all appearance-none"
                     value={formData.beratIsi}
                     onChange={handleWeightChange}
                   />
@@ -115,14 +115,14 @@ const ArrivalModal = ({
                     step="0.01"
                     placeholder="0.00"
                     disabled={isSubmitting}
-                    className="w-full bg-white border border-slate-200 rounded-xl py-2 px-3 text-xs font-black outline-none focus:border-orange-500 transition-all appearance-none"
+                    className="w-full text-slate-600 bg-white border border-slate-200 rounded-xl py-2 px-3 text-xs font-black outline-none focus:border-orange-500 transition-all appearance-none"
                     value={formData.beratKosong}
                     onChange={handleWeightChange}
                   />
                 </div>
                 <div className="space-y-1">
                   <label className="text-[9px] font-black text-slate-400 uppercase">Netto</label>
-                  <div className="w-full bg-orange-100 border border-orange-200 rounded-xl py-2 px-3 text-xs font-black text-orange-700 h-[34px] flex items-center">
+                  <div className="w-full text-slate-600 bg-orange-100 border border-orange-200 rounded-xl py-2 px-3 text-xs font-black text-orange-700 h-[34px] flex items-center">
                     {formData.netto || '0.00'}
                   </div>
                 </div>

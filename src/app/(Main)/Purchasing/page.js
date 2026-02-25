@@ -48,6 +48,26 @@ const Purchasing = () => {
     }
   };
 
+  const handleBulkStatusUpdate = async (ids, newStatus) => {
+    try {
+      const res = await fetch(`/api/purchasing/bulk-status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids, status: newStatus }),
+      });
+
+      if (res.ok) {
+        await fetchRequests();
+      } else {
+        const errorData = await res.json();
+        alert(`Bulk Error: ${errorData.message || "Gagal memperbarui status massal"}`);
+      }
+    } catch (error) {
+      console.error("Bulk Update error:", error);
+      alert("Terjadi kesalahan koneksi saat update massal.");
+    }
+  };
+
   const deletePurchasing = async (id) => {
     if (!confirm("Hapus pengajuan PO ini secara permanen?")) return;
     try {
@@ -177,6 +197,7 @@ const Purchasing = () => {
               onStatusUpdate={handleStatusUpdate} 
               onDelete={deletePurchasing} 
               onPrint={handlePrint} 
+              onBulkStatusUpdate={handleBulkStatusUpdate} 
             />
           </div>
 

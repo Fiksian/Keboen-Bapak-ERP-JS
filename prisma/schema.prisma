@@ -21,7 +21,7 @@ model User {
 
 model Purchasing {
   id          String         @id @default(cuid())
-  noPO        String         @unique
+  noPO        String         
   item        String
   qty         Float          @default(0)
   unit        String         @default("KG")
@@ -175,7 +175,7 @@ model staffs {
 
 model Transaction {
   id          String   @id @default(cuid())
-  trxNo       String   @unique
+  trxNo       String
   category    String
   description String?
   amount      Float    

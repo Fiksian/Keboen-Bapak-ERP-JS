@@ -99,20 +99,7 @@ const Sidebar = ({ isCollapsed, toggleSidebar, userRole, isOpenMobile, onCloseMo
           })}
         </nav>
 
-        <div className="border-t p-2 bg-white shrink-0">
-          <Link 
-            href="/Settings"
-            onClick={() => { if(window.innerWidth < 1024) onCloseMobile(); }}
-            className="group w-full flex items-center justify-between px-4 py-4 rounded-xl cursor-pointer text-gray-500 hover:bg-[#8da070]/5 transition-all"
-          >
-            <div className="flex items-center gap-3">
-              <Settings size={18} className="text-gray-400 group-hover:text-[#8da070] transition-colors" />
-              {(isOpenMobile || !isCollapsed) && (
-                <span className="text-[13px] font-semibold group-hover:text-[#8da070]">Getting Started</span>
-              )}
-            </div>
-          </Link>
-          
+        <div className="border-t p-2 bg-white shrink-0">          
           <button 
             className="hidden md:flex w-full group mt-2 px-4 py-4 border-t hover:bg-gray-50 transition-all items-center justify-start gap-3 text-gray-400" 
             onClick={toggleSidebar}

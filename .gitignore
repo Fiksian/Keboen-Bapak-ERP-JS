@@ -57,3 +57,6 @@ certbot/conf/
 certbot/www/
 certbot/logs/
 postgres_data/
+
+#nginx
+/nginx/

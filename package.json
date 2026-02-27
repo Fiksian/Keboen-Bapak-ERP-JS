@@ -9,10 +9,12 @@
     "lint": "eslint",
     "db:push:local": "dotenv -e .env.local -- npx prisma db push",
     "db:generate:local": "dotenv -e .env.local -- npx prisma generate",
-    "db:studio:local": "dotenv -e .env.local -- npx prisma studio"
+    "db:studio:local": "dotenv -e .env.local -- npx prisma studio",
+    "db:migrate:local": "dotenv -e .env.local -- npx prisma migrate dev --name"
   },
   "dependencies": {
     "@prisma/client": "^6.2.1",
+    "@react-pdf/renderer": "^4.3.2",
     "bcryptjs": "^3.0.3",
     "date-fns": "^4.1.0",
     "exceljs": "^4.4.0",
@@ -24,6 +26,7 @@
     "prisma": "^6.2.1",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "react-pdf": "^10.4.1",
     "recharts": "^3.6.0"
   },
   "devDependencies": {

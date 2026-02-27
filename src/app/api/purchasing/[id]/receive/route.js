@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { writeFile, mkdir } from "fs/promises";
+import path from "path";
 
 const getAutoStatus = (quantity) => {
   const qty = parseFloat(quantity) || 0;
@@ -18,18 +20,37 @@ export async function PATCH(request, context) {
     }
 
     const { id } = await context.params; 
-    const body = await request.json(); 
-    const { 
-      suratJalan, 
-      vehicleNo, 
-      condition, 
-      notes, 
-      receivedQty, 
-      receivedBy,
-      beratIsi,   
-      beratKosong, 
-      netto       
-    } = body; 
+    
+    const data = await request.formData();
+    
+    const suratJalan = data.get("suratJalan");
+    const vehicleNo = data.get("vehicleNo");
+    const condition = data.get("condition");
+    const notes = data.get("notes");
+    const receivedQty = data.get("receivedQty");
+    const receivedBy = data.get("receivedBy");
+    const beratIsi = data.get("beratIsi");
+    const beratKosong = data.get("beratKosong");
+    const netto = data.get("netto");
+    const imageFile = data.get("file");
+
+    let imageUrl = null;
+    if (imageFile && typeof imageFile !== "string") {
+      const bytes = await imageFile.arrayBuffer();
+      const buffer = Buffer.from(bytes);
+
+      const uploadDir = path.join(process.cwd(), "public", "uploads", "receipts");
+      
+      try {
+        await mkdir(uploadDir, { recursive: true });
+      } catch (e) {}
+
+      const uniqueFileName = `${Date.now()}-${imageFile.name.replace(/\s+/g, "_")}`;
+      const filePath = path.join(uploadDir, uniqueFileName);
+      
+      await writeFile(filePath, buffer);
+      imageUrl = `/uploads/receipts/${uniqueFileName}`;
+    }
 
     const userName = receivedBy || session.user.name || "Warehouse Admin";
     const currentTime = new Date();
@@ -47,7 +68,7 @@ export async function PATCH(request, context) {
       return NextResponse.json({ message: "Barang sudah pernah diterima sebelumnya" }, { status: 400 });
     }
 
-    const incomingQty = netto !== undefined ? parseFloat(netto) : (receivedQty !== undefined ? parseFloat(receivedQty) : (purchase.qty || 0));
+    const incomingQty = netto ? parseFloat(netto) : (receivedQty ? parseFloat(receivedQty) : (purchase.qty || 0));
     const unitLabel = purchase.unit || "Unit";
 
     const result = await prisma.$transaction(async (tx) => {
@@ -57,6 +78,7 @@ export async function PATCH(request, context) {
           receiptNo: `GRN-${dateStr}-${Math.floor(1000 + Math.random() * 9000)}`,
           purchasingId: id,
           suratJalan: suratJalan || "TANPA-SJ",
+          imageUrl: imageUrl,
           vehicleNo: vehicleNo || "N/A",
           receivedQty: incomingQty,
           grossWeight: parseFloat(beratIsi) || 0,
@@ -117,7 +139,7 @@ export async function PATCH(request, context) {
           unit: unitLabel,
           user: userName,
           referenceId: receipt.id,
-          notes: `PO: ${purchase.noPO} | Netto: ${netto}kg (B.Isi: ${beratIsi} - B.Kosong: ${beratKosong}) | SJ: ${suratJalan}`
+          notes: `PO: ${purchase.noPO} | SJ: ${suratJalan} | Bukti: ${imageUrl ? 'Tersedia' : 'Tidak Ada'}`
         }
       });
 
@@ -127,6 +149,7 @@ export async function PATCH(request, context) {
     return NextResponse.json({ 
       message: `Penerimaan PO ${purchase.noPO} berhasil diproses`,
       receiptNo: result.receiptNo,
+      imageUrl: imageUrl,
       receivedAt: currentTime
     }, { status: 200 });
 

@@ -8,6 +8,9 @@
 !.yarn/releases
 !.yarn/versions
 
+# Upload Foto Arrival
+/public/uploads/
+
 # testing
 /coverage
 

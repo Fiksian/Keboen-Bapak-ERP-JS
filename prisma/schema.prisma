@@ -43,6 +43,7 @@ model Receipt {
   receiptNo    String     @unique
   purchasingId String
   suratJalan   String
+  imageUrl     String?
   vehicleNo    String
   receivedQty  Float
   grossWeight  Float      @default(0) // Berat Isi

@@ -10,7 +10,6 @@ const ArrivalMonitor = ({ arrivals = [], onRefresh }) => {
   const { data: session } = useSession();
   const [selectedArrival, setSelectedArrival] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [confirmPO, setConfirmPO] = useState('');
   
   const [formData, setFormData] = useState({
     suratJalan: '',
@@ -19,7 +18,9 @@ const ArrivalMonitor = ({ arrivals = [], onRefresh }) => {
     notes: '',
     beratIsi: '',
     beratKosong: '',
-    netto: '0.00'
+    netto: '0.00',
+    receivedQty: 0,
+    image: null
   });
 
   const isAuthorized = ["Admin", "Supervisor", "Test"].includes(session?.user?.role);
@@ -28,7 +29,6 @@ const ArrivalMonitor = ({ arrivals = [], onRefresh }) => {
 
   const handleOpenReceipt = (arrival) => {
     setSelectedArrival(arrival);
-    setConfirmPO('');
     setFormData({ 
       suratJalan: '', 
       vehicleNo: '', 
@@ -36,27 +36,44 @@ const ArrivalMonitor = ({ arrivals = [], onRefresh }) => {
       notes: '',
       beratIsi: '',
       beratKosong: '',
-      netto: '0.00'
+      netto: '0.00',
+      receivedQty: arrival.qty,
+      image: null
     });
   };
 
   const handleFinalSubmit = async (e) => {
     e.preventDefault();
 
-    if (confirmPO.trim().toUpperCase() !== selectedArrival.noPO.toUpperCase()) {
-      return alert("NOMOR PO TIDAK SESUAI! Silahkan periksa kembali dokumen fisik.");
+    if (!formData.image) {
+      return alert("FOTO SURAT JALAN WAJIB DIUNGGAH! Gunakan kamera untuk mengambil bukti fisik.");
     }
 
     setIsSubmitting(true);
+    
     try {
+      const dataToSend = new FormData();
+      
+      dataToSend.append('suratJalan', formData.suratJalan);
+      dataToSend.append('vehicleNo', formData.vehicleNo);
+      dataToSend.append('condition', formData.condition);
+      dataToSend.append('notes', formData.notes || '');
+      dataToSend.append('receivedBy', session?.user?.name || 'Warehouse Staff');
+      
+      const finalQty = formData.beratIsi ? parseFloat(formData.netto) : parseFloat(formData.receivedQty);
+      dataToSend.append('receivedQty', finalQty);
+
+      if (formData.beratIsi) {
+        dataToSend.append('beratIsi', formData.beratIsi);
+        dataToSend.append('beratKosong', formData.beratKosong);
+        dataToSend.append('netto', formData.netto);
+      }
+
+      dataToSend.append('file', formData.image);
+
       const res = await fetch(`/api/purchasing/${selectedArrival.id}/receive`, { 
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...formData,
-          receivedBy: session?.user?.name || 'Warehouse Staff',
-          receivedQty: formData.netto > 0 ? parseFloat(formData.netto) : (parseFloat(selectedArrival.qty) || 0)
-        }) 
+        body: dataToSend
       });
 
       if (res.ok) {
@@ -68,7 +85,7 @@ const ArrivalMonitor = ({ arrivals = [], onRefresh }) => {
       }
     } catch (err) {
       console.error("SUBMIT_RECEIPT_ERROR:", err);
-      alert("Terjadi kesalahan sistem saat memproses data.");
+      alert("Terjadi kesalahan sistem saat memproses data atau mengunggah gambar.");
     } finally {
       setIsSubmitting(false);
     }
@@ -111,8 +128,6 @@ const ArrivalMonitor = ({ arrivals = [], onRefresh }) => {
 
       <ArrivalModal 
         arrival={selectedArrival}
-        confirmPO={confirmPO}
-        setConfirmPO={setConfirmPO}
         formData={formData}
         setFormData={setFormData}
         isSubmitting={isSubmitting}

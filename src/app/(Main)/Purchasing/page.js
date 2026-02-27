@@ -4,7 +4,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Loader2, BookOpen, Filter, RefreshCcw } from 'lucide-react';
 import AddPurchasing from './AddPurchasing';
 import PrintPO from '@/app/(Main)/Components/Purchasing/PrintPo';
-import PurchasingStats from './PurchasingStats';
 import PurchasingTable from './PurchasingTable';
 import SearchInput from '@/app/(Main)/Components/SeachInput'; 
 
@@ -117,8 +116,6 @@ const Purchasing = () => {
           onClose={() => setIsModalOpen(false)} 
           onAdd={fetchRequests} 
         />
-
-        <PurchasingStats requests={requests} />
 
         <div className="bg-white rounded-[24px] md:rounded-[32px] p-5 md:p-8 shadow-sm border border-gray-100 transition-all overflow-hidden">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">

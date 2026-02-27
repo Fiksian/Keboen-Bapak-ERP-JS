@@ -48,7 +48,7 @@ export async function POST(request) {
       const trxDatePrefix = now.toISOString().slice(0, 10).replace(/-/g, "");
 
       const lastPO = await tx.purchasing.findFirst({
-        where: { noPO: { contains: `PO/${datePattern}` } },
+        where: { noPO: { contains: `PO/SALI/${datePattern}` } },
         orderBy: { noPO: 'desc' }
       });
 
@@ -70,7 +70,7 @@ export async function POST(request) {
       }
 
       const nextGroupPONum = basePONumber + 1;
-      const sharedNoPO = `PO/${datePattern}/${String(nextGroupPONum).padStart(3, '0')}`;
+      const sharedNoPO = `PO/SALI/${datePattern}/${String(nextGroupPONum).padStart(3, '0')}`;
       
       const createdPurchases = [];
 

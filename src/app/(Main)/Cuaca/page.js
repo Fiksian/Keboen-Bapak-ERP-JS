@@ -90,16 +90,6 @@ const Cuaca = () => {
         <div className="space-y-6">
           <WeatherForecast daily={weather.daily} getWeatherDetails={getWeatherDetails} />
           <EnvironmentMetrics current={current} />
-
-          <div className="bg-[#99A675] rounded-[28px] md:rounded-[32px] p-6 md:p-8 text-white shadow-xl shadow-green-100/50 relative overflow-hidden group">
-             <Leaf className="absolute right-[-10px] bottom-[-10px] w-20 h-20 md:w-24 md:h-24 text-black/10 -rotate-12 group-hover:rotate-12 transition-transform duration-700" />
-             <div className="relative z-10 text-[11px] md:text-[13px] font-bold leading-relaxed italic opacity-95">
-                {current.temperature_2m > 28 
-                    ? "🌡️ Suhu terdeteksi tinggi. Aktifkan sistem misting dan pastikan sirkulasi udara maksimal." 
-                    : "✅ Parameter lingkungan ideal. Tetap pantau grafik kelembaban untuk tanaman."}
-             </div>
-          </div>
-
           <div className="w-full text-center pb-4">
             <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer" className="text-[10px] font-black text-slate-600 uppercase tracking-widest hover:text-blue-400 transition-colors italic">
               Data Provided by Open-Meteo

@@ -1,13 +1,58 @@
 "use client";
 import Link from 'next/link';
 import WeatherCard from './WeatherCard'; 
-import DashboardChart from './DashboardChart';
-import UpcomingTasks from '@/app/(Main)/Tasks/page';
+import StockCard from '@/app/(Main)/Stock/StatCard';
 import { useSession } from "next-auth/react";
-import { Loader2, Users } from 'lucide-react';
+import { Loader2, Users, PackageSearch, ShoppingCart } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import PurchasingCards from '@/app/(Main)/Purchasing/PurchasingStats';
 
 export default function DashboardPage() {
   const { data: session, status } = useSession();
+  const [activeTab, setActiveTab] = useState('stocks'); 
+  const [allData, setAllData] = useState([]);
+  const [purchasingData, setPurchasingData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const fetchDashboardData = async () => {
+    setLoading(true);
+    try {
+      const [stockRes, purchasingRes] = await Promise.all([
+        fetch('/api/stock'),
+        fetch('/api/purchasing')
+      ]);
+
+      if (stockRes.ok) {
+        const sData = await stockRes.json();
+        setAllData(sData);
+      }
+
+      if (purchasingRes.ok) {
+        const pData = await purchasingRes.json();
+        setPurchasingData(Array.isArray(pData) ? pData : []);
+      }
+
+    } catch (error) {
+      console.error("Gagal mengambil data dashboard:", error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { 
+    fetchDashboardData(); 
+  }, []);
+
+  const filteredStockData = allData.filter(item => {
+    const matchesTab = item.type?.toLowerCase() === activeTab.toLowerCase();
+    const query = searchQuery.toLowerCase();
+    const itemName = (item.name || item.item || "").toLowerCase();
+    const category = (item.category || "").toLowerCase();
+    const matchesSearch = itemName.includes(query) || category.includes(query);
+    
+    return matchesTab && matchesSearch;
+  });
 
   if (status === "loading") {
     return (
@@ -20,8 +65,7 @@ export default function DashboardPage() {
   const isAuthorized = ["Admin"].includes(session?.user?.role);
 
   return (
-    <div className="space-y-4 md:space-y-6 max-w-[1600px] mx-auto p-2 sm:p-0">
-      
+    <div className="space-y-4 md:space-y-6 max-w-[1600px] m-6 p-4 sm:p-0">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 mb-4 md:mb-8">
         <div className="space-y-1">
           <h1 className="text-xl md:text-2xl font-black text-gray-900 uppercase tracking-tight leading-none">
@@ -43,31 +87,41 @@ export default function DashboardPage() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6">
-        <div className="lg:col-span-4 w-full h-full">
-          <div className="h-full bg-white rounded-[24px] md:rounded-[32px] overflow-hidden shadow-sm border border-gray-100">
-            <WeatherCard />
-          </div>
-        </div>
+      
 
-        <div className="lg:col-span-8 w-full h-full">
-          <div className="h-full bg-white rounded-[24px] md:rounded-[32px] p-4 md:p-6 shadow-sm border border-gray-100">
-             <DashboardChart />
+      <div className="space-y-4">
+        <div className="flex items-center gap-3 ml-2">
+          <div className="p-2 bg-slate-800 rounded-lg text-white">
+            <PackageSearch size={16} />
           </div>
-        </div>
-      </div>
-
-      <div className="mt-6 md:mt-10">
-        <div className="flex items-center gap-3 mb-4 md:mb-6 px-1">
-          <div className="w-1.5 h-6 bg-blue-600 rounded-full hidden sm:block" />
-          <h2 className="text-base md:text-lg font-black text-gray-800 uppercase tracking-[0.15em] italic">
-            Recent Activities & Tasks
+          <h2 className="text-sm font-black uppercase italic tracking-widest text-slate-700">
+            Stock Overview
           </h2>
+          {loading && <Loader2 size={14} className="animate-spin text-blue-500" />}
         </div>
         
-        <div className="bg-white rounded-[24px] md:rounded-[32px] overflow-hidden shadow-sm border border-gray-100">
-          <div className="overflow-x-auto">
-             <UpcomingTasks />
+        <StockCard data={filteredStockData} />
+      </div>
+
+
+      <div className="space-y-4">
+        <div className="flex items-center gap-3 ml-2">
+          <div className="p-2 bg-slate-800 rounded-lg text-white">
+            <ShoppingCart size={16} />
+          </div>
+          <h2 className="text-sm font-black uppercase italic tracking-widest text-slate-700">
+            Procurement Overview
+          </h2>
+          {loading && <Loader2 size={14} className="animate-spin text-blue-500" />}
+        </div>
+        
+        <PurchasingCards requests={purchasingData} />
+      </div>
+      
+      <div className="grid grid-cols-1">
+        <div className="w-full">
+          <div className="h-full bg-white rounded-[24px] md:rounded-[32px] overflow-hidden shadow-sm border border-gray-100">
+            <WeatherCard />
           </div>
         </div>
       </div>

@@ -1,7 +1,7 @@
-'use client'
+'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { X, Layers, CheckCircle2, AlertCircle, ChevronDown } from 'lucide-react';
+import { X, Layers, CheckCircle2, AlertCircle, Lock } from 'lucide-react';
 
 const EditStock = ({ isOpen, onClose, itemData, fetchAllStocks }) => {
   const [formData, setFormData] = useState({
@@ -112,28 +112,17 @@ const EditStock = ({ isOpen, onClose, itemData, fetchAllStocks }) => {
 
         <div className="overflow-y-auto p-6 md:p-8 custom-scrollbar">
           <form id="edit-stock-form" onSubmit={handleSubmit} className="space-y-5 text-left">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4">
               <div className="space-y-1.5 text-left">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Category</label>
-                <input
-                  className="w-full bg-gray-50/50 border border-gray-100 rounded-2xl px-5 py-3.5 text-sm font-bold text-gray-700 outline-none focus:bg-white focus:border-blue-500 transition-all"
-                  value={formData.category}
-                  onChange={(e) => setFormData({...formData, category: e.target.value})}
-                />
-              </div>
-              <div className="space-y-1.5 text-left">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Stock Type</label>
-                <div className="relative">
-                  <select 
-                    className="w-full bg-gray-50/50 border text-gray-700 border-gray-100 rounded-2xl pl-5 pr-12 py-3.5 text-sm font-bold outline-none focus:bg-white focus:border-blue-500 appearance-none cursor-pointer transition-all"
-                    value={formData.type}
-                    onChange={(e) => setFormData({...formData, type: e.target.value})}
-                  >
-                    <option value="STOCKS">STOCKS</option>
-                    <option value="INVENTORY">INVENTORY</option>
-                  </select>
-                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
+                <div className="flex items-center justify-between ml-1">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Category</label>
+                  <Lock size={10} className="text-gray-300" />
                 </div>
+                <input
+                  readOnly
+                  className="w-full bg-gray-100 border border-gray-200 rounded-2xl px-5 py-3.5 text-sm font-bold text-gray-600 outline-none cursor-not-allowed transition-all"
+                  value={formData.category}
+                />
               </div>
             </div>
 
@@ -143,6 +132,7 @@ const EditStock = ({ isOpen, onClose, itemData, fetchAllStocks }) => {
                 <Layers className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                 <input
                   type="number"
+                  required
                   className="w-full bg-gray-50/50 border border-gray-100 rounded-2xl pl-12 pr-4 py-3.5 text-sm font-bold text-gray-700 outline-none focus:bg-white focus:border-blue-500 transition-all"
                   value={formData.stock}
                   onChange={(e) => setFormData({...formData, stock: e.target.value})}

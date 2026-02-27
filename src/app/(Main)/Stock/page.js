@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { Database, Loader2, History, Package, Box } from 'lucide-react';
-import StatCards from './StatCard';
 import StockTable from './StockTable';
 import EditStock from './EditStock';
 import SearchInput from '@/app/(Main)/Components/SeachInput'; 
@@ -59,11 +58,11 @@ const StockInventory = () => {
         itemData={selectedItem}
       />
 
-      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 border-b border-gray-200">
+      {/* <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 border-b border-gray-200">
         <div className="flex overflow-x-auto no-scrollbar gap-6 md:gap-8 scroll-smooth">
           {[
-            { id: 'stocks', label: 'Finished Goods', icon: <Package size={14} /> },
-            { id: 'inventory', label: 'Bahan & Alat', icon: <Box size={14} /> }
+            { id: 'stocks', label: 'Stocks', icon: <Package size={14} /> },
+            // { id: 'inventory', label: 'Bahan & Alat', icon: <Box size={14} /> }
           ].map((tab) => (
             <button 
               key={tab.id}
@@ -83,9 +82,7 @@ const StockInventory = () => {
             </button>
           ))}
         </div>
-      </div>
-
-      <StatCards data={filteredData} />
+      </div> */}
 
       <div className="bg-white rounded-[24px] md:rounded-[32px] p-6 md:p-8 shadow-sm border border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
         <div className="text-left">
@@ -122,7 +119,7 @@ const StockInventory = () => {
             data={filteredData} 
             onEdit={handleEdit} 
             onRefresh={fetchAllStocks} 
-            type={activeTab === 'stocks' ? 'stock' : 'inventory'}
+            type={activeTab === 'stocks'}
           />
         ) : (
           <div className="p-16 md:p-24 text-center flex flex-col items-center justify-center">

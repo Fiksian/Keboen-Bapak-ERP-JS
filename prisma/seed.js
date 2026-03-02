@@ -29,12 +29,13 @@ async function main() {
     },
   ];
 
-  console.log('--- Memulai Proses Seeding ERP Keboen Bapak (Lokal) ---');
-  
+  console.log('--- Memulai Proses Seeding ERP Keboen Bapak ---');
+
   const hashedPassword = await bcrypt.hash(adminPassword, 10);
 
   try {
     await prisma.$transaction(async (tx) => {
+
       const user = await tx.user.upsert({
         where: { email: adminEmail },
         update: { password: hashedPassword },
@@ -64,7 +65,7 @@ async function main() {
 
       for (const testData of testUsers) {
         const hashedTestPassword = await bcrypt.hash(testData.password, 10);
-        
+
         const testUser = await tx.user.upsert({
           where: { email: testData.email },
           update: { password: hashedTestPassword },
@@ -102,7 +103,7 @@ async function main() {
           email: 'supplier.pakan@email.com',
           phone: '021-555666',
           address: 'Kawasan Industri Jakarta',
-        }
+        },
       });
 
       await tx.contact.upsert({
@@ -114,7 +115,7 @@ async function main() {
           email: 'customer1@email.com',
           phone: '0812999000',
           address: 'Pasar Minggu, Jakarta',
-        }
+        },
       });
 
       await tx.stock.upsert({
@@ -127,24 +128,28 @@ async function main() {
           unit: 'KG',
           type: 'STOCKS',
           price: '15000',
-        }
+        },
       });
 
-      await tx.purchasing.upsert({
+      const existingPO = await tx.purchasing.findFirst({
         where: { noPO: 'PO-2026-001' },
-        update: {},
-        create: {
-          noPO: 'PO-2026-001',
-          item: 'Pakan Ayam Starter',
-          qty: 1000,
-          unit: 'KG',
-          price: '1000000',
-          category: 'Feed',
-          supplier: 'PT Pakan Jaya',
-          requestedBy: 'Admin',
-          status: PurchaseStatus.PENDING,
-        }
       });
+
+      if (!existingPO) {
+        await tx.purchasing.create({
+          data: {
+            noPO: 'PO-2026-001',
+            item: 'Pakan Ayam Starter',
+            qty: 1000,
+            unit: 'KG',
+            price: '1000000',
+            category: 'Feed',
+            supplier: 'PT Pakan Jaya',
+            requestedBy: 'Admin',
+            status: PurchaseStatus.PENDING,
+          },
+        });
+      }
 
       await tx.production.upsert({
         where: { noBatch: 'BATCH-001' },
@@ -157,33 +162,45 @@ async function main() {
           createdBy: 'Admin',
           components: {
             create: [
-              { itemName: 'Pakan Ayam Starter', qtyNeeded: 50, unit: 'KG' }
-            ]
-          }
-        }
+              { itemName: 'Pakan Ayam Starter', qtyNeeded: 50, unit: 'KG' },
+            ],
+          },
+        },
       });
 
-      await tx.task.create({
-        data: {
-          title: 'Cek kesehatan ayam kandang A',
-          time: '08:00',
-          priority: 'High',
-          category: 'Maintenance',
-          assignee: 'Admin',
-        }
+      const existingTask = await tx.task.findFirst({
+        where: { title: 'Cek kesehatan ayam kandang A' },
       });
 
-      await tx.transaction.create({
-        data: {
-          trxNo: 'TRX-INIT-2026',
-          category: 'Modal Awal',
-          amount: 50000000,
-          type: 'INCOME',
-          method: 'BANK TRANSFER',
-          createdBy: 'Admin',
-          description: 'Saldo awal operasional keboen bapak',
-        }
+      if (!existingTask) {
+        await tx.task.create({
+          data: {
+            title: 'Cek kesehatan ayam kandang A',
+            time: '08:00',
+            priority: 'High',
+            category: 'Maintenance',
+            assignee: 'Admin',
+          },
+        });
+      }
+
+      const existingTrx = await tx.transaction.findFirst({
+        where: { trxNo: 'TRX-INIT-2026' },
       });
+
+      if (!existingTrx) {
+        await tx.transaction.create({
+          data: {
+            trxNo: 'TRX-INIT-2026',
+            category: 'Modal Awal',
+            amount: 50000000,
+            type: 'INCOME',
+            method: 'BANK TRANSFER',
+            createdBy: 'Admin',
+            description: 'Saldo awal operasional keboen bapak',
+          },
+        });
+      }
 
       console.log('✅ Seeding Selesai: Semua data berhasil dibuat.');
     });

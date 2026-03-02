@@ -1,5 +1,5 @@
 services:
-  app:
+  erpdev-app:
     build: 
       context: .
       dockerfile: Dockerfile

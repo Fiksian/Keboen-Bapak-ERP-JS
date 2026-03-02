@@ -14,9 +14,6 @@ services:
       AUTH_TRUST_HOST: "true"
     env_file:
       - .env
-    depends_on:
-      db:
-        condition: service_healthy
     networks:
       - keboen_shared_network
 

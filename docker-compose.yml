@@ -1,5 +1,5 @@
 services:
-  sali-app:
+  app:
     build: 
       context: .
       dockerfile: Dockerfile

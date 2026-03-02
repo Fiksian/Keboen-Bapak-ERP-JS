@@ -50,8 +50,7 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx/conf:/etc/nginx/conf.d:ro # Read-only agar aman
-      # Buka komentar di bawah jika sudah di VPS untuk SSL
+      - ./nginx/conf:/etc/nginx/conf.d:ro
       - ./certbot/conf:/etc/letsencrypt:ro
       - ./certbot/www:/var/www/certbot:ro
     depends_on:
@@ -59,7 +58,6 @@ services:
     networks:
       - keboen_network
 
-# Sertifikat otomatis (Buka komentar di VPS)
   certbot:
    image: certbot/certbot
    container_name: keboen_certbot

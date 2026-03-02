@@ -59,4 +59,4 @@ certbot/logs/
 postgres_data/
 
 #nginx
-/nginx/
+nginx/

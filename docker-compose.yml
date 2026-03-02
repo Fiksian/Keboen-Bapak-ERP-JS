@@ -21,7 +21,7 @@ services:
       - keboen_shared_network
 
 networks:
-  keboen_sharednetwork:
+  keboen_shared_network:
     external: true
 
 volumes:

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, memo } from 'react';
 import { 
     Plus, Search, ShoppingBag, 
     DollarSign, MoreVertical,
@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import AddSale from '@/app/(Main)/Penjualan/AddSale';
 import SaleDetail from '@/app/(Main)/Penjualan/SaleDetail';
+import Pagination from '@/app/(Main)/Components/Pagination'; 
 
 const SalesPage = () => {
     const [salesData, setSalesData] = useState([]);
@@ -19,6 +20,9 @@ const SalesPage = () => {
     const [activeMenu, setActiveMenu] = useState(null);
     const [selectedSale, setSelectedSale] = useState(null);
     const menuRef = useRef(null);
+
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 6;
 
     const fetchSales = async () => {
         try {
@@ -70,6 +74,16 @@ const SalesPage = () => {
         setIsDetailModalOpen(true);
     };
 
+    const filteredSales = salesData.filter(item => 
+        item.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.customer.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    const totalPages = Math.ceil(filteredSales.length / itemsPerPage);
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const currentSales = filteredSales.slice(indexOfFirstItem, indexOfLastItem);
+
     const totalRevenue = salesData
         .filter(item => item.status === 'COMPLETED')
         .reduce((acc, curr) => acc + curr.total, 0);
@@ -80,11 +94,6 @@ const SalesPage = () => {
         { label: 'Pending', value: salesData.filter(i => i.status === 'PENDING').length.toString(), icon: AlertCircle, color: 'bg-orange-500' },
         { label: 'Total', value: salesData.length.toString(), icon: ShoppingBag, color: 'bg-purple-500' },
     ];
-
-    const filteredSales = salesData.filter(item => 
-        item.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.customer.toLowerCase().includes(searchTerm.toLowerCase())
-    );
 
     return (
         <div className="min-h-screen bg-gray-50/50 p-3 md:p-8 font-sans">
@@ -116,7 +125,7 @@ const SalesPage = () => {
                 ))}
             </div>
 
-            <div className="bg-white rounded-[24px] md:rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="bg-white rounded-[24px] md:rounded-3xl border border-gray-100 shadow-sm overflow-hidden flex flex-col">
                 <div className="p-4 md:p-6 border-b border-gray-50 flex flex-col md:flex-row gap-3 justify-between items-center">
                     <div className="relative w-full md:w-96">
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
@@ -124,7 +133,10 @@ const SalesPage = () => {
                             type="text" 
                             placeholder="Cari invoice atau pelanggan..." 
                             value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
+                            onChange={(e) => {
+                                setSearchTerm(e.target.value);
+                                setCurrentPage(1); // Reset ke halaman 1 saat mencari
+                            }}
                             className="w-full pl-11 pr-4 py-3 bg-gray-50 rounded-2xl border-none text-[12px] md:text-sm focus:ring-2 focus:ring-[#8da070]/20 font-bold placeholder:font-medium"
                         />
                     </div>
@@ -152,7 +164,7 @@ const SalesPage = () => {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100 block md:table-row-group">
-                                    {filteredSales.map((item) => (
+                                    {currentSales.length > 0 ? currentSales.map((item) => (
                                         <tr key={item.id} className="hover:bg-gray-50/30 transition-colors block md:table-row p-4 md:p-0">
                                             <td className="md:px-6 md:py-4 block md:table-cell mb-2 md:mb-0">
                                                 <div className="flex justify-between items-center md:block">
@@ -178,7 +190,6 @@ const SalesPage = () => {
                                                 </div>
                                             </td>
 
-                                            {/* Total Nilai */}
                                             <td className="md:px-6 md:py-4 block md:table-cell md:text-right mb-4 md:mb-0">
                                                 <div className="flex justify-between items-center md:block border-t border-dashed border-gray-100 md:border-none pt-3 md:pt-0">
                                                     <span className="md:hidden text-[9px] font-black text-gray-400 uppercase tracking-widest italic">Total Nilai</span>
@@ -186,7 +197,6 @@ const SalesPage = () => {
                                                 </div>
                                             </td>
 
-                                            {/* Status (Desktop only) */}
                                             <td className="px-6 py-4 hidden md:table-cell text-center">
                                                 <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
                                                     item.status === 'COMPLETED' ? 'bg-green-100 text-green-600' : 
@@ -238,12 +248,30 @@ const SalesPage = () => {
                                                 </div>
                                             </td>
                                         </tr>
-                                    ))}
+                                    )) : (
+                                        <tr>
+                                            <td colSpan="5" className="py-20 text-center text-gray-300 font-black uppercase tracking-widest italic text-[10px]">
+                                                Tidak ada data transaksi
+                                            </td>
+                                        </tr>
+                                    )}
                                 </tbody>
                             </table>
                         </div>
                     )}
                 </div>
+
+                {!loading && filteredSales.length > 0 && (
+                    <Pagination 
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        onPageChange={(page) => {
+                            setCurrentPage(page);
+                            setActiveMenu(null);
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }}
+                    />
+                )}
             </div>
 
             <SaleDetail isOpen={isDetailModalOpen} sale={selectedSale} onClose={() => setIsDetailModalOpen(false)} onStatusUpdate={handleStatusUpdate} />
@@ -252,4 +280,4 @@ const SalesPage = () => {
     );
 };
 
-export default SalesPage;
+export default memo(SalesPage);

@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+'use client';
+
+import React, { useState, useEffect } from 'react';
 import { 
   X, User, Mail, Phone, Camera, Loader2, 
   CreditCard, Briefcase, ShieldCheck, UserPlus, Fingerprint, Lock, ChevronDown
@@ -6,6 +8,7 @@ import {
 
 const AddStaff = ({ isOpen, onClose }) => {
   const [loading, setLoading] = useState(false);
+  const [roles, setRoles] = useState([]);
   const [formData, setFormData] = useState({
     username: '',
     password: '',
@@ -17,6 +20,26 @@ const AddStaff = ({ isOpen, onClose }) => {
     designation: '',
     gender: 'Male'
   });
+
+  useEffect(() => {
+    if (isOpen) {
+      const fetchRoles = async () => {
+        try {
+          const res = await fetch('/api/auth/roles');
+          const data = await res.json();
+          const roleNames = Object.keys(data);
+          setRoles(roleNames);
+          
+          if (roleNames.length > 0 && !roleNames.includes('Staff')) {
+            setFormData(prev => ({ ...prev, role: roleNames[0] }));
+          }
+        } catch (error) {
+          console.error("Gagal memuat roles:", error);
+        }
+      };
+      fetchRoles();
+    }
+  }, [isOpen]);
 
   const designationOptions = [
     'IT Support', 'Farm Worker', 'Accountant', 
@@ -190,12 +213,19 @@ const AddStaff = ({ isOpen, onClose }) => {
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Access Role</label>
                 <div className='relative'>
                   <ShieldCheck size={16} className='absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 z-10'/>
-                  <select name="role" value={formData.role} onChange={handleChange} className='w-full pl-11 pr-10 py-3 md:py-3.5 border border-gray-100 bg-gray-50/50 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white outline-none appearance-none transition-all text-sm font-bold text-gray-700 cursor-pointer'>
-                    <option value="Staff">Staff Member</option>
-                    <option value="Manager">Manager</option>
-                    <option value="Supervisor">Supervisor</option>
-                    <option value="Admin">Administrator</option>
-                    <option value="Test">Test-Akun</option>
+                  <select 
+                    name="role" 
+                    value={formData.role} 
+                    onChange={handleChange} 
+                    className='w-full pl-11 pr-10 py-3 md:py-3.5 border border-gray-100 bg-gray-50/50 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white outline-none appearance-none transition-all text-sm font-bold text-gray-700 cursor-pointer italic'
+                  >
+                    {roles.length > 0 ? (
+                      roles.map(roleName => (
+                        <option key={roleName} value={roleName}>{roleName}</option>
+                      ))
+                    ) : (
+                      <option value="Staff">Staff Member</option>
+                    )}
                   </select>
                   <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                 </div>
@@ -238,7 +268,7 @@ const AddStaff = ({ isOpen, onClose }) => {
         </div>
       </div>
     </div>  
-  )
-}
+  );
+};
 
 export default AddStaff;

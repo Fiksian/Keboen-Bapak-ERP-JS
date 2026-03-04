@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   ArrowLeft, Mail, Phone, Briefcase, Shield, Save,
   User, Camera, Loader2, CreditCard,
@@ -13,6 +13,7 @@ const StaffProfile = ({ staff, onBack, onUpdate }) => {
   const { data: session } = useSession();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [roles, setRoles] = useState([]);
   const [formData, setFormData] = useState({
     firstName: staff?.firstName || '',
     lastName: staff?.lastName || '',
@@ -26,7 +27,22 @@ const StaffProfile = ({ staff, onBack, onUpdate }) => {
 
   const isAdmin = session?.user?.role === 'Admin';
 
-  const roleOptions = [ 'Staff', 'Manager', 'Supervisor', 'Admin', 'Test'];
+  useEffect(() => {
+    const fetchRoles = async () => {
+      try {
+        const res = await fetch('/api/auth/roles');
+        const data = await res.json();
+        setRoles(Object.keys(data));
+      } catch (error) {
+        console.error("Gagal mengambil data role:", error);
+      }
+    };
+
+    if (isAdmin) {
+      fetchRoles();
+    }
+  }, [isAdmin]);
+
   const designationOptions = [
     'IT Support', 'Farm Worker', 'Accountant', 
     'Marketing', 'Maintenance', 'New Employee', 'Test Akun'
@@ -239,9 +255,13 @@ const StaffProfile = ({ staff, onBack, onUpdate }) => {
                       onChange={handleChange}
                       className="w-full pl-5 pr-12 py-3.5 bg-red-50/30 border border-red-100 rounded-2xl focus:bg-white focus:border-red-500 outline-none transition-all font-black text-gray-700 text-sm appearance-none cursor-pointer italic"
                     >
-                      {roleOptions.map(opt => (
-                        <option key={opt} value={opt}>{opt}</option>
-                      ))}
+                      {roles.length > 0 ? (
+                        roles.map(roleName => (
+                          <option key={roleName} value={roleName}>{roleName}</option>
+                        ))
+                      ) : (
+                        <option value={formData.role}>{formData.role}</option>
+                      )}
                     </select>
                     <Shield size={14} className="absolute right-5 top-1/2 -translate-y-1/2 text-red-500 pointer-events-none opacity-50" />
                   </div>

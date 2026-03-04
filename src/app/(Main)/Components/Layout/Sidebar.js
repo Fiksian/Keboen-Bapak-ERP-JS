@@ -1,39 +1,62 @@
 "use client";
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link'; 
 import { usePathname } from 'next/navigation'; 
 import { 
   LayoutDashboard, User, CheckSquare, Package, 
-  ShoppingCart, CloudSun, BarChart3, Bell, Settings, ChevronRight, PanelLeftClose,
-  PanelLeftOpen, Warehouse,
-  Clock,
-  Store,
-  User2,
-  CircleDollarSign,
-  X,
-  Calendar
+  ShoppingCart, CloudSun, BarChart3, Settings, ChevronRight, PanelLeftClose,
+  PanelLeftOpen, Warehouse, Clock, Store, User2, CircleDollarSign, X, Calendar
 } from 'lucide-react';
 
 const Sidebar = ({ isCollapsed, toggleSidebar, userRole, isOpenMobile, onCloseMobile }) => {
   const pathname = usePathname();
+  const [rolePermissions, setRolePermissions] = useState({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchPermissions = async () => {
+      try {
+        const res = await fetch('/api/auth/roles');
+        if (res.ok) {
+          const data = await res.json();
+          setRolePermissions(data);
+        }
+      } catch (error) {
+        console.error("Gagal mengambil data akses sidebar:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchPermissions();
+  }, []);
 
   const menuItems = [
-    { name: 'Dashboard', icon: <LayoutDashboard size={18} />, path: '/Dashboard', roles: ['Admin', 'Staff', 'Manager', 'Supervisor', 'Test'] },
-    { name: 'Cuaca', icon: <CloudSun size={18} />, path: '/Cuaca', roles: ['Admin', 'Test'] },
-    { name: 'Report', icon: <BarChart3 size={18} />, path: '/Report', roles: ['Admin'] },
-    { name: 'Staff', icon: <User size={18} />, path: '/Staff', roles: ['Admin'] },
-    { name: 'Contacts', icon: <User2 size={18} />, path: '/Contacts', roles: ['Admin', 'Test', 'Staff'] },
-    { name: 'Tasks', icon: <CheckSquare size={18} />, path: '/Tasks', roles: ['Admin'] },
-    { name: 'Kandang', icon: <Warehouse size={18} />, path: '/Kandang', roles: [] },
-    { name: 'Produksi', icon: <Settings size={18} />, path: '/Produksi', roles: ['Admin'] },
-    { name: 'Arrival', icon: <Clock size={18} />, path: '/Arrival', roles: ['Admin', 'Test'] },
-    { name: 'Warehouse', icon: <Package size={18} />, path: '/Stock', roles: ['Admin', 'Test'] },
-    { name: 'Purchasing', icon: <ShoppingCart size={18} />, path: '/Purchasing', roles: ['Admin', 'Test'] },
-    { name: 'Penjualan', icon: <Store size={18} />, path: '/Penjualan', roles: ['Admin',] },
-    { name: 'Finance', icon: <CircleDollarSign size={18} />, path: '/Finance', roles: ['Admin'] },
-    { name: 'History', icon: <Calendar size={18} />, path: '/History', roles: ['Admin', 'Manager', 'Supervisor', 'Test'] },
+    { id: 'dashboard', name: 'Dashboard', icon: <LayoutDashboard size={18} />, path: '/Dashboard' },
+    { id: 'cuaca', name: 'Cuaca', icon: <CloudSun size={18} />, path: '/Cuaca' },
+    { id: 'report', name: 'Report', icon: <BarChart3 size={18} />, path: '/Report' },
+    { id: 'staff', name: 'Staff', icon: <User size={18} />, path: '/Staff' },
+    { id: 'contacts', name: 'Contacts', icon: <User2 size={18} />, path: '/Contacts' },
+    { id: 'tasks', name: 'Tasks', icon: <CheckSquare size={18} />, path: '/Tasks' },
+    { id: 'kandang', name: 'Kandang', icon: <Warehouse size={18} />, path: '/Kandang' },
+    { id: 'produksi', name: 'Produksi', icon: <Settings size={18} />, path: '/Produksi' },
+    { id: 'arrival', name: 'Arrival', icon: <Clock size={18} />, path: '/Arrival' },
+    { id: 'warehouse', name: 'Warehouse', icon: <Package size={18} />, path: '/Stock' },
+    { id: 'purchasing', name: 'Purchasing', icon: <ShoppingCart size={18} />, path: '/Purchasing' },
+    { id: 'penjualan', name: 'Penjualan', icon: <Store size={18} />, path: '/Penjualan' },
+    { id: 'finance', name: 'Finance', icon: <CircleDollarSign size={18} />, path: '/Finance' },
+    { id: 'history', name: 'History', icon: <Calendar size={18} />, path: '/History' },
   ];
+
+  const canAccess = (itemId) => {
+    if (loading) return false;
+    
+    const userPerms = rolePermissions[userRole] || [];
+    
+    if (userPerms.includes('*')) return true;
+    
+    return userPerms.includes(itemId);
+  };
 
   return (
     <>
@@ -67,36 +90,44 @@ const Sidebar = ({ isCollapsed, toggleSidebar, userRole, isOpenMobile, onCloseMo
         </div>
 
         <nav className="flex-1 py-4 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-gray-200">
-          {menuItems.map((item) => {
-            if (!item.roles.includes(userRole)) return null;
+          {!loading ? (
+            menuItems.map((item) => {
+              if (!canAccess(item.id)) return null;
 
-            const isActive = pathname === item.path;
+              const isActive = pathname === item.path;
 
-            return (
-              <Link 
-                key={item.name}
-                href={item.path}
-                onClick={() => { if(window.innerWidth < 1024) onCloseMobile(); }}
-                className={`w-full flex items-center justify-between px-4 py-3.5 my-0.5 cursor-pointer transition-all ${
-                  isActive 
-                    ? 'text-[#8da070] bg-[#8da070]/5 border-l-4 border-[#8da070] font-bold shadow-sm' 
-                    : 'text-gray-500 hover:bg-gray-50 border-l-4 border-transparent'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <span className={`${isActive ? 'text-[#8da070]' : 'text-gray-400'} transition-colors`}>
-                    {item.icon}
-                  </span>
+              return (
+                <Link 
+                  key={item.id}
+                  href={item.path}
+                  onClick={() => { if(window.innerWidth < 1024) onCloseMobile(); }}
+                  className={`w-full flex items-center justify-between px-4 py-3.5 my-0.5 cursor-pointer transition-all ${
+                    isActive 
+                      ? 'text-[#8da070] bg-[#8da070]/5 border-l-4 border-[#8da070] font-bold shadow-sm' 
+                      : 'text-gray-500 hover:bg-gray-50 border-l-4 border-transparent'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className={`${isActive ? 'text-[#8da070]' : 'text-gray-400'} transition-colors`}>
+                      {item.icon}
+                    </span>
+                    {(isOpenMobile || !isCollapsed) && (
+                      <span className="text-[14px] whitespace-nowrap tracking-wide">{item.name}</span>
+                    )}
+                  </div>
                   {(isOpenMobile || !isCollapsed) && (
-                    <span className="text-[14px] whitespace-nowrap tracking-wide">{item.name}</span>
+                    <ChevronRight size={14} className={`transition-transform ${isActive ? 'text-[#8da070] rotate-90' : 'text-gray-300'}`} />
                   )}
-                </div>
-                {(isOpenMobile || !isCollapsed) && (
-                  <ChevronRight size={14} className={`transition-transform ${isActive ? 'text-[#8da070] rotate-90' : 'text-gray-300'}`} />
-                )}
-              </Link>
-            );
-          })}
+                </Link>
+              );
+            })
+          ) : (
+            <div className="px-4 space-y-4">
+              {[1,2,3,4,5].map(i => (
+                <div key={i} className="h-10 bg-gray-50 rounded-lg animate-pulse" />
+              ))}
+            </div>
+          )}
         </nav>
 
         <div className="border-t p-2 bg-white shrink-0">          
@@ -105,9 +136,7 @@ const Sidebar = ({ isCollapsed, toggleSidebar, userRole, isOpenMobile, onCloseMo
             onClick={toggleSidebar}
           >
               {isCollapsed ? (
-                <>
-                  <PanelLeftOpen size={18} className="group-hover:text-[#8da070]" />
-                </>
+                <PanelLeftOpen size={18} className="group-hover:text-[#8da070]" />
               ) : (
                 <>
                   <PanelLeftClose size={18} className="group-hover:text-[#8da070]" />

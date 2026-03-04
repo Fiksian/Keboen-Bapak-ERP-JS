@@ -17,6 +17,17 @@ model User {
   role      String   @default("Staff")
   createdAt DateTime @default(now())
   staffs    staffs?
+
+  roleData         RolePermission? @relation("UserToRole", fields: [role], references: [roleName])
+}
+
+model RolePermission {
+  id          String   @id @default(cuid())
+  roleName    String   @unique
+  permissions String[]
+  updatedAt   DateTime @updatedAt
+  
+  users       User[]   @relation("UserToRole")
 }
 
 model Purchasing {

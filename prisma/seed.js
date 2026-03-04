@@ -1,4 +1,4 @@
-const { PrismaClient, PurchaseStatus, ContactType, ProductionStatus } = require('@prisma/client');
+const { PrismaClient, ContactType} = require('@prisma/client');
 const bcrypt = require('bcryptjs');
 
 const prisma = new PrismaClient();
@@ -36,9 +36,34 @@ async function main() {
   try {
     await prisma.$transaction(async (tx) => {
 
+      console.log('📡 Seeding Role Permissions...');
+      const roles = [
+        {
+          roleName: 'Admin',
+          permissions: ['dashboard', 'cuaca', 'report', 'staff', 'contacts', 'tasks', 'kandang', 'produksi', 'arrival', 'warehouse', 'purchasing', 'penjualan', 'finance', 'history']
+        },
+        {
+          roleName: 'Staff',
+          permissions: ['dashboard', 'tasks', 'kandang', 'produksi']
+        },
+        {
+          roleName: 'Owner',
+          permissions: ['*']
+        }
+      ];
+
+      for (const role of roles) {
+        await tx.rolePermission.upsert({
+          where: { roleName: role.roleName },
+          update: { permissions: role.permissions },
+          create: role,
+        });
+      }
+
+      console.log('👤 Seeding Users & Staffs...');
       const user = await tx.user.upsert({
         where: { email: adminEmail },
-        update: { password: hashedPassword },
+        update: { password: hashedPassword, role: "Admin" },
         create: {
           username: adminUsername,
           email: adminEmail,
@@ -49,7 +74,7 @@ async function main() {
 
       await tx.staffs.upsert({
         where: { email: adminEmail },
-        update: { updatedAt: new Date() },
+        update: { updatedAt: new Date(), role: "Admin" },
         create: {
           id: user.id,
           email: adminEmail,
@@ -68,7 +93,7 @@ async function main() {
 
         const testUser = await tx.user.upsert({
           where: { email: testData.email },
-          update: { password: hashedTestPassword },
+          update: { password: hashedTestPassword, role: testData.role },
           create: {
             username: testData.username,
             email: testData.email,
@@ -79,7 +104,7 @@ async function main() {
 
         await tx.staffs.upsert({
           where: { email: testData.email },
-          update: { updatedAt: new Date() },
+          update: { updatedAt: new Date(), role: testData.role },
           create: {
             id: testUser.id,
             email: testData.email,
@@ -94,6 +119,7 @@ async function main() {
         });
       }
 
+      console.log('📞 Seeding Contacts...');
       await tx.contact.upsert({
         where: { email: 'supplier.pakan@email.com' },
         update: {},
@@ -117,90 +143,6 @@ async function main() {
           address: 'Pasar Minggu, Jakarta',
         },
       });
-
-      await tx.stock.upsert({
-        where: { name: 'Pakan Ayam Starter' },
-        update: {},
-        create: {
-          name: 'Pakan Ayam Starter',
-          category: 'Feed',
-          stock: 500,
-          unit: 'KG',
-          type: 'STOCKS',
-          price: '15000',
-        },
-      });
-
-      const existingPO = await tx.purchasing.findFirst({
-        where: { noPO: 'PO-2026-001' },
-      });
-
-      if (!existingPO) {
-        await tx.purchasing.create({
-          data: {
-            noPO: 'PO-2026-001',
-            item: 'Pakan Ayam Starter',
-            qty: 1000,
-            unit: 'KG',
-            price: '1000000',
-            category: 'Feed',
-            supplier: 'PT Pakan Jaya',
-            requestedBy: 'Admin',
-            status: PurchaseStatus.PENDING,
-          },
-        });
-      }
-
-      await tx.production.upsert({
-        where: { noBatch: 'BATCH-001' },
-        update: {},
-        create: {
-          noBatch: 'BATCH-001',
-          productName: 'Telur Ayam Grade A',
-          targetQty: 100,
-          status: ProductionStatus.SCHEDULLING,
-          createdBy: 'Admin',
-          components: {
-            create: [
-              { itemName: 'Pakan Ayam Starter', qtyNeeded: 50, unit: 'KG' },
-            ],
-          },
-        },
-      });
-
-      const existingTask = await tx.task.findFirst({
-        where: { title: 'Cek kesehatan ayam kandang A' },
-      });
-
-      if (!existingTask) {
-        await tx.task.create({
-          data: {
-            title: 'Cek kesehatan ayam kandang A',
-            time: '08:00',
-            priority: 'High',
-            category: 'Maintenance',
-            assignee: 'Admin',
-          },
-        });
-      }
-
-      const existingTrx = await tx.transaction.findFirst({
-        where: { trxNo: 'TRX-INIT-2026' },
-      });
-
-      if (!existingTrx) {
-        await tx.transaction.create({
-          data: {
-            trxNo: 'TRX-INIT-2026',
-            category: 'Modal Awal',
-            amount: 50000000,
-            type: 'INCOME',
-            method: 'BANK TRANSFER',
-            createdBy: 'Admin',
-            description: 'Saldo awal operasional keboen bapak',
-          },
-        });
-      }
 
       console.log('✅ Seeding Selesai: Semua data berhasil dibuat.');
     });

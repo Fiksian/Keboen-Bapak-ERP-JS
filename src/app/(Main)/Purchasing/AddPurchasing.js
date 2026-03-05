@@ -100,10 +100,12 @@ const AddPurchasing = ({ isOpen, onClose, onAdd }) => {
     const payload = items.map(i => ({
       supplier: supplier.toUpperCase(),
       item: i.item.toUpperCase(),         
-      qty: `${i.qty} ${i.unit}`,
+      qty: parseFloat(i.qty), 
+      unit: i.unit,
       price: i.price.toString(),
       type: i.type,     
-      category: i.category
+      category: i.category,
+      requestedBy: session?.user?.name || "System"
     }));
 
     try {
@@ -115,10 +117,15 @@ const AddPurchasing = ({ isOpen, onClose, onAdd }) => {
         })
       );
 
-      await Promise.all(promises);
-      
-      onAdd(); 
-      handleClose();
+      const results = await Promise.all(promises);
+      const allOk = results.every(res => res.ok);
+
+      if (allOk) {
+        onAdd(); 
+        handleClose();
+      } else {
+        throw new Error("Some requests failed");
+      }
     } catch (error) {
       console.error("Submit Error:", error);
       alert("Terjadi kesalahan saat mengirim data.");
@@ -138,7 +145,6 @@ const AddPurchasing = ({ isOpen, onClose, onAdd }) => {
         className="bg-[#FDFDFD] w-full max-w-4xl rounded-t-[32px] sm:rounded-[32px] shadow-2xl border border-gray-100 overflow-hidden animate-in slide-in-from-bottom sm:zoom-in duration-300 max-h-[95vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
         <div className="p-5 sm:p-6 border-b border-gray-100 flex justify-between items-center bg-white shrink-0">
           <div className="flex items-center gap-4 text-left">
             <div className="p-3 bg-blue-600 rounded-2xl text-white shadow-lg shadow-blue-100">
@@ -251,10 +257,10 @@ const AddPurchasing = ({ isOpen, onClose, onAdd }) => {
                       <div className="space-y-1.5 text-left">
                         <p className="text-[9px] font-black text-gray-400 uppercase tracking-tighter ml-1">Qty</p>
                         <input 
-                          type="number" step="0.01" required
+                          type="number" step="any" required
                           className="w-full bg-gray-50 border border-transparent rounded-xl px-3 py-3 text-xs font-bold outline-none"
                           value={row.qty}
-                          onChange={(e) => updateItem(row.id, 'qty', parseFloat(e.target.value) || 0)}
+                          onChange={(e) => updateItem(row.id, 'qty', e.target.value)}
                         />
                       </div>
                       <div className="space-y-1.5 text-left">
@@ -280,7 +286,7 @@ const AddPurchasing = ({ isOpen, onClose, onAdd }) => {
                           type="number" required
                           className="w-full bg-blue-50/30 border border-transparent rounded-xl pl-8 pr-3 py-3 text-xs font-bold focus:bg-white focus:border-blue-200 outline-none"
                           value={row.price}
-                          onChange={(e) => updateItem(row.id, 'price', parseFloat(e.target.value) || 0)}
+                          onChange={(e) => updateItem(row.id, 'price', e.target.value)}
                         />
                       </div>
                     </div>

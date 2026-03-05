@@ -9,6 +9,7 @@ import ArrivalModal from './ArrivalModal';
 const ArrivalMonitor = ({ arrivals = [], onRefresh }) => {
   const { data: session } = useSession();
   const [selectedArrival, setSelectedArrival] = useState(null);
+  const [warehouseUnit, setWarehouseUnit] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const [formData, setFormData] = useState({
@@ -20,6 +21,7 @@ const ArrivalMonitor = ({ arrivals = [], onRefresh }) => {
     beratKosong: '',
     netto: '0.00',
     receivedQty: 0,
+    unit: '',
     image: null
   });
 
@@ -27,8 +29,10 @@ const ArrivalMonitor = ({ arrivals = [], onRefresh }) => {
 
   if (!arrivals || arrivals.length === 0) return null;
 
-  const handleOpenReceipt = (arrival) => {
+  const handleOpenReceipt = async (arrival) => {
     setSelectedArrival(arrival);
+    setWarehouseUnit(null);
+
     setFormData({ 
       suratJalan: '', 
       vehicleNo: '', 
@@ -38,8 +42,22 @@ const ArrivalMonitor = ({ arrivals = [], onRefresh }) => {
       beratKosong: '',
       netto: '0.00',
       receivedQty: arrival.qty,
+      unit: arrival.unit,
       image: null
     });
+
+    try {
+      const res = await fetch('/api/stock');
+      const stocks = await res.json();
+      const itemInDb = stocks.find(
+        s => s.name.toLowerCase() === arrival.item.toLowerCase()
+      );
+      const targetUnit = itemInDb ? itemInDb.unit : (arrival.unit || "KG");
+      setWarehouseUnit(targetUnit);
+    } catch (err) {
+      console.error("Gagal sinkronisasi unit:", err);
+      setWarehouseUnit(arrival.unit || "KG");
+    }
   };
 
   const handleFinalSubmit = async (e) => {
@@ -59,14 +77,16 @@ const ArrivalMonitor = ({ arrivals = [], onRefresh }) => {
       dataToSend.append('condition', formData.condition);
       dataToSend.append('notes', formData.notes || '');
       dataToSend.append('receivedBy', session?.user?.name || 'Warehouse Staff');
-      
-      const finalQty = formData.beratIsi ? parseFloat(formData.netto) : parseFloat(formData.receivedQty);
-      dataToSend.append('receivedQty', finalQty);
+
+      dataToSend.append('receivedQty', parseFloat(formData.receivedQty));
+
+      dataToSend.append('unit', warehouseUnit || formData.unit);
 
       if (formData.beratIsi) {
-        dataToSend.append('beratIsi', formData.beratIsi);
-        dataToSend.append('beratKosong', formData.beratKosong);
-        dataToSend.append('netto', formData.netto);
+        dataToSend.append('grossWeight', formData.beratIsi);   
+        dataToSend.append('tareWeight', formData.beratKosong);
+        dataToSend.append('netWeight', formData.netto);        
+        dataToSend.append('fieldUnit', formData.unit);        
       }
 
       dataToSend.append('file', formData.image);
@@ -78,6 +98,7 @@ const ArrivalMonitor = ({ arrivals = [], onRefresh }) => {
 
       if (res.ok) {
         setSelectedArrival(null);
+        setWarehouseUnit(null);
         if (onRefresh) onRefresh();
       } else {
         const error = await res.json();
@@ -128,10 +149,11 @@ const ArrivalMonitor = ({ arrivals = [], onRefresh }) => {
 
       <ArrivalModal 
         arrival={selectedArrival}
+        warehouseUnit={warehouseUnit}      
         formData={formData}
         setFormData={setFormData}
         isSubmitting={isSubmitting}
-        onClose={() => setSelectedArrival(null)}
+        onClose={() => { setSelectedArrival(null); setWarehouseUnit(null); }}
         onSubmit={handleFinalSubmit}
       />
     </div>

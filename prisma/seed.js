@@ -11,7 +11,7 @@ async function main() {
   const testUsers = [
     {
       email: "staff1@test.com",
-      username: "Staff_Satu",
+      username: "staff_satu",
       password: "password123",
       role: "Staff",
       firstName: "Test",
@@ -20,7 +20,7 @@ async function main() {
     },
     {
       email: "staff2@test.com",
-      username: "Staff_Dua",
+      username: "staff_dua",
       password: "password123",
       role: "Staff",
       firstName: "Test",

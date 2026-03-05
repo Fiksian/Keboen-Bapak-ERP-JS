@@ -117,7 +117,7 @@ const AddStaff = ({ isOpen, onClose }) => {
                 <label className='text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1'>Username</label>
                 <div className='relative'>
                   <Fingerprint size={16} className='absolute left-4 top-1/2 -translate-y-1/2 text-gray-400'/>
-                  <input name="username" required value={formData.username} onChange={handleChange} type='text' placeholder='sandra.w' className='w-full pl-11 pr-4 py-3 md:py-3.5 border border-gray-100 bg-gray-50/50 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white outline-none transition-all text-sm font-bold text-gray-700' />
+                  <input name="username" required value={formData.username.toLocaleLowerCase().trim()} onChange={handleChange} type='text' placeholder='sandra.w' className='w-full pl-11 pr-4 py-3 md:py-3.5 border border-gray-100 bg-gray-50/50 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white outline-none transition-all text-sm font-bold text-gray-700' />
                 </div>
               </div>
 

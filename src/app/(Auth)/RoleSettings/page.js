@@ -6,7 +6,8 @@ import {
   ShieldCheck, Save, Plus, Trash2, Unlock, Lock, Check, X, Loader2,
   LayoutDashboard, CloudSun, BarChart3, User, User2, CheckSquare, 
   Warehouse, Settings, Clock, Package, ShoppingCart, Store, 
-  CircleDollarSign, Calendar, ArrowLeft
+  CircleDollarSign, Calendar, ArrowLeft,
+  Feather
 } from 'lucide-react';
 
 const MENU_ICONS = {
@@ -18,6 +19,7 @@ const MENU_ICONS = {
   tasks: <CheckSquare size={20} />,
   kandang: <Warehouse size={20} />,
   produksi: <Settings size={20} />,
+  feedmill: <Feather size={20} />,
   arrival: <Clock size={20} />,
   warehouse: <Package size={20} />,
   purchasing: <ShoppingCart size={20} />,

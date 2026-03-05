@@ -1,14 +1,17 @@
 'use client';
 
 import React, { useState, memo } from 'react';
-import { Package, Database, Trash2, Edit3, ChevronDown, Layers } from 'lucide-react';
+import { Package, Database, Trash2, Edit3, ChevronDown } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 import Pagination from '@/app/(Main)/Components/Pagination';
 
 const StockTable = ({ data = [], onEdit, onRefresh, type = 'stock' }) => {
+  const { data: session } = useSession();
   const [unitPreferences, setUnitPreferences] = useState({});
-  
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6; 
+
+  const canDelete = ["Admin"].includes(session?.user?.role);
 
   const totalPages = Math.ceil(data.length / itemsPerPage);
   const indexOfLastItem = currentPage * itemsPerPage;
@@ -19,42 +22,52 @@ const StockTable = ({ data = [], onEdit, onRefresh, type = 'stock' }) => {
     const amount = parseFloat(value || 0);
     const u = unit?.toUpperCase() || 'UNIT';
     
+    let baseInKg = amount;
+    if (u === 'TON') baseInKg = amount * 1000;
+    else if (u === 'GRAM' || u === 'GR') baseInKg = amount / 1000;
+    else if (u === 'SACKS' || u === 'SAK') baseInKg = amount * 50;
+
+    let baseInLiter = amount;
+    if (u === 'ML') baseInLiter = amount / 1000;
+
     const options = {
-      default: { val: amount, unit: u, label: 'Asli' }
+      default: { val: amount, unit: u, label: 'Satuan Asli' }
     };
 
-    if (['KG', 'TON', 'GRAM', 'GR'].includes(u)) {
-      const baseInKg = u === 'TON' ? amount * 1000 : (u === 'GRAM' || u === 'GR' ? amount / 1000 : amount);
+    if (['KG', 'TON', 'GRAM', 'GR', 'SACKS', 'SAK'].includes(u)) {
       options.kg = { val: baseInKg, unit: 'KG', label: 'Standar (KG)' };
       options.ton = { val: baseInKg / 1000, unit: 'TON', label: 'Besar (TON)' };
-      options.gram = { val: baseInKg * 1000, unit: 'GRAM', label: 'Kecil (GR)' };
+      if (baseInKg < 1) {
+        options.gram = { val: baseInKg * 1000, unit: 'GR', label: 'Kecil (GR)' };
+      }
     } 
     else if (['LITER', 'L', 'ML'].includes(u)) {
-      const baseInLiter = (u === 'ML') ? amount / 1000 : amount;
       options.liter = { val: baseInLiter, unit: 'LITER', label: 'Standar (L)' };
       options.ml = { val: baseInLiter * 1000, unit: 'ML', label: 'Kecil (ML)' };
     }
-    else if (u === 'SACKS') {
-      options.kg = { val: amount * 50, unit: 'KG', label: 'Estimasi (KG)' };
-    }
 
-    return options;
+    return { options, baseInKg, baseInLiter };
   };
 
   const getDerivedStatus = (item) => {
-    const opts = getExtendedConversion(item.stock, item.unit);
-    const checkVal = opts.kg ? opts.kg.val : opts.default.val;
+    const { baseInKg, baseInLiter } = getExtendedConversion(item.stock, item.unit);
+    const u = item.unit?.toUpperCase();
+    
+    let checkVal = baseInKg;
+    if (['LITER', 'L', 'ML'].includes(u)) checkVal = baseInLiter;
+    else if (!['KG', 'TON', 'GRAM', 'GR', 'SACKS', 'SAK'].includes(u)) checkVal = item.stock;
+
     if (checkVal <= 0) return 'EMPTY';
-    if (checkVal <= 10) return 'LIMITED'; 
+    if (checkVal <= 50) return 'LIMITED';
     return 'READY';
   };
 
   const getStatusStyle = (status) => {
     switch (status) {
-      case 'READY': return 'bg-green-50 text-green-600 border-green-100';
-      case 'LIMITED': return 'bg-orange-50 text-orange-600 border-orange-100 animate-pulse';
-      case 'EMPTY': return 'bg-red-50 text-red-600 border-red-100';
-      default: return 'bg-gray-50 text-gray-600 border-gray-100';
+      case 'READY': return 'bg-emerald-50 text-emerald-600 border-emerald-100';
+      case 'LIMITED': return 'bg-amber-50 text-amber-600 border-amber-100 animate-pulse';
+      case 'EMPTY': return 'bg-rose-50 text-rose-600 border-rose-100';
+      default: return 'bg-slate-50 text-slate-600 border-slate-100';
     }
   };
 
@@ -64,12 +77,13 @@ const StockTable = ({ data = [], onEdit, onRefresh, type = 'stock' }) => {
 
   const formatNumber = (num) => {
     if (num === 0) return "0";
-    if (num < 0.01 && num > 0) return num.toFixed(4);
+    if (num < 0.1 && num > 0) return num.toFixed(3);
     return parseFloat(num.toFixed(2)).toLocaleString('id-ID');
   };
 
   const deleteItem = async (id) => {
-    if (!confirm("Hapus item secara permanen?")) return;
+    if (!canDelete) return alert("Anda tidak memiliki akses untuk menghapus data.");
+    if (!confirm("Hapus item secara permanen dari database?")) return;
     try {
       const res = await fetch(`/api/stock/${id}`, { method: 'DELETE' });
       if (res.ok) onRefresh();
@@ -93,67 +107,76 @@ const StockTable = ({ data = [], onEdit, onRefresh, type = 'stock' }) => {
           </thead>
           <tbody className="divide-y divide-slate-50">
             {currentData.length > 0 ? currentData.map((item) => {
-              const conversionOptions = getExtendedConversion(item.stock, item.unit);
+              const { options } = getExtendedConversion(item.stock, item.unit);
               const currentStatus = getDerivedStatus(item);
               const userPrefKey = unitPreferences[item.id] || 'default';
-              const displayData = conversionOptions[userPrefKey] || conversionOptions.default;
+              const displayData = options[userPrefKey] || options.default;
 
               return (
                 <tr key={item.id} className="hover:bg-slate-50/50 transition-colors group">
                   <td className="px-8 py-6">
                     <div className="flex items-center gap-4">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center border shrink-0 ${
-                        currentStatus === 'EMPTY' ? 'bg-red-50 text-red-300' : 'bg-white text-slate-400 group-hover:text-indigo-500 shadow-sm'
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center border shrink-0 transition-all ${
+                        currentStatus === 'EMPTY' ? 'bg-rose-50 text-rose-300 border-rose-100' : 'bg-white text-slate-400 group-hover:text-indigo-500 group-hover:border-indigo-100 shadow-sm'
                       }`}>
                         {type === 'stock' ? <Package size={18} /> : <Database size={18} />}
                       </div>
                       <div className="flex flex-col min-w-0">
                         <span className="font-black text-slate-800 uppercase tracking-tight truncate">{item.name || item.item}</span>
-                        <span className="text-[9px] text-slate-500 font-bold uppercase italic truncate">Base: {item.unit}</span>
+                        <span className="text-[9px] text-slate-400 font-bold uppercase italic">
+                          Database: {formatNumber(item.stock)} {item.unit}
+                        </span>
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-6 text-sm text-slate-500 font-black uppercase tracking-tighter">
-                    {item.category || "General"}
+                  <td className="px-6 py-6">
+                    <span className="bg-slate-100 text-slate-500 px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-tighter">
+                      {item.category || "General"}
+                    </span>
                   </td>
                   <td className="px-6 py-6 text-center">
                     <div className="flex flex-col items-center justify-center">
-                      <span className={`text-xl font-black italic tracking-tighter ${currentStatus === 'READY' ? 'text-indigo-600' : currentStatus === 'LIMITED' ? 'text-orange-500' : 'text-rose-500'}`}>
+                      <span className={`text-xl font-black italic tracking-tighter transition-all ${
+                        currentStatus === 'READY' ? 'text-indigo-600' : currentStatus === 'LIMITED' ? 'text-amber-500' : 'text-rose-500'
+                      }`}>
                         {formatNumber(displayData.val)}
                       </span>
                       <div className="relative mt-2">
                         <select 
                           value={userPrefKey}
                           onChange={(e) => handleUnitChange(item.id, e.target.value)}
-                          className="appearance-none bg-slate-100 hover:bg-slate-200 text-slate-500 text-[9px] font-black px-4 py-1 pr-6 rounded-full cursor-pointer uppercase transition-all outline-none"
+                          className="appearance-none bg-slate-100 hover:bg-slate-200 text-slate-600 text-[9px] font-black px-4 py-1.5 pr-7 rounded-full cursor-pointer uppercase transition-all outline-none border border-transparent focus:border-slate-300"
                         >
-                          {Object.entries(conversionOptions).map(([key, opt]) => (
+                          {Object.entries(options).map(([key, opt]) => (
                             <option key={key} value={key}>{opt.label} ({opt.unit})</option>
                           ))}
                         </select>
-                        <ChevronDown size={10} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" />
+                        <ChevronDown size={10} className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" />
                       </div>
                     </div>
                   </td>
                   <td className="px-6 py-6 text-center">
-                    <span className={`px-3 py-1 rounded-lg text-[9px] font-black border uppercase ${getStatusStyle(currentStatus)}`}>
+                    <span className={`px-3 py-1.5 rounded-lg text-[9px] font-black border uppercase tracking-wider ${getStatusStyle(currentStatus)}`}>
                       {currentStatus}
                     </span>
                   </td>
                   <td className="px-8 py-6 text-right">
                     <div className="flex justify-end gap-2">
-                      <button onClick={() => onEdit(item)} className="px-4 py-2 bg-slate-800 hover:bg-black text-white rounded-xl font-black text-[10px] uppercase transition-all active:scale-95 cursor-pointer flex items-center gap-2">
+                      <button onClick={() => onEdit(item)} className="px-4 py-2 bg-slate-900 hover:bg-indigo-600 text-white rounded-xl font-black text-[10px] uppercase transition-all active:scale-95 flex items-center gap-2 shadow-sm">
                         <Edit3 size={12} /> Edit
                       </button>
-                      <button onClick={() => deleteItem(item.id)} className="p-2 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer">
-                        <Trash2 size={18} />
-                      </button>
+                      
+                      {canDelete && (
+                        <button onClick={() => deleteItem(item.id)} className="p-2 text-slate-300 hover:text-rose-600 transition-colors active:scale-90">
+                          <Trash2 size={18} />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
               );
             }) : (
-              <tr><td colSpan="5" className="py-24 text-center text-slate-300 italic uppercase text-[10px] font-black tracking-[0.3em]">Data Kosong</td></tr>
+              <tr><td colSpan="5" className="py-32 text-center text-slate-300 italic uppercase text-[10px] font-black tracking-[0.4em]">Database Kosong</td></tr>
             )}
           </tbody>
         </table>
@@ -161,57 +184,63 @@ const StockTable = ({ data = [], onEdit, onRefresh, type = 'stock' }) => {
 
       <div className="lg:hidden grid grid-cols-1 gap-4">
         {currentData.length > 0 ? currentData.map((item) => {
-          const conversionOptions = getExtendedConversion(item.stock, item.unit);
+          const { options } = getExtendedConversion(item.stock, item.unit);
           const currentStatus = getDerivedStatus(item);
           const userPrefKey = unitPreferences[item.id] || 'default';
-          const displayData = conversionOptions[userPrefKey] || conversionOptions.default;
+          const displayData = options[userPrefKey] || options.default;
 
           return (
-            <div key={item.id} className="bg-white rounded-[28px] border border-slate-100 p-6 shadow-sm space-y-4">
+            <div key={item.id} className="bg-white rounded-[28px] border border-slate-100 p-6 shadow-sm space-y-5">
               <div className="flex justify-between items-start">
                 <div className="flex gap-4">
-                  <div className={`w-11 h-11 rounded-2xl flex items-center justify-center border shrink-0 ${getStatusStyle(currentStatus)}`}>
-                    {type === 'stock' ? <Package size={20} /> : <Database size={20} />}
+                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border shrink-0 ${getStatusStyle(currentStatus)}`}>
+                    {type === 'stock' ? <Package size={22} /> : <Database size={22} />}
                   </div>
                   <div className="flex flex-col">
-                    <span className="font-black text-slate-800 uppercase text-[13px] tracking-tight">{item.name || item.item}</span>
-                    <span className="text-[10px] text-slate-400 font-black uppercase italic tracking-wider">Cat: {item.category || "General"}</span>
+                    <span className="font-black text-slate-800 uppercase text-[14px] tracking-tight">{item.name || item.item}</span>
+                    <span className="text-[10px] text-slate-400 font-black uppercase italic">Base: {item.stock} {item.unit}</span>
                   </div>
                 </div>
-                <span className={`px-2 py-1 rounded-lg text-[8px] font-black border uppercase ${getStatusStyle(currentStatus)}`}>
+                <span className={`px-2.5 py-1 rounded-lg text-[8px] font-black border uppercase ${getStatusStyle(currentStatus)}`}>
                   {currentStatus}
                 </span>
               </div>
 
-              <div className="bg-slate-50/50 rounded-2xl p-4 flex justify-between items-center border border-slate-100/50">
+              <div className="bg-slate-50 rounded-2xl p-4 flex justify-between items-center border border-slate-100">
                 <div className="flex flex-col">
-                  <span className="text-[8px] text-slate-400 font-black uppercase tracking-widest mb-1">Current Stock</span>
-                  <span className={`text-2xl font-black italic leading-none tracking-tighter ${currentStatus === 'READY' ? 'text-indigo-600' : 'text-orange-500'}`}>
-                    {formatNumber(displayData.val)}
-                  </span>
+                  <span className="text-[9px] text-slate-400 font-black uppercase tracking-widest mb-1">Stok Saat Ini</span>
+                  <div className="flex items-baseline gap-1">
+                    <span className={`text-2xl font-black italic tracking-tighter ${currentStatus === 'READY' ? 'text-indigo-600' : 'text-amber-500'}`}>
+                      {formatNumber(displayData.val)}
+                    </span>
+                    <span className="text-[10px] font-black text-slate-400 uppercase">{displayData.unit}</span>
+                  </div>
                 </div>
                 
                 <div className="relative">
                   <select 
                     value={userPrefKey}
                     onChange={(e) => handleUnitChange(item.id, e.target.value)}
-                    className="appearance-none bg-white border border-slate-200 text-slate-500 text-[9px] font-black px-4 py-2 pr-8 rounded-xl cursor-pointer uppercase shadow-sm outline-none"
+                    className="appearance-none bg-white border border-slate-200 text-slate-600 text-[10px] font-black px-4 py-2.5 pr-9 rounded-xl cursor-pointer uppercase shadow-sm outline-none"
                   >
-                    {Object.entries(conversionOptions).map(([key, opt]) => (
+                    {Object.entries(options).map(([key, opt]) => (
                       <option key={key} value={key}>{opt.unit}</option>
                     ))}
                   </select>
-                  <ChevronDown size={12} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" />
+                  <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" />
                 </div>
               </div>
 
-              <div className="flex gap-2 pt-2">
-                <button onClick={() => onEdit(item)} className="flex-1 py-3.5 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 active:scale-95 shadow-lg shadow-slate-200">
-                  <Edit3 size={14} /> Edit Item
+              <div className="flex gap-3 pt-1">
+                <button onClick={() => onEdit(item)} className="flex-1 py-4 bg-slate-900 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-2 active:scale-95">
+                  <Edit3 size={16} /> Edit Data
                 </button>
-                <button onClick={() => deleteItem(item.id)} className="w-14 h-14 flex items-center justify-center bg-rose-50 text-rose-500 rounded-2xl active:scale-95 border border-rose-100">
-                  <Trash2 size={20} />
-                </button>
+                
+                {canDelete && (
+                  <button onClick={() => deleteItem(item.id)} className="w-14 h-14 flex items-center justify-center bg-rose-50 text-rose-500 rounded-2xl border border-rose-100">
+                    <Trash2 size={22} />
+                  </button>
+                )}
               </div>
             </div>
           );
@@ -221,7 +250,7 @@ const StockTable = ({ data = [], onEdit, onRefresh, type = 'stock' }) => {
       </div>
 
       {data.length > 0 && (
-        <div className="mt-6">
+        <div className="mt-8 flex justify-center lg:justify-end">
           <Pagination 
             currentPage={currentPage}
             totalPages={totalPages}

@@ -6,17 +6,8 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 const getStandardizedData = (amountRaw, unitRaw) => {
   const amount = parseFloat(amountRaw) || 0;
   const unit = unitRaw ? unitRaw.toUpperCase() : "KG";
-  let standardizedQty = amount;
-  let standardizedUnit = unit;
-
-  switch (unit) {
-    case "TON": standardizedQty = amount * 1000; standardizedUnit = "KG"; break;
-    case "GRAM": case "GR": standardizedQty = amount / 1000; standardizedUnit = "KG"; break;
-    case "ML": standardizedQty = amount / 1000; standardizedUnit = "LITER"; break;
-    case "LITER": case "L": standardizedQty = amount; standardizedUnit = "LITER"; break;
-    default: standardizedQty = amount; standardizedUnit = unit;
-  }
-  return { value: standardizedQty, unit: standardizedUnit };
+  
+  return { value: amount, unit: unit };
 };
 
 export async function GET() {
@@ -38,6 +29,7 @@ export async function POST(request) {
 
     const body = await request.json();
     const userName = session.user.name || "Unknown User";
+    
     const itemsToProcess = Array.isArray(body) ? body : [body];
 
     if (itemsToProcess.length === 0) return NextResponse.json({ message: "Data kosong" }, { status: 400 });
@@ -58,6 +50,9 @@ export async function POST(request) {
         basePONumber = parseInt(parts[parts.length - 1]) || 0;
       }
 
+      const nextGroupPONum = basePONumber + 1;
+      const sharedNoPO = `PO/SALI/${datePattern}/${String(nextGroupPONum).padStart(3, '0')}`;
+
       const lastTrx = await tx.transaction.findFirst({
         where: { trxNo: { startsWith: `TRX-${trxDatePrefix}` } },
         orderBy: { trxNo: 'desc' }
@@ -68,9 +63,6 @@ export async function POST(request) {
         const parts = lastTrx.trxNo.split("-");
         baseTrxNumber = parseInt(parts[parts.length - 1]) || 0;
       }
-
-      const nextGroupPONum = basePONumber + 1;
-      const sharedNoPO = `PO/SALI/${datePattern}/${String(nextGroupPONum).padStart(3, '0')}`;
       
       const createdPurchases = [];
 

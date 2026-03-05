@@ -11,7 +11,7 @@ import {
 import Pagination from '@/app/(Main)/Components/Pagination'; 
 
 const PurchasingTable = ({ 
-  data, 
+  data = [], 
   onStatusUpdate, 
   onDelete, 
   onPrint, 
@@ -23,7 +23,7 @@ const PurchasingTable = ({
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6; 
 
-  const isAuthorized = ["Admin", "Supervisor", "Test"].includes(session?.user?.role);
+  const isAuthorized = ["Admin"].includes(session?.user?.role);
 
   const totalPages = Math.ceil(data.length / itemsPerPage);
   const indexOfLastItem = currentPage * itemsPerPage;
@@ -31,12 +31,14 @@ const PurchasingTable = ({
   const currentData = data.slice(indexOfFirstItem, indexOfLastItem);
 
   const toggleSelect = (id) => {
+    if (!isAuthorized) return;
     setSelectedIds(prev => 
       prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
     );
   };
 
   const toggleSelectAll = () => {
+    if (!isAuthorized) return;
     const selectableItems = currentData.filter(req => !req.isReceived);
     if (selectedIds.length === selectableItems.length) {
       setSelectedIds([]);
@@ -54,7 +56,7 @@ const PurchasingTable = ({
     <div className="flex flex-col h-full">
       <div className="w-full bg-white rounded-[32px] border border-gray-100 shadow-sm overflow-hidden transition-all flex flex-col">
         
-        {selectedIds.length > 0 && (
+        {selectedIds.length > 0 && isAuthorized && (
           <div className="bg-slate-900 px-8 py-4 flex justify-between items-center animate-in slide-in-from-top duration-300 sticky top-0 z-20 shadow-2xl">
             <div className="flex items-center gap-3">
               <div className="bg-orange-500 p-1.5 rounded-lg text-white">
@@ -75,7 +77,7 @@ const PurchasingTable = ({
                 }}
                 className="bg-green-600 hover:bg-green-500 text-white px-6 py-2.5 rounded-xl text-[10px] font-black uppercase italic transition-all active:scale-95 shadow-lg shadow-green-900/40 flex items-center gap-2"
               >
-                <ShieldCheck size={14} /> Bulk Approve
+                < ShieldCheck size={14} /> Bulk Approve
               </button>
               <button 
                 onClick={() => setSelectedIds([])}
@@ -92,15 +94,17 @@ const PurchasingTable = ({
             <thead>
               <tr className="text-gray-400 text-[10px] font-black uppercase tracking-[0.2em] bg-gray-50/50">
                 <th className="px-6 py-6 w-16 text-center border-b border-gray-100">
-                  <button 
-                    onClick={toggleSelectAll} 
-                    className="text-gray-300 hover:text-blue-600 transition-colors"
-                  >
-                    {selectedIds.length > 0 && selectedIds.length === currentData.filter(r => !r.isReceived).length 
-                      ? <CheckSquare size={18} className="text-blue-600" /> 
-                      : <Square size={18} />
-                    }
-                  </button>
+                  {isAuthorized && (
+                    <button 
+                      onClick={toggleSelectAll} 
+                      className="text-gray-300 hover:text-blue-600 transition-colors"
+                    >
+                      {selectedIds.length > 0 && selectedIds.length === currentData.filter(r => !r.isReceived).length 
+                        ? <CheckSquare size={18} className="text-blue-600" /> 
+                        : <Square size={18} />
+                      }
+                    </button>
+                  )}
                 </th>
                 <th className="px-4 py-6 border-b border-gray-100">PO & Supplier</th>
                 <th className="px-6 py-6 border-b border-gray-100">Detail Item</th>
@@ -114,6 +118,8 @@ const PurchasingTable = ({
                 const qtyNum = parseFloat(req.qty) || 0;
                 const unitPrice = parseFloat(req.price) || 0;
                 const totalRow = qtyNum * unitPrice;
+                const displayUnit = req.unit || 'KG';
+                
                 const isSelected = selectedIds.includes(req.id);
                 
                 const dateCreated = new Date(req.createdAt).toLocaleDateString('id-ID', {
@@ -129,7 +135,7 @@ const PurchasingTable = ({
                     className={`transition-all group ${getRowStyle(isSelected)} ${isFirstInGroup && index !== 0 ? 'border-t-2 border-gray-100' : ''}`}
                   >
                     <td className={`px-6 py-6 text-center border-b border-gray-50 ${isFirstInGroup ? 'pt-8' : 'pt-4'}`}>
-                      {!req.isReceived ? (
+                      {isAuthorized && !req.isReceived ? (
                         <button 
                           onClick={() => toggleSelect(req.id)}
                           className={`transition-colors ${isSelected ? 'text-blue-600' : 'text-gray-200 group-hover:text-gray-400'}`}
@@ -180,7 +186,7 @@ const PurchasingTable = ({
                         <span className="font-black text-gray-900 uppercase text-[13px] tracking-tight group-hover:text-blue-600 transition-colors">{req.item}</span>
                         <div className="flex items-center gap-2">
                           <span className="text-[10px] bg-gray-900 text-white px-2 py-0.5 rounded-md font-black italic">
-                            {qtyNum.toLocaleString('id-ID')} {req.unit || 'KG'}
+                            {qtyNum.toLocaleString('id-ID')} {displayUnit}
                           </span>
                           <span className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-black border uppercase ${
                             req.type === 'STOCKS' ? 'text-indigo-600 border-indigo-100 bg-indigo-50' : 'text-purple-600 border-purple-100 bg-purple-50'
@@ -293,7 +299,7 @@ const PurchasingTable = ({
             <div key={req.id} className={`p-6 space-y-4 transition-all ${selectedIds.includes(req.id) ? 'bg-blue-50' : 'active:bg-gray-50'}`}>
               <div className="flex justify-between items-start">
                 <div className="flex gap-3">
-                  {!req.isReceived && (
+                  {isAuthorized && !req.isReceived && (
                     <button onClick={() => toggleSelect(req.id)} className="mt-1">
                       {selectedIds.includes(req.id) ? <CheckSquare size={22} className="text-blue-600" /> : <Square size={22} className="text-gray-200" />}
                     </button>
@@ -310,7 +316,7 @@ const PurchasingTable = ({
                   <p className="text-sm font-black text-gray-900 italic tracking-tighter">
                     Rp {((parseFloat(req.qty)||0) * (parseFloat(req.price)||0)).toLocaleString('id-ID')}
                   </p>
-                  <p className="text-[10px] font-black text-blue-600 uppercase mt-1">{req.qty} {req.unit}</p>
+                  <p className="text-[10px] font-black text-blue-600 uppercase mt-1">{(parseFloat(req.qty)||0).toLocaleString('id-ID')} {req.unit || 'KG'}</p>
                 </div>
               </div>
 
@@ -337,9 +343,11 @@ const PurchasingTable = ({
                     {req.status === 'APPROVED' ? 'Revoke' : 'Approve'}
                   </button>
                 )}
-                <button onClick={() => onDelete(req.id)} className="p-3 bg-gray-50 text-gray-300 rounded-2xl border border-gray-100">
-                  <Trash2 size={18} />
-                </button>
+                {isAuthorized && (
+                  <button onClick={() => onDelete(req.id)} className="p-3 bg-gray-50 text-gray-300 rounded-2xl border border-gray-100">
+                    <Trash2 size={18} />
+                  </button>
+                )}
               </div>
             </div>
           )) : (

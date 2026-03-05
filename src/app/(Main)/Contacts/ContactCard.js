@@ -1,7 +1,14 @@
+'use client';
+
 import React from 'react';
 import { Mail, Phone, MapPin, Building2, User, Trash2, Fingerprint } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 
 const ContactCard = ({ contact, onDelete }) => {
+  const { data: session } = useSession();
+  
+  const canDelete = ["Admin"].includes(session?.user?.role);
+  
   const isSupplier = contact.type.toLowerCase() === 'supplier';
   const hasCompany = contact.companyName && contact.companyName !== "-";
 
@@ -51,14 +58,16 @@ const ContactCard = ({ contact, onDelete }) => {
         <DetailItem icon={<MapPin size={14} />} text={contact.address} />
       </div>
 
-      <div className="flex gap-2 border-t border-gray-50 pt-5 md:pt-6">
-        <button 
-          onClick={() => onDelete(contact.id, hasCompany ? contact.companyName : contact.name)}
-          className="flex-1 flex items-center justify-center gap-2 py-3 bg-red-50 text-red-500 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all active:scale-95"
-        >
-          <Trash2 size={14} /> Hapus Kontak
-        </button>
-      </div>
+      {canDelete && (
+        <div className="flex gap-2 border-t border-gray-50 pt-5 md:pt-6">
+          <button 
+            onClick={() => onDelete(contact.id, hasCompany ? contact.companyName : contact.name)}
+            className="flex-1 flex items-center justify-center gap-2 py-3 bg-red-50 text-red-500 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all active:scale-95"
+          >
+            <Trash2 size={14} /> Hapus Kontak
+          </button>
+        </div>
+      )}
     </div>
   );
 };

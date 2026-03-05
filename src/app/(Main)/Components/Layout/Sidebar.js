@@ -19,20 +19,20 @@ const Sidebar = ({ isCollapsed, toggleSidebar, userRole, isOpenMobile, onCloseMo
   const pathname = usePathname();
 
   const menuItems = [
-    { name: 'Dashboard', icon: <LayoutDashboard size={18} />, path: '/Dashboard', roles: ['Admin', 'Staff', 'Manager', 'Supervisor', 'Test'] },
+    { name: 'Dashboard', icon: <LayoutDashboard size={18} />, path: '/Dashboard', roles: ['Admin', 'Test'] },
     { name: 'Cuaca', icon: <CloudSun size={18} />, path: '/Cuaca', roles: ['Admin', 'Test'] },
-    { name: 'Report', icon: <BarChart3 size={18} />, path: '/Report', roles: ['Admin'] },
+    { name: 'Report', icon: <BarChart3 size={18} />, path: '/Report', roles: [] },
     { name: 'Staff', icon: <User size={18} />, path: '/Staff', roles: ['Admin'] },
-    { name: 'Contacts', icon: <User2 size={18} />, path: '/Contacts', roles: ['Admin', 'Test', 'Staff'] },
-    { name: 'Tasks', icon: <CheckSquare size={18} />, path: '/Tasks', roles: ['Admin'] },
+    { name: 'Contacts', icon: <User2 size={18} />, path: '/Contacts', roles: ['Admin', 'Test'] },
+    { name: 'Tasks', icon: <CheckSquare size={18} />, path: '/Tasks', roles: [] },
     { name: 'Kandang', icon: <Warehouse size={18} />, path: '/Kandang', roles: [] },
-    { name: 'Produksi', icon: <Settings size={18} />, path: '/Produksi', roles: ['Admin'] },
+    { name: 'Produksi', icon: <Settings size={18} />, path: '/Produksi', roles: [] },
     { name: 'Arrival', icon: <Clock size={18} />, path: '/Arrival', roles: ['Admin', 'Test'] },
     { name: 'Warehouse', icon: <Package size={18} />, path: '/Stock', roles: ['Admin', 'Test'] },
     { name: 'Purchasing', icon: <ShoppingCart size={18} />, path: '/Purchasing', roles: ['Admin', 'Test'] },
-    { name: 'Penjualan', icon: <Store size={18} />, path: '/Penjualan', roles: ['Admin',] },
-    { name: 'Finance', icon: <CircleDollarSign size={18} />, path: '/Finance', roles: ['Admin'] },
-    { name: 'History', icon: <Calendar size={18} />, path: '/History', roles: ['Admin', 'Manager', 'Supervisor', 'Test'] },
+    { name: 'Penjualan', icon: <Store size={18} />, path: '/Penjualan', roles: [] },
+    { name: 'Finance', icon: <CircleDollarSign size={18} />, path: '/Finance', roles: [] },
+    { name: 'History', icon: <Calendar size={18} />, path: '/History', roles: [] },
   ];
 
   return (

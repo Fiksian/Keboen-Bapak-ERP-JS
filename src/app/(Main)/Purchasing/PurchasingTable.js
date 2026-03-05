@@ -9,20 +9,35 @@ import {
   UserCheck
 } from 'lucide-react';
 
-const PurchasingTable = ({ data, onStatusUpdate, onDelete, onPrint, onBulkStatusUpdate }) => {
+const PurchasingTable = ({ 
+  data, 
+  onStatusUpdate, 
+  onDelete, 
+  onPrint, 
+  onBulkStatusUpdate 
+}) => {
   const { data: session } = useSession();
   const [selectedIds, setSelectedIds] = useState([]);
   
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 6; 
+
   const isAuthorized = ["Admin", "Supervisor", "Test"].includes(session?.user?.role);
 
+  const totalPages = Math.ceil(data.length / itemsPerPage);
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentData = data.slice(indexOfFirstItem, indexOfLastItem);
+
   const toggleSelect = (id) => {
+    if (!isAuthorized) return;
     setSelectedIds(prev => 
       prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
     );
   };
 
   const toggleSelectAll = () => {
-    const selectableItems = data.filter(req => !req.isReceived);
+    const selectableItems = currentData.filter(req => !req.isReceived);
     if (selectedIds.length === selectableItems.length) {
       setSelectedIds([]);
     } else {
@@ -36,97 +51,97 @@ const PurchasingTable = ({ data, onStatusUpdate, onDelete, onPrint, onBulkStatus
   };
 
   return (
-    <div className="w-full bg-white rounded-[32px] border border-gray-100 shadow-sm overflow-hidden transition-all">
-      
-      {selectedIds.length > 0 && (
-        <div className="bg-slate-900 px-8 py-4 flex justify-between items-center animate-in slide-in-from-top duration-300 sticky top-0 z-20 shadow-2xl">
-          <div className="flex items-center gap-3">
-            <div className="bg-orange-500 p-1.5 rounded-lg text-white">
-                <Check size={14} strokeWidth={4} />
+    <div className="flex flex-col h-full">
+      <div className="w-full bg-white rounded-[32px] border border-gray-100 shadow-sm overflow-hidden transition-all flex flex-col">
+        
+        {selectedIds.length > 0 && (
+          <div className="bg-slate-900 px-8 py-4 flex justify-between items-center animate-in slide-in-from-top duration-300 sticky top-0 z-20 shadow-2xl">
+            <div className="flex items-center gap-3">
+              <div className="bg-orange-500 p-1.5 rounded-lg text-white">
+                  <Check size={14} strokeWidth={4} />
+              </div>
+              <div>
+                <p className="text-white text-[11px] font-black uppercase italic tracking-widest">
+                  {selectedIds.length} Items Selected
+                </p>
+                <p className="text-slate-500 text-[8px] font-bold uppercase tracking-tighter">Authorized Bulk Approval</p>
+              </div>
             </div>
-            <div>
-              <p className="text-white text-[11px] font-black uppercase italic tracking-widest">
-                {selectedIds.length} Items Selected
-              </p>
-              <p className="text-slate-500 text-[8px] font-bold uppercase tracking-tighter">Authorized Bulk Approval</p>
+            <div className="flex gap-3">
+              <button 
+                onClick={() => {
+                  onBulkStatusUpdate?.(selectedIds, 'APPROVED');
+                  setSelectedIds([]);
+                }}
+                className="bg-green-600 hover:bg-green-500 text-white px-6 py-2.5 rounded-xl text-[10px] font-black uppercase italic transition-all active:scale-95 shadow-lg shadow-green-900/40 flex items-center gap-2"
+              >
+                <ShieldCheck size={14} /> Bulk Approve
+              </button>
+              <button 
+                onClick={() => setSelectedIds([])}
+                className="bg-slate-800 text-slate-400 hover:text-white px-4 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all border border-slate-700"
+              >
+                Cancel
+              </button>
             </div>
           </div>
-          <div className="flex gap-3">
-            <button 
-              onClick={() => {
-                onBulkStatusUpdate?.(selectedIds, 'APPROVED');
-                setSelectedIds([]);
-              }}
-              className="bg-green-600 hover:bg-green-500 text-white px-6 py-2.5 rounded-xl text-[10px] font-black uppercase italic transition-all active:scale-95 shadow-lg shadow-green-900/40 flex items-center gap-2"
-            >
-              <ShieldCheck size={14} /> Bulk Approve
-            </button>
-            <button 
-              onClick={() => setSelectedIds([])}
-              className="bg-slate-800 text-slate-400 hover:text-white px-4 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all border border-slate-700"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
+        )}
 
-      <div className="hidden md:block overflow-x-auto">
-        <table className="w-full text-left border-separate border-spacing-0">
-          <thead>
-            <tr className="text-gray-400 text-[10px] font-black uppercase tracking-[0.2em] bg-gray-50/50">
-              <th className="px-6 py-6 w-16 text-center border-b border-gray-100">
-                <button 
-                  onClick={toggleSelectAll} 
-                  className="text-gray-300 hover:text-blue-600 transition-colors"
-                >
-                  {selectedIds.length > 0 && selectedIds.length === data.filter(r => !r.isReceived).length 
-                    ? <CheckSquare size={18} className="text-blue-600" /> 
-                    : <Square size={18} />
-                  }
-                </button>
-              </th>
-              <th className="px-4 py-6 border-b border-gray-100">PO & Supplier</th>
-              <th className="px-6 py-6 border-b border-gray-100">Detail Item</th>
-              <th className="px-6 py-6 border-b border-gray-100 text-center">Stakeholders</th>
-              <th className="px-6 py-6 border-b border-gray-100 text-center">Biaya Item</th>
-              <th className="px-8 py-6 border-b border-gray-100 text-right">Manajemen</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white">
-            {data.length > 0 ? data.map((req, index) => {
-              const qtyNum = parseFloat(req.qty) || 0;
-              const unitPrice = parseFloat(req.price) || 0;
-              const totalRow = qtyNum * unitPrice;
-              const isSelected = selectedIds.includes(req.id);
-              
-              const dateCreated = new Date(req.createdAt).toLocaleDateString('id-ID', {
-                day: '2-digit', month: 'short', year: 'numeric'
-              });
-              
-              const receiverName = req.receipts?.[0]?.receivedBy || req.receivedBy || "Belum Diterima";
+        <div className="hidden md:block overflow-x-auto">
+          <table className="w-full text-left border-separate border-spacing-0">
+            <thead>
+              <tr className="text-gray-400 text-[10px] font-black uppercase tracking-[0.2em] bg-gray-50/50">
+                <th className="px-6 py-6 w-16 text-center border-b border-gray-100">
+                  <button 
+                    onClick={toggleSelectAll} 
+                    className="text-gray-300 hover:text-blue-600 transition-colors"
+                  >
+                    {selectedIds.length > 0 && selectedIds.length === currentData.filter(r => !r.isReceived).length 
+                      ? <CheckSquare size={18} className="text-blue-600" /> 
+                      : <Square size={18} />
+                    }
+                  </button>
+                </th>
+                <th className="px-4 py-6 border-b border-gray-100">PO & Supplier</th>
+                <th className="px-6 py-6 border-b border-gray-100">Detail Item</th>
+                <th className="px-6 py-6 border-b border-gray-100 text-center">Stakeholders</th>
+                <th className="px-6 py-6 border-b border-gray-100 text-center">Biaya Item</th>
+                <th className="px-8 py-6 border-b border-gray-100 text-right">Manajemen</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white">
+              {currentData.length > 0 ? currentData.map((req, index) => {
+                const qtyNum = parseFloat(req.qty) || 0;
+                const unitPrice = parseFloat(req.price) || 0;
+                const totalRow = qtyNum * unitPrice;
+                const isSelected = selectedIds.includes(req.id);
+                
+                const dateCreated = new Date(req.createdAt).toLocaleDateString('id-ID', {
+                  day: '2-digit', month: 'short', year: 'numeric'
+                });
+                
+                const receiverName = req.receipts?.[0]?.receivedBy || req.receivedBy || "Belum Diterima";
+                const isFirstInGroup = index === 0 || req.noPO !== currentData[index - 1].noPO;
 
-              const isFirstInGroup = index === 0 || req.noPO !== data[index - 1].noPO;
-
-              return (
-                <tr 
-                  key={req.id} 
-                  className={`transition-all group ${getRowStyle(req.noPO, isSelected)} ${isFirstInGroup && index !== 0 ? 'border-t-2 border-gray-100' : ''}`}
-                >
-                  <td className={`px-6 py-6 text-center border-b border-gray-50 ${isFirstInGroup ? 'pt-8' : 'pt-4'}`}>
-                    {!req.isReceived ? (
-                      <button 
-                        onClick={() => toggleSelect(req.id)}
-                        className={`transition-colors ${isSelected ? 'text-blue-600' : 'text-gray-200 group-hover:text-gray-400'}`}
-                      >
-                        {isSelected ? <CheckSquare size={20} strokeWidth={2.5} /> : <Square size={20} />}
-                      </button>
-                    ) : (
-                      <div className="text-green-500/40 flex justify-center">
-                        <PackageCheck size={20} />
-                      </div>
-                    )}
-                  </td>
+                return (
+                  <tr 
+                    key={req.id} 
+                    className={`transition-all group ${getRowStyle(isSelected)} ${isFirstInGroup && index !== 0 ? 'border-t-2 border-gray-100' : ''}`}
+                  >
+                    <td className={`px-6 py-6 text-center border-b border-gray-50 ${isFirstInGroup ? 'pt-8' : 'pt-4'}`}>
+                      {!req.isReceived ? (
+                        <button 
+                          onClick={() => toggleSelect(req.id)}
+                          className={`transition-colors ${isSelected ? 'text-blue-600' : 'text-gray-200 group-hover:text-gray-400'}`}
+                        >
+                          {isSelected ? <CheckSquare size={20} strokeWidth={2.5} /> : <Square size={20} />}
+                        </button>
+                      ) : (
+                        <div className="text-green-500/40 flex justify-center">
+                          <PackageCheck size={20} />
+                        </div>
+                      )}
+                    </td>
 
                   <td className={`px-4 py-6 border-b border-gray-50 ${isFirstInGroup ? 'pt-8' : 'pt-4'}`}>
                     <div className="flex flex-col gap-1.5">
@@ -160,21 +175,21 @@ const PurchasingTable = ({ data, onStatusUpdate, onDelete, onPrint, onBulkStatus
                     </div>
                   </td>
 
-                  <td className={`px-6 py-6 border-b border-gray-50 ${isFirstInGroup ? 'pt-8' : 'pt-4'}`}>
-                    <div className="flex flex-col gap-1.5">
-                      <span className="font-black text-gray-900 uppercase text-[13px] tracking-tight group-hover:text-blue-600 transition-colors">{req.item}</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] bg-gray-900 text-white px-2 py-0.5 rounded-md font-black italic">
-                          {qtyNum.toLocaleString('id-ID')} {req.unit || 'KG'}
-                        </span>
-                        <span className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-black border uppercase ${
-                          req.type === 'STOCKS' ? 'text-indigo-600 border-indigo-100 bg-indigo-50' : 'text-purple-600 border-purple-100 bg-purple-50'
-                        }`}>
-                          <Layers size={10} /> {req.type || 'STOCKS'}
-                        </span>
+                    <td className={`px-6 py-6 border-b border-gray-50 ${isFirstInGroup ? 'pt-8' : 'pt-4'}`}>
+                      <div className="flex flex-col gap-1.5">
+                        <span className="font-black text-gray-900 uppercase text-[13px] tracking-tight group-hover:text-blue-600 transition-colors">{req.item}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] bg-gray-900 text-white px-2 py-0.5 rounded-md font-black italic">
+                            {qtyNum.toLocaleString('id-ID')} {req.unit || 'KG'}
+                          </span>
+                          <span className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-black border uppercase ${
+                            req.type === 'STOCKS' ? 'text-indigo-600 border-indigo-100 bg-indigo-50' : 'text-purple-600 border-purple-100 bg-purple-50'
+                          }`}>
+                            <Layers size={10} /> {req.type || 'STOCKS'}
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                  </td>
+                    </td>
 
                   <td className={`px-6 py-6 text-center border-b border-gray-50 ${isFirstInGroup ? 'pt-8' : 'pt-4'}`}>
                     <div className="inline-flex flex-col gap-1.5 items-center min-w-[120px]">
@@ -273,31 +288,31 @@ const PurchasingTable = ({ data, onStatusUpdate, onDelete, onPrint, onBulkStatus
         </table>
       </div>
 
-      <div className="md:hidden divide-y divide-gray-50">
-        {data.length > 0 ? data.map((req) => (
-          <div key={req.id} className={`p-6 space-y-4 transition-all ${selectedIds.includes(req.id) ? 'bg-blue-50' : 'active:bg-gray-50'}`}>
-            <div className="flex justify-between items-start">
-              <div className="flex gap-3">
-                {!req.isReceived && (
-                  <button onClick={() => toggleSelect(req.id)} className="mt-1">
-                    {selectedIds.includes(req.id) ? <CheckSquare size={22} className="text-blue-600" /> : <Square size={22} className="text-gray-200" />}
-                  </button>
-                )}
-                <div className="space-y-1">
-                  <span className="text-blue-600 font-black text-[9px] uppercase italic bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
-                    {req.noPO || "PENDING"}
-                  </span>
-                  <h4 className="font-black text-gray-900 text-[15px] uppercase tracking-tight leading-tight">{req.item}</h4>
-                  <p className="text-[10px] text-gray-500 font-bold uppercase italic tracking-tight">{req.supplier}</p>
+        <div className="md:hidden divide-y divide-gray-50">
+          {currentData.length > 0 ? currentData.map((req) => (
+            <div key={req.id} className={`p-6 space-y-4 transition-all ${selectedIds.includes(req.id) ? 'bg-blue-50' : 'active:bg-gray-50'}`}>
+              <div className="flex justify-between items-start">
+                <div className="flex gap-3">
+                  {!req.isReceived && (
+                    <button onClick={() => toggleSelect(req.id)} className="mt-1">
+                      {selectedIds.includes(req.id) ? <CheckSquare size={22} className="text-blue-600" /> : <Square size={22} className="text-gray-200" />}
+                    </button>
+                  )}
+                  <div className="space-y-1">
+                    <span className="text-blue-600 font-black text-[9px] uppercase italic bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
+                      {req.noPO || "PENDING"}
+                    </span>
+                    <h4 className="font-black text-gray-900 text-[15px] uppercase tracking-tight leading-tight">{req.item}</h4>
+                    <p className="text-[10px] text-gray-500 font-bold uppercase italic tracking-tight">{req.supplier}</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-black text-gray-900 italic tracking-tighter">
+                    Rp {((parseFloat(req.qty)||0) * (parseFloat(req.price)||0)).toLocaleString('id-ID')}
+                  </p>
+                  <p className="text-[10px] font-black text-blue-600 uppercase mt-1">{req.qty} {req.unit}</p>
                 </div>
               </div>
-              <div className="text-right">
-                <p className="text-sm font-black text-gray-900 italic tracking-tighter">
-                  Rp {((parseFloat(req.qty)||0) * (parseFloat(req.price)||0)).toLocaleString('id-ID')}
-                </p>
-                <p className="text-[10px] font-black text-blue-600 uppercase mt-1">{req.qty} {req.unit}</p>
-              </div>
-            </div>
 
             {req.isReceived && (
               <div className="bg-blue-50/50 p-3 rounded-2xl border border-blue-100 flex items-center justify-between">
@@ -306,32 +321,42 @@ const PurchasingTable = ({ data, onStatusUpdate, onDelete, onPrint, onBulkStatus
               </div>
             )}
 
-            <div className="flex gap-2 pt-2">
-              {(req.status === 'APPROVED' || req.isReceived) && (
-                <button onClick={() => onPrint(req)} className="flex-1 py-3 bg-white border border-blue-100 text-blue-600 rounded-2xl text-[10px] font-black uppercase italic flex items-center justify-center gap-2">
-                  <Printer size={14} /> Print
+              <div className="flex gap-2 pt-2">
+                {(req.status === 'APPROVED' || req.isReceived) && (
+                  <button onClick={() => onPrint(req)} className="flex-1 py-3 bg-white border border-blue-100 text-blue-600 rounded-2xl text-[10px] font-black uppercase italic flex items-center justify-center gap-2">
+                    <Printer size={14} /> Print
+                  </button>
+                )}
+                {isAuthorized && !req.isReceived && (
+                  <button 
+                    onClick={() => onStatusUpdate(req.id, req.status === 'APPROVED' ? 'PENDING' : 'APPROVED')} 
+                    className={`flex-[2] py-3 rounded-2xl text-[10px] font-black uppercase italic tracking-widest shadow-lg ${
+                      req.status === 'APPROVED' ? 'bg-orange-50 text-orange-600 border border-orange-100' : 'bg-green-600 text-white shadow-green-200'
+                    }`}
+                  >
+                    {req.status === 'APPROVED' ? 'Revoke' : 'Approve'}
+                  </button>
+                )}
+                <button onClick={() => onDelete(req.id)} className="p-3 bg-gray-50 text-gray-300 rounded-2xl border border-gray-100">
+                  <Trash2 size={18} />
                 </button>
-              )}
-              {isAuthorized && !req.isReceived && (
-                <button 
-                  onClick={() => onStatusUpdate(req.id, req.status === 'APPROVED' ? 'PENDING' : 'APPROVED')} 
-                  className={`flex-[2] py-3 rounded-2xl text-[10px] font-black uppercase italic tracking-widest shadow-lg ${
-                    req.status === 'APPROVED' ? 'bg-orange-50 text-orange-600 border border-orange-100' : 'bg-green-600 text-white shadow-green-200'
-                  }`}
-                >
-                  {req.status === 'APPROVED' ? 'Revoke' : 'Approve'}
-                </button>
-              )}
-              <button onClick={() => onDelete(req.id)} className="p-3 bg-gray-50 text-gray-300 rounded-2xl border border-gray-100">
-                <Trash2 size={18} />
-              </button>
+              </div>
             </div>
-          </div>
-        )) : (
-          <div className="p-20 text-center text-gray-400 text-[10px] font-black uppercase tracking-widest italic">
-            Empty Records
-          </div>
-        )}
+          )) : (
+            <div className="p-20 text-center text-gray-400 text-[10px] font-black uppercase tracking-widest italic">
+              Empty Records
+            </div>
+          )}
+        </div>
+
+        <Pagination 
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={(page) => {
+            setCurrentPage(page);
+            setSelectedIds([]);
+          }}
+        />
       </div>
     </div>
   );

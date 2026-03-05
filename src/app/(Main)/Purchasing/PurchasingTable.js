@@ -9,6 +9,8 @@ import {
   UserCheck
 } from 'lucide-react';
 
+import Pagination from '@/app/(Main)/Components/Pagination';
+
 const PurchasingTable = ({ 
   data, 
   onStatusUpdate, 

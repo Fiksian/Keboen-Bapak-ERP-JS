@@ -24,7 +24,7 @@ const PurchasingTable = ({
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6; 
 
-  const isAuthorized = ["Admin"].includes(session?.user?.role);
+  const isAuthorized = ["Admin", "Test"].includes(session?.user?.role);
 
   const totalPages = Math.ceil(data.length / itemsPerPage);
   const indexOfLastItem = currentPage * itemsPerPage;

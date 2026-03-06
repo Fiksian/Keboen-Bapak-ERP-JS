@@ -4,15 +4,15 @@ import React, { useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { 
   Hash, Building2, CalendarDays, User, ShieldCheck, 
-  Truck, Printer, RotateCcw, Trash2, PackageCheck, Info,
-  Layers, ShoppingBag, CheckSquare, Square, Check, ArrowDownRight,
+  Printer, Trash2, PackageCheck, Info,
+  Layers, CheckSquare, Square, Check, ArrowDownRight,
   UserCheck
 } from 'lucide-react';
 
 import Pagination from '@/app/(Main)/Components/Pagination';
 
 const PurchasingTable = ({ 
-  data, 
+  data = [], 
   onStatusUpdate, 
   onDelete, 
   onPrint, 
@@ -39,6 +39,7 @@ const PurchasingTable = ({
   };
 
   const toggleSelectAll = () => {
+    if (!isAuthorized) return;
     const selectableItems = currentData.filter(req => !req.isReceived);
     if (selectedIds.length === selectableItems.length) {
       setSelectedIds([]);
@@ -47,7 +48,7 @@ const PurchasingTable = ({
     }
   };
 
-  const getRowStyle = (noPO, isSelected) => {
+  const getRowStyle = (isSelected) => {
     if (isSelected) return 'bg-blue-100/50 shadow-inner';
     return 'hover:bg-gray-50/50';
   };
@@ -56,7 +57,7 @@ const PurchasingTable = ({
     <div className="flex flex-col h-full">
       <div className="w-full bg-white rounded-[32px] border border-gray-100 shadow-sm overflow-hidden transition-all flex flex-col">
         
-        {selectedIds.length > 0 && (
+        {selectedIds.length > 0 && isAuthorized && (
           <div className="bg-slate-900 px-8 py-4 flex justify-between items-center animate-in slide-in-from-top duration-300 sticky top-0 z-20 shadow-2xl">
             <div className="flex items-center gap-3">
               <div className="bg-orange-500 p-1.5 rounded-lg text-white">
@@ -94,15 +95,17 @@ const PurchasingTable = ({
             <thead>
               <tr className="text-gray-400 text-[10px] font-black uppercase tracking-[0.2em] bg-gray-50/50">
                 <th className="px-6 py-6 w-16 text-center border-b border-gray-100">
-                  <button 
-                    onClick={toggleSelectAll} 
-                    className="text-gray-300 hover:text-blue-600 transition-colors"
-                  >
-                    {selectedIds.length > 0 && selectedIds.length === currentData.filter(r => !r.isReceived).length 
-                      ? <CheckSquare size={18} className="text-blue-600" /> 
-                      : <Square size={18} />
-                    }
-                  </button>
+                  {isAuthorized && (
+                    <button 
+                      onClick={toggleSelectAll} 
+                      className="text-gray-300 hover:text-blue-600 transition-colors"
+                    >
+                      {selectedIds.length > 0 && selectedIds.length === currentData.filter(r => !r.isReceived).length 
+                        ? <CheckSquare size={18} className="text-blue-600" /> 
+                        : <Square size={18} />
+                      }
+                    </button>
+                  )}
                 </th>
                 <th className="px-4 py-6 border-b border-gray-100">PO & Supplier</th>
                 <th className="px-6 py-6 border-b border-gray-100">Detail Item</th>
@@ -131,7 +134,7 @@ const PurchasingTable = ({
                     className={`transition-all group ${getRowStyle(isSelected)} ${isFirstInGroup && index !== 0 ? 'border-t-2 border-gray-100' : ''}`}
                   >
                     <td className={`px-6 py-6 text-center border-b border-gray-50 ${isFirstInGroup ? 'pt-8' : 'pt-4'}`}>
-                      {!req.isReceived ? (
+                      {isAuthorized && !req.isReceived ? (
                         <button 
                           onClick={() => toggleSelect(req.id)}
                           className={`transition-colors ${isSelected ? 'text-blue-600' : 'text-gray-200 group-hover:text-gray-400'}`}
@@ -145,37 +148,37 @@ const PurchasingTable = ({
                       )}
                     </td>
 
-                  <td className={`px-4 py-6 border-b border-gray-50 ${isFirstInGroup ? 'pt-8' : 'pt-4'}`}>
-                    <div className="flex flex-col gap-1.5">
-                      {isFirstInGroup ? (
-                        <>
-                          <div className="flex items-center gap-2">
-                            <span className="font-black text-blue-600 text-[10px] italic tracking-tighter bg-blue-50 px-2 py-1 rounded-lg border border-blue-100 uppercase flex items-center gap-1">
-                              <Hash size={10} strokeWidth={3} /> {req.noPO || "PENDING"}
+                    <td className={`px-4 py-6 border-b border-gray-50 ${isFirstInGroup ? 'pt-8' : 'pt-4'}`}>
+                      <div className="flex flex-col gap-1.5">
+                        {isFirstInGroup ? (
+                          <>
+                            <div className="flex items-center gap-2">
+                              <span className="font-black text-blue-600 text-[10px] italic tracking-tighter bg-blue-50 px-2 py-1 rounded-lg border border-blue-100 uppercase flex items-center gap-1">
+                                <Hash size={10} strokeWidth={3} /> {req.noPO || "PENDING"}
+                              </span>
+                              <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase ${
+                                req.status === 'APPROVED' ? 'bg-green-100 text-green-700' : 
+                                req.status === 'RECEIVED' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'
+                              }`}>
+                                {req.status}
+                              </span>
+                            </div>
+                            <span className="flex items-center gap-1.5 font-black text-gray-800 text-[12px] uppercase tracking-tight">
+                              <Building2 size={13} className="text-gray-300" /> 
+                              <span className="truncate max-w-[150px]">{req.supplier || "Supplier Umum"}</span>
                             </span>
-                            <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase ${
-                              req.status === 'APPROVED' ? 'bg-green-100 text-green-700' : 
-                              req.status === 'RECEIVED' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'
-                            }`}>
-                              {req.status}
-                            </span>
+                          </>
+                        ) : (
+                          <div className="flex items-center gap-2 text-gray-300 ml-2">
+                             <ArrowDownRight size={14} />
+                             <span className="text-[9px] font-black uppercase tracking-widest">Same PO Transaction</span>
                           </div>
-                          <span className="flex items-center gap-1.5 font-black text-gray-800 text-[12px] uppercase tracking-tight">
-                            <Building2 size={13} className="text-gray-300" /> 
-                            <span className="truncate max-w-[150px]">{req.supplier || "Supplier Umum"}</span>
-                          </span>
-                        </>
-                      ) : (
-                        <div className="flex items-center gap-2 text-gray-300 ml-2">
-                           <ArrowDownRight size={14} />
-                           <span className="text-[9px] font-black uppercase tracking-widest">Same PO Transaction</span>
-                        </div>
-                      )}
-                      <span className="flex items-center gap-1 text-[9px] text-gray-400 font-bold uppercase tracking-widest italic ml-1">
-                        <CalendarDays size={10} /> {dateCreated}
-                      </span>
-                    </div>
-                  </td>
+                        )}
+                        <span className="flex items-center gap-1 text-[9px] text-gray-400 font-bold uppercase tracking-widest italic ml-1">
+                          <CalendarDays size={10} /> {dateCreated}
+                        </span>
+                      </div>
+                    </td>
 
                     <td className={`px-6 py-6 border-b border-gray-50 ${isFirstInGroup ? 'pt-8' : 'pt-4'}`}>
                       <div className="flex flex-col gap-1.5">
@@ -193,109 +196,110 @@ const PurchasingTable = ({
                       </div>
                     </td>
 
-                  <td className={`px-6 py-6 text-center border-b border-gray-50 ${isFirstInGroup ? 'pt-8' : 'pt-4'}`}>
-                    <div className="inline-flex flex-col gap-1.5 items-center min-w-[120px]">
-                      <div className="flex items-center gap-2 text-[9px] font-bold text-gray-500 bg-white px-3 py-1.5 rounded-xl border border-gray-100 w-full justify-start shadow-sm" title={`Requested By: ${req.requestedBy}`}>
-                        <User size={10} className="text-blue-500 shrink-0" />
-                        <span className="uppercase truncate">{req.requestedBy || "USER"}</span>
+                    <td className={`px-6 py-6 text-center border-b border-gray-50 ${isFirstInGroup ? 'pt-8' : 'pt-4'}`}>
+                      <div className="inline-flex flex-col gap-1.5 items-center min-w-[120px]">
+                        <div className="flex items-center gap-2 text-[9px] font-bold text-gray-500 bg-white px-3 py-1.5 rounded-xl border border-gray-100 w-full justify-start shadow-sm" title={`Requested By: ${req.requestedBy}`}>
+                          <User size={10} className="text-blue-500 shrink-0" />
+                          <span className="uppercase truncate">{req.requestedBy || "USER"}</span>
+                        </div>
+                        
+                        {(req.status === 'APPROVED' || req.status === 'RECEIVED') ? (
+                          <div className="flex items-center gap-2 text-[9px] font-bold text-green-600 bg-green-50 px-3 py-1.5 rounded-xl border border-green-100 w-full justify-start" title={`Approved By: ${req.approvedBy || "ADMIN"}`}>
+                            <ShieldCheck size={10} className="shrink-0" />
+                            <span className="uppercase truncate">{req.approvedBy || "ADMIN"}</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 text-[9px] font-bold text-orange-500 bg-orange-50 px-3 py-1.5 rounded-xl border border-orange-100 animate-pulse w-full justify-center">
+                            <Info size={10} className="shrink-0" />
+                            <span className="uppercase">WAITING</span>
+                          </div>
+                        )}
+
+                        {req.isReceived && (
+                          <div className="flex items-center gap-2 text-[9px] font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-xl border border-blue-100 w-full justify-start" title={`Received By: ${receiverName}`}>
+                            <UserCheck size={10} className="shrink-0" />
+                            <span className="uppercase truncate">{receiverName}</span>
+                          </div>
+                        )}
                       </div>
-                      
-                      {req.status === 'APPROVED' || req.status === 'RECEIVED' ? (
-                        <div className="flex items-center gap-2 text-[9px] font-bold text-green-600 bg-green-50 px-3 py-1.5 rounded-xl border border-green-100 w-full justify-start" title={`Approved By: ${req.approvedBy || "ADMIN"}`}>
-                          <ShieldCheck size={10} className="shrink-0" />
-                          <span className="uppercase truncate">{req.approvedBy || "ADMIN"}</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-2 text-[9px] font-bold text-orange-500 bg-orange-50 px-3 py-1.5 rounded-xl border border-orange-100 animate-pulse w-full justify-center">
-                          <Info size={10} className="shrink-0" />
-                          <span className="uppercase">WAITING</span>
-                        </div>
-                      )}
+                    </td>
 
-                      {req.isReceived && (
-                        <div className="flex items-center gap-2 text-[9px] font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-xl border border-blue-100 w-full justify-start" title={`Received By: ${receiverName}`}>
-                          <UserCheck size={10} className="shrink-0" />
-                          <span className="uppercase truncate">{receiverName}</span>
-                        </div>
-                      )}
-                    </div>
-                  </td>
+                    <td className={`px-6 py-6 text-center border-b border-gray-50 ${isFirstInGroup ? 'pt-8' : 'pt-4'}`}>
+                      <div className="inline-flex flex-col items-center">
+                        <span className="text-[14px] font-black text-gray-900 italic tracking-tighter">
+                          Rp {totalRow.toLocaleString('id-ID')}
+                        </span>
+                        <span className="text-[8px] text-gray-400 font-black uppercase tracking-widest mt-0.5">
+                          {qtyNum.toLocaleString('id-ID')} x {unitPrice.toLocaleString('id-ID')}
+                        </span>
+                      </div>
+                    </td>
 
-                  <td className={`px-6 py-6 text-center border-b border-gray-50 ${isFirstInGroup ? 'pt-8' : 'pt-4'}`}>
-                    <div className="inline-flex flex-col items-center">
-                      <span className="text-[14px] font-black text-gray-900 italic tracking-tighter">
-                        Rp {totalRow.toLocaleString('id-ID')}
-                      </span>
-                      <span className="text-[8px] text-gray-400 font-black uppercase tracking-widest mt-0.5">
-                        {qtyNum.toLocaleString('id-ID')} x {unitPrice.toLocaleString('id-ID')}
-                      </span>
-                    </div>
-                  </td>
+                    <td className={`px-8 py-6 text-right border-b border-gray-50 ${isFirstInGroup ? 'pt-8' : 'pt-4'}`}>
+                      <div className="flex justify-end items-center gap-2">
+                        {(req.status === 'APPROVED' || req.isReceived) && (
+                          <button 
+                            onClick={() => onPrint(req)} 
+                            className="p-2.5 text-blue-600 hover:bg-blue-600 hover:text-white rounded-xl transition-all border border-blue-100 bg-white shadow-sm active:scale-90"
+                          >
+                            <Printer size={18} />
+                          </button>
+                        )}
 
-                  <td className={`px-8 py-6 text-right border-b border-gray-50 ${isFirstInGroup ? 'pt-8' : 'pt-4'}`}>
-                    <div className="flex justify-end items-center gap-2">
-                      {(req.status === 'APPROVED' || req.isReceived) && (
-                        <button 
-                          onClick={() => onPrint(req)} 
-                          className="p-2.5 text-blue-600 hover:bg-blue-600 hover:text-white rounded-xl transition-all border border-blue-100 bg-white shadow-sm active:scale-90"
-                        >
-                          <Printer size={18} />
-                        </button>
-                      )}
-
-                      {req.isReceived ? (
-                        <div className="flex items-center gap-2 text-green-600 font-black text-[10px] bg-green-50 px-4 py-2.5 rounded-2xl border border-green-100 uppercase italic shadow-sm">
-                          <PackageCheck size={16} /> RECEIVED
-                        </div>
-                      ) : (
-                        <div className="flex gap-2">
-                          {isAuthorized ? (
-                            <>
-                              <button 
-                                onClick={() => onStatusUpdate(req.id, req.status === 'APPROVED' ? 'PENDING' : 'APPROVED')} 
-                                className={`px-5 py-2.5 text-[10px] font-black rounded-xl transition-all shadow-sm uppercase italic active:scale-95 ${
-                                  req.status === 'APPROVED' 
-                                  ? 'bg-white text-orange-600 border border-orange-100 hover:bg-orange-50' 
-                                  : 'bg-green-600 text-white hover:bg-green-700 shadow-green-100'
-                                }`}
-                              >
-                                {req.status === 'APPROVED' ? 'Revoke' : 'Approve'}
-                              </button>
-                              <button 
-                                onClick={() => onDelete(req.id)} 
-                                className="p-2.5 text-gray-300 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
-                              >
-                                <Trash2 size={18} />
-                              </button>
-                            </>
-                          ) : (
-                            <span className="text-[10px] font-black uppercase text-gray-400 italic bg-gray-50 px-4 py-2 rounded-xl border border-gray-100 tracking-widest">
-                              {req.status}
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </div>
+                        {req.isReceived ? (
+                          <div className="flex items-center gap-2 text-green-600 font-black text-[10px] bg-green-50 px-4 py-2.5 rounded-2xl border border-green-100 uppercase italic shadow-sm">
+                            <PackageCheck size={16} /> RECEIVED
+                          </div>
+                        ) : (
+                          <div className="flex gap-2">
+                            {isAuthorized ? (
+                              <>
+                                <button 
+                                  onClick={() => onStatusUpdate(req.id, req.status === 'APPROVED' ? 'PENDING' : 'APPROVED')} 
+                                  className={`px-5 py-2.5 text-[10px] font-black rounded-xl transition-all shadow-sm uppercase italic active:scale-95 ${
+                                    req.status === 'APPROVED' 
+                                    ? 'bg-white text-orange-600 border border-orange-100 hover:bg-orange-50' 
+                                    : 'bg-green-600 text-white hover:bg-green-700 shadow-green-100'
+                                  }`}
+                                >
+                                  {req.status === 'APPROVED' ? 'Revoke' : 'Approve'}
+                                </button>
+                                <button 
+                                  onClick={() => onDelete(req.id)} 
+                                  className="p-2.5 text-gray-300 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                                >
+                                  <Trash2 size={18} />
+                                </button>
+                              </>
+                            ) : (
+                              <span className="text-[10px] font-black uppercase text-gray-400 italic bg-gray-50 px-4 py-2 rounded-xl border border-gray-100 tracking-widest">
+                                {req.status}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              }) : (
+                <tr>
+                  <td colSpan="6" className="p-32 text-center text-gray-300 font-black uppercase tracking-widest italic">
+                    No Procurement Found
                   </td>
                 </tr>
-              );
-            }) : (
-              <tr>
-                <td colSpan="6" className="p-32 text-center text-gray-300 font-black uppercase tracking-widest italic">
-                  No Procurement Found
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+              )}
+            </tbody>
+          </table>
+        </div>
 
+        {/* MOBILE VIEW */}
         <div className="md:hidden divide-y divide-gray-50">
           {currentData.length > 0 ? currentData.map((req) => (
             <div key={req.id} className={`p-6 space-y-4 transition-all ${selectedIds.includes(req.id) ? 'bg-blue-50' : 'active:bg-gray-50'}`}>
               <div className="flex justify-between items-start">
                 <div className="flex gap-3">
-                  {!req.isReceived && (
+                  {isAuthorized && !req.isReceived && (
                     <button onClick={() => toggleSelect(req.id)} className="mt-1">
                       {selectedIds.includes(req.id) ? <CheckSquare size={22} className="text-blue-600" /> : <Square size={22} className="text-gray-200" />}
                     </button>
@@ -312,16 +316,16 @@ const PurchasingTable = ({
                   <p className="text-sm font-black text-gray-900 italic tracking-tighter">
                     Rp {((parseFloat(req.qty)||0) * (parseFloat(req.price)||0)).toLocaleString('id-ID')}
                   </p>
-                  <p className="text-[10px] font-black text-blue-600 uppercase mt-1">{req.qty} {req.unit}</p>
+                  <p className="text-[10px] font-black text-blue-600 uppercase mt-1">{req.qty} {req.unit || 'KG'}</p>
                 </div>
               </div>
 
-            {req.isReceived && (
-              <div className="bg-blue-50/50 p-3 rounded-2xl border border-blue-100 flex items-center justify-between">
-                <span className="text-[9px] font-black text-blue-700 uppercase italic">Received By:</span>
-                <span className="text-[10px] font-black text-gray-800 uppercase">{req.receipts?.[0]?.receivedBy || req.receivedBy}</span>
-              </div>
-            )}
+              {req.isReceived && (
+                <div className="bg-blue-50/50 p-3 rounded-2xl border border-blue-100 flex items-center justify-between">
+                  <span className="text-[9px] font-black text-blue-700 uppercase italic">Received By:</span>
+                  <span className="text-[10px] font-black text-gray-800 uppercase">{req.receipts?.[0]?.receivedBy || req.receivedBy}</span>
+                </div>
+              )}
 
               <div className="flex gap-2 pt-2">
                 {(req.status === 'APPROVED' || req.isReceived) && (
@@ -339,9 +343,11 @@ const PurchasingTable = ({
                     {req.status === 'APPROVED' ? 'Revoke' : 'Approve'}
                   </button>
                 )}
-                <button onClick={() => onDelete(req.id)} className="p-3 bg-gray-50 text-gray-300 rounded-2xl border border-gray-100">
-                  <Trash2 size={18} />
-                </button>
+                {isAuthorized && (
+                  <button onClick={() => onDelete(req.id)} className="p-3 bg-gray-50 text-gray-300 rounded-2xl border border-gray-100">
+                    <Trash2 size={18} />
+                  </button>
+                )}
               </div>
             </div>
           )) : (

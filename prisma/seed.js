@@ -149,7 +149,7 @@ async function main() {
           where: { name: item.name },
           update: {},
           create: {
-            name: item.name,
+            name: item.name.toLocaleUpperCase(),
             category: item.cat,
             stock: 0,
             unit: 'KG',
@@ -159,46 +159,7 @@ async function main() {
         });
       }
 
-      // 5. SEED PURCHASING
-      const existingPO = await tx.purchasing.findFirst({
-        where: { noPO: 'PO-2026-001' },
-      });
-
-      if (!existingPO) {
-        await tx.purchasing.create({
-          data: {
-            noPO: 'PO-2026-001',
-            item: 'Pakan Ayam Starter',
-            qty: 1000,
-            unit: 'KG',
-            price: '1000000',
-            category: 'Feed',
-            supplier: 'PT Pakan Jaya',
-            requestedBy: adminUsername,
-            status: PurchaseStatus.PENDING,
-          },
-        });
-      }
-
-      // 6. SEED PRODUCTION
-      await tx.production.upsert({
-        where: { noBatch: 'BATCH-001' },
-        update: {},
-        create: {
-          noBatch: 'BATCH-001',
-          productName: 'Telur Ayam Grade A',
-          targetQty: 100,
-          status: ProductionStatus.SCHEDULLING,
-          createdBy: adminUsername,
-          components: {
-            create: [
-              { itemName: 'Pakan Ayam Starter', qtyNeeded: 50, unit: 'KG' },
-            ],
-          },
-        },
-      });
-
-      // 7. SEED TASK
+      // 5. SEED TASK
       const existingTask = await tx.task.findFirst({
         where: { title: 'Cek kesehatan ayam kandang A' },
       });
@@ -215,7 +176,7 @@ async function main() {
         });
       }
 
-      // 8. SEED TRANSACTION
+      // 6. SEED TRANSACTION
       const existingTrx = await tx.transaction.findFirst({
         where: { trxNo: 'TRX-INIT-2026' },
       });

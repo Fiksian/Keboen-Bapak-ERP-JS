@@ -1,188 +1,192 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   ArrowLeft, Plus, Trash2, Save, 
   Warehouse, ShoppingBag, Factory, History, CheckCircle2,
-  TrendingUp, TrendingDown, Loader2, X
+  TrendingUp, TrendingDown, Loader2, X, Calendar, AlertTriangle, Search
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 const FeedmillPage = () => {
   const router = useRouter();
   
-  // State untuk Kontrol Modal
-  const [activeModal, setActiveModal] = useState(null); // 'INTERNAL' | 'EXTERNAL' | null
-
-  // State untuk Penggunaan Bahan Baku (Internal)
-  const [internalUsage, setInternalUsage] = useState([
-    { id: Date.now(), kode: '', nama: '', jenis: 'Sapi Perah', qty: 0, harga: 0 }
-  ]);
-
-  // State untuk Pengeluaran Barang (External)
-  const [externalSales, setExternalSales] = useState([
-    { id: Date.now() + 1, customer: '', jenis: 'Sapi Perah', kode: '', berat: 0, harga: 0 }
-  ]);
-
-  // State untuk Histori
-  const [historyLogs, setHistoryLogs] = useState([
-    { id: 1, type: 'INTERNAL', date: '2024-05-20 09:00', item: 'JAGUNG GILING', qty: '500 Kg', total: 'Rp 2.500.000', status: 'Success' },
-    { id: 2, type: 'EXTERNAL', date: '2024-05-20 10:30', item: 'KONSENTRAT A (CV. TERNAK)', qty: '1.200 Kg', total: 'Rp 8.400.000', status: 'Success' },
-  ]);
-
+  // State Kontrol Modal
+  const [activeModal, setActiveModal] = useState(null); // 'INTERNAL', 'EXTERNAL', 'HISTORY'
   const [isSaving, setIsSaving] = useState(false);
+  const [historySearch, setHistorySearch] = useState("");
 
-  const getCurrentDateTime = () => {
-    const now = new Date();
-    return now.toLocaleString('id-ID', { 
-      year: 'numeric', month: '2-digit', day: '2-digit', 
-      hour: '2-digit', minute: '2-digit' 
-    }).replace(/\//g, '-');
+  // --- DATA MASTER INVENTORY ---
+  const [inventoryData, setInventoryData] = useState([
+    { id: 1, category: 'BAHAN BAKU', item: 'JAGUNG GILING', saldoAwal: 10000, produksi: 2000, pengeluaran: 1500, harga: 5000 },
+    { id: 2, category: 'BAHAN BAKU', item: 'BUNGKIL KEDELAI', saldoAwal: 5000, produksi: 0, pengeluaran: 800, harga: 12000 },
+    { id: 3, category: 'KONSENTRAT', item: 'KONSENTRAT SAPI PERAH', saldoAwal: 8000, produksi: 3000, pengeluaran: 4000, harga: 7500 },
+    { id: 4, category: 'KONSENTRAT', item: 'KONSENTRAT PEDET', saldoAwal: 2000, produksi: 500, pengeluaran: 200, harga: 8000 },
+  ]);
+
+  // --- LOGIKA KALKULASI ---
+  const calculatedStats = useMemo(() => {
+    return inventoryData.map(item => {
+      const saldoAkhir = (item.saldoAwal + item.produksi) - item.pengeluaran;
+      const pemakaianPerHari = (item.produksi + item.pengeluaran) / 30;
+      const umurStok = pemakaianPerHari > 0 ? Math.floor(saldoAkhir / pemakaianPerHari) : 0;
+      return { ...item, saldoAkhir, pemakaianPerHari, umurStok };
+    });
+  }, [inventoryData]);
+
+  // --- STATE FORM INPUT ---
+  const [formData, setFormData] = useState([]);
+
+  // --- STATE HISTORY ---
+  const [historyLogs, setHistoryLogs] = useState([
+    { id: 1, type: 'INTERNAL', date: '2024-05-20 09:00', item: 'JAGUNG GILING', qty: '500 Kg', total: 'Rp 2.500.000' },
+    { id: 2, type: 'EXTERNAL', date: '2024-05-20 10:45', item: 'KONSENTRAT SAPI PERAH', qty: '1.200 Kg', total: 'Rp 9.000.000' },
+  ]);
+
+  const filteredHistory = useMemo(() => {
+    return historyLogs.filter(log => 
+      log.item.toLowerCase().includes(historySearch.toLowerCase()) ||
+      log.type.toLowerCase().includes(historySearch.toLowerCase())
+    );
+  }, [historyLogs, historySearch]);
+
+  // Fungsi Modal
+  const openModal = (type) => {
+    setActiveModal(type);
+    if (type !== 'HISTORY') {
+      setFormData([{ 
+        id: Date.now(), 
+        targetItem: inventoryData[0].item, 
+        qty: 0, 
+        customer: type === 'EXTERNAL' ? '' : 'INTERNAL PRODUCTION' 
+      }]);
+    }
   };
 
   const handleFinalizeReport = () => {
-    const type = activeModal;
     setIsSaving(true);
-
     setTimeout(() => {
-      const newEntries = [];
+      const newInventory = [...inventoryData];
+      const newLogs = [];
 
-      if (type === 'INTERNAL') {
-        internalUsage.forEach(item => {
-          if (item.nama && item.qty > 0) {
-            newEntries.push({
-              id: `INT-${Date.now()}-${Math.random()}`,
-              type: 'INTERNAL',
-              date: getCurrentDateTime(),
-              item: item.nama.toUpperCase(),
-              qty: `${item.qty} Kg`,
-              total: `Rp ${(item.qty * item.harga).toLocaleString('id-ID')}`,
-              status: 'Success'
-            });
-          }
-        });
-        setInternalUsage([{ id: Date.now(), kode: '', nama: '', jenis: 'Sapi Perah', qty: 0, harga: 0 }]);
-      } else {
-        externalSales.forEach(item => {
-          if (item.kode && item.berat > 0) {
-            newEntries.push({
-              id: `EXT-${Date.now()}-${Math.random()}`,
-              type: 'EXTERNAL',
-              date: getCurrentDateTime(),
-              item: `${item.jenis.toUpperCase()} (${item.customer || 'PELANGGAN'})`,
-              qty: `${item.berat} Kg`,
-              total: `Rp ${(item.berat * item.harga).toLocaleString('id-ID')}`,
-              status: 'Success'
-            });
-          }
-        });
-        setExternalSales([{ id: Date.now() + 1, customer: '', jenis: 'Sapi Perah', kode: '', berat: 0, harga: 0 }]);
-      }
+      formData.forEach(formItem => {
+        if (formItem.qty <= 0) return;
+        const itemIndex = newInventory.findIndex(inv => inv.item === formItem.targetItem);
+        if (itemIndex !== -1) {
+          if (activeModal === 'INTERNAL') newInventory[itemIndex].produksi += formItem.qty;
+          else newInventory[itemIndex].pengeluaran += formItem.qty;
 
-      setHistoryLogs(prev => [...newEntries, ...prev]);
+          newLogs.push({
+            id: Date.now() + Math.random(),
+            type: activeModal,
+            date: new Date().toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' }),
+            item: formItem.targetItem,
+            qty: `${formItem.qty} Kg`,
+            total: `Rp ${(formItem.qty * newInventory[itemIndex].harga).toLocaleString('id-ID')}`
+          });
+        }
+      });
+
+      setInventoryData(newInventory);
+      setHistoryLogs(prev => [...newLogs, ...prev]);
       setIsSaving(false);
       setActiveModal(null);
-    }, 800);
+    }, 1000);
   };
-
-  const handleInternalChange = (id, field, value) => {
-    setInternalUsage(prev => prev.map(item => item.id === id ? { ...item, [field]: value } : item));
-  };
-
-  const handleExternalChange = (id, field, value) => {
-    setExternalSales(prev => prev.map(item => item.id === id ? { ...item, [field]: value } : item));
-  };
-
-  const calculateTotal = (qty, harga) => (qty * harga).toLocaleString('id-ID');
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6 md:p-12 text-gray-900 font-sans">
+    <div className="min-h-screen bg-[#F8FAFC] p-6 md:p-12 text-gray-900 font-sans">
       <div className="max-w-7xl mx-auto">
         
-        {/* Header Section */}
+        {/* HEADER */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
           <div className="space-y-4">
             <button onClick={() => router.back()} className="group flex items-center gap-3 px-4 py-2 bg-white rounded-2xl shadow-sm border border-gray-100 hover:bg-gray-50 transition-all">
               <ArrowLeft size={16} className="text-gray-400 group-hover:text-[#8da070]" />
               <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 italic">Back</span>
             </button>
-            <div>
-              <h1 className="text-4xl font-black text-gray-900 uppercase italic tracking-tighter flex items-center gap-4">
-                <div className="p-3 bg-[#8da070] text-white rounded-2xl shadow-lg shadow-[#8da070]/20">
-                  <Factory size={32} />
-                </div>
-                Feedmill Division
-              </h1>
-              <p className="text-xs text-gray-500 font-bold uppercase tracking-[0.2em] mt-2 ml-1">Log & Monitoring Produksi</p>
-            </div>
+            <h1 className="text-4xl font-black text-gray-900 uppercase italic tracking-tighter flex items-center gap-4">
+              <div className="p-3 bg-[#8da070] text-white rounded-2xl shadow-lg shadow-[#8da070]/20">
+                <Factory size={32} />
+              </div>
+              Feedmill Inventory
+            </h1>
           </div>
 
-          {/* Action Buttons to Open Modals */}
           <div className="flex flex-wrap gap-4">
-            <button 
-              onClick={() => setActiveModal('INTERNAL')}
-              className="px-6 py-4 bg-blue-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg flex items-center gap-3 active:scale-95 italic"
-            >
-              <Warehouse size={18} />
-              Input Bahan Baku
+            <button onClick={() => openModal('INTERNAL')} className="px-6 py-4 bg-blue-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg flex items-center gap-3 active:scale-95 italic">
+              <Warehouse size={18} /> Update Stok
             </button>
-            <button 
-              onClick={() => setActiveModal('EXTERNAL')}
-              className="px-6 py-4 bg-orange-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-orange-600 transition-all shadow-lg flex items-center gap-3 active:scale-95 italic"
-            >
-              <ShoppingBag size={18} />
-              Input Pengeluaran
+            <button onClick={() => openModal('EXTERNAL')} className="px-6 py-4 bg-orange-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-orange-600 transition-all shadow-lg flex items-center gap-3 active:scale-95 italic">
+              <ShoppingBag size={18} /> Input Keluar
             </button>
           </div>
         </div>
 
-        {/* MAIN CONTENT: HISTORY LOGS */}
-        <section className="bg-white rounded-[2.5rem] border border-gray-100 shadow-xl overflow-hidden mb-20">
-          <div className="p-8 border-b border-gray-50 bg-gray-900 flex justify-between items-center">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 bg-[#8da070] text-white rounded-xl flex items-center justify-center">
-                <History size={20} />
+        {/* SUMMARY CARDS */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+          {calculatedStats.map((item) => (
+            <div key={item.id} className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm relative overflow-hidden group">
+              <div className="flex justify-between items-start mb-4">
+                <div className={`p-2 rounded-lg ${item.category === 'KONSENTRAT' ? 'bg-orange-50 text-orange-500' : 'bg-blue-50 text-blue-500'}`}>
+                  {item.category === 'KONSENTRAT' ? <ShoppingBag size={20} /> : <Warehouse size={20} />}
+                </div>
+                <div className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-tighter ${item.umurStok < 7 ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>
+                  Stock: {item.umurStok} Days
+                </div>
               </div>
-              <div>
-                <h2 className="font-black uppercase tracking-tight italic text-lg text-white">History Transaksi</h2>
-                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Feedmill Activity Logs</p>
+              <h3 className="font-black text-sm uppercase italic text-gray-400 mb-1">{item.category}</h3>
+              <p className="font-black text-lg text-gray-900 uppercase leading-none mb-4">{item.item}</p>
+              <div className="flex items-end justify-between">
+                <div>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Saldo Akhir</p>
+                  <p className="text-2xl font-black text-gray-900 tabular-nums">{item.saldoAkhir.toLocaleString()} <span className="text-xs">Kg</span></p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest italic">Usage/Day</p>
+                  <p className="font-bold text-gray-900">{item.pemakaianPerHari.toFixed(1)} <span className="text-[10px]">Kg</span></p>
+                </div>
               </div>
             </div>
-          </div>
+          ))}
+        </div>
 
+        {/* KARTU STOK TABLE */}
+        <section className="bg-white rounded-[2.5rem] border border-gray-100 shadow-xl overflow-hidden mb-12">
+          <div className="p-8 bg-gray-900 flex justify-between items-center text-white">
+            <div className="flex items-center gap-4">
+              <Calendar size={20} className="text-[#8da070]" />
+              <h2 className="font-black uppercase tracking-tight italic text-lg">Kartu Stok Terkini</h2>
+            </div>
+            <button onClick={() => openModal('HISTORY')} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[#8da070] hover:brightness-125 transition-all">
+               Lihat Detail Log <History size={14}/>
+            </button>
+          </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full text-left">
               <thead>
-                <tr className="bg-gray-50 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 border-b border-gray-100">
-                  <th className="px-8 py-6">Status</th>
-                  <th className="px-6 py-6">Tipe</th>
-                  <th className="px-6 py-6">Tanggal & Waktu</th>
-                  <th className="px-6 py-6">Item / Deskripsi</th>
-                  <th className="px-6 py-6 text-center">Jumlah (Qty)</th>
-                  <th className="px-6 py-6 text-right">Total Nominal</th>
+                <tr className="bg-gray-50 text-[10px] font-black uppercase tracking-widest text-gray-400 border-b border-gray-100">
+                  <th className="px-8 py-6">Nama Barang</th>
+                  <th className="px-6 py-6 text-center">Awal</th>
+                  <th className="px-6 py-6 text-center text-blue-600">Masuk (+)</th>
+                  <th className="px-6 py-6 text-center text-orange-600">Keluar (-)</th>
+                  <th className="px-6 py-6 text-center">Akhir</th>
+                  <th className="px-8 py-6 text-right">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {historyLogs.map((log) => (
-                  <tr key={log.id} className="group hover:bg-gray-50/80 transition-all cursor-default">
-                    <td className="px-8 py-5">
-                      <div className="flex items-center gap-2">
-                        <CheckCircle2 size={16} className="text-[#8da070]" />
-                        <span className="text-[10px] font-black uppercase text-gray-900">{log.status}</span>
-                      </div>
+                {calculatedStats.map((item) => (
+                  <tr key={item.id} className="group hover:bg-gray-50/80 transition-all font-bold">
+                    <td className="px-8 py-5 text-gray-900 uppercase italic text-sm">{item.item}</td>
+                    <td className="px-6 py-5 text-center text-gray-400 tabular-nums">{item.saldoAwal.toLocaleString()}</td>
+                    <td className="px-6 py-5 text-center text-blue-600 tabular-nums">+{item.produksi.toLocaleString()}</td>
+                    <td className="px-6 py-5 text-center text-orange-600 tabular-nums">-{item.pengeluaran.toLocaleString()}</td>
+                    <td className="px-6 py-5 text-center text-gray-900 font-black tabular-nums">{item.saldoAkhir.toLocaleString()}</td>
+                    <td className="px-8 py-5 text-right">
+                      <span className={`text-[10px] font-black uppercase italic ${item.umurStok < 7 ? 'text-red-500 animate-pulse' : 'text-[#8da070]'}`}>
+                        {item.umurStok < 7 ? 'Low Stock' : 'Safe'}
+                      </span>
                     </td>
-                    <td className="px-6 py-5">
-                      <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-tighter ${
-                        log.type === 'INTERNAL' ? 'bg-blue-50 text-blue-600' : 'bg-orange-50 text-orange-600'
-                      }`}>
-                        {log.type === 'INTERNAL' ? <TrendingDown size={12} /> : <TrendingUp size={12} />}
-                        {log.type}
-                      </div>
-                    </td>
-                    <td className="px-6 py-5 text-xs font-bold text-gray-400 tabular-nums">{log.date}</td>
-                    <td className="px-6 py-5 text-sm font-black text-gray-700 uppercase italic">{log.item}</td>
-                    <td className="px-6 py-5 text-center"><span className="text-sm font-bold text-gray-900">{log.qty}</span></td>
-                    <td className="px-6 py-5 text-right font-black text-sm text-[#8da070]">{log.total}</td>
                   </tr>
                 ))}
               </tbody>
@@ -190,151 +194,138 @@ const FeedmillPage = () => {
           </div>
         </section>
 
-        {/* MODAL COMPONENT */}
+        {/* MODAL SISTEM (Dinamis) */}
         {activeModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
-            <div className="bg-white w-full max-w-5xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 max-h-[90vh] flex flex-col">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className={`bg-white w-full ${activeModal === 'HISTORY' ? 'max-w-5xl' : 'max-w-4xl'} rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]`}>
               
               {/* Modal Header */}
-              <div className="p-8 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+              <div className="p-8 border-b flex justify-between items-center bg-gray-50/50">
                 <div className="flex items-center gap-4">
-                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg ${activeModal === 'INTERNAL' ? 'bg-blue-600' : 'bg-orange-500'}`}>
-                    {activeModal === 'INTERNAL' ? <Warehouse size={24} /> : <ShoppingBag size={24} />}
+                  <div className={`p-3 rounded-2xl text-white ${activeModal === 'HISTORY' ? 'bg-[#8da070]' : activeModal === 'INTERNAL' ? 'bg-blue-600' : 'bg-orange-500'}`}>
+                    {activeModal === 'HISTORY' ? <History size={24}/> : activeModal === 'INTERNAL' ? <Warehouse size={24}/> : <ShoppingBag size={24}/>}
                   </div>
                   <div>
-                    <h2 className="text-2xl font-black uppercase italic tracking-tight">
-                      {activeModal === 'INTERNAL' ? 'Input Penggunaan Bahan Baku' : 'Input Pengeluaran Barang'}
+                    <h2 className="text-2xl font-black uppercase italic tracking-tighter">
+                      {activeModal === 'HISTORY' ? 'Riwayat Transaksi' : activeModal === 'INTERNAL' ? 'Update Produksi' : 'Input Penjualan'}
                     </h2>
                     <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
-                      {activeModal === 'INTERNAL' ? 'Produksi Internal / Konsentrat' : 'Customer & External Sales'}
+                      {activeModal === 'HISTORY' ? 'Data aktivitas keluar masuk stok' : 'Entry data logbook inventory'}
                     </p>
                   </div>
                 </div>
-                <button 
-                  onClick={() => setActiveModal(null)}
-                  className="p-3 bg-white border border-gray-100 rounded-full text-gray-400 hover:text-red-500 transition-all shadow-sm"
-                >
-                  <X size={20} />
-                </button>
+                <button onClick={() => setActiveModal(null)} className="p-2 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-full transition-all"><X size={24}/></button>
               </div>
 
-              {/* Modal Body - Scrollable */}
+              {/* Modal Body */}
               <div className="p-8 overflow-y-auto flex-grow">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-gray-50/50 text-[10px] font-black uppercase tracking-widest text-gray-400 border-b border-gray-100">
-                      <th className="px-4 py-4">Jenis Konsentrat</th>
-                      {activeModal === 'EXTERNAL' && <th className="px-4 py-4">Nama Customer</th>}
-                      <th className="px-4 py-4">Kode Barang</th>
-                      {activeModal === 'INTERNAL' && <th className="px-4 py-4">Nama Barang</th>}
-                      <th className="px-4 py-4 text-center">{activeModal === 'INTERNAL' ? 'Qty (Kg)' : 'Berat (Kg)'}</th>
-                      <th className="px-4 py-4 text-right">Harga/Kg</th>
-                      <th className="px-4 py-4 text-right">Total</th>
-                      <th className="px-4 py-4"></th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-50">
-                    {(activeModal === 'INTERNAL' ? internalUsage : externalSales).map((item) => (
-                      <tr key={item.id} className="group hover:bg-gray-50/30">
-                        <td className="py-4">
-                          <select 
-                            className="bg-gray-50 border-none outline-none font-bold text-xs uppercase italic p-2 rounded-lg"
-                            value={item.jenis} 
-                            onChange={(e) => activeModal === 'INTERNAL' ? handleInternalChange(item.id, 'jenis', e.target.value) : handleExternalChange(item.id, 'jenis', e.target.value)}
-                          >
-                            <option>Sapi Perah</option>
-                            <option>Penggemukan</option>
-                            <option>Pedet</option>
-                          </select>
-                        </td>
-                        {activeModal === 'EXTERNAL' && (
-                          <td className="py-4">
-                            <input 
-                              placeholder="Nama Customer"
-                              className="w-full bg-transparent font-bold text-sm outline-none"
-                              value={item.customer} onChange={(e) => handleExternalChange(item.id, 'customer', e.target.value)}
-                            />
-                          </td>
-                        )}
-                        <td className="py-4">
-                          <input 
-                            placeholder="KODE"
-                            className={`w-full bg-transparent font-bold text-sm outline-none uppercase ${activeModal === 'INTERNAL' ? 'text-blue-600' : 'text-orange-600'}`}
-                            value={item.kode} onChange={(e) => activeModal === 'INTERNAL' ? handleInternalChange(item.id, 'kode', e.target.value) : handleExternalChange(item.id, 'kode', e.target.value)}
-                          />
-                        </td>
-                        {activeModal === 'INTERNAL' && (
-                          <td className="py-4">
-                            <input 
-                              placeholder="Nama Barang"
-                              className="w-full bg-transparent font-bold text-sm outline-none"
-                              value={item.nama} onChange={(e) => handleInternalChange(item.id, 'nama', e.target.value)}
-                            />
-                          </td>
-                        )}
-                        <td className="py-4">
-                          <input 
-                            type="number"
-                            className="w-20 mx-auto block bg-white border border-gray-100 rounded-lg py-2 px-1 text-center font-black text-sm outline-none"
-                            value={activeModal === 'INTERNAL' ? item.qty : item.berat} 
-                            onChange={(e) => activeModal === 'INTERNAL' ? handleInternalChange(item.id, 'qty', parseFloat(e.target.value) || 0) : handleExternalChange(item.id, 'berat', parseFloat(e.target.value) || 0)}
-                          />
-                        </td>
-                        <td className="py-4 text-right font-bold text-xs text-gray-400 italic">
-                          Rp {item.harga.toLocaleString('id-ID')}
-                        </td>
-                        <td className="py-4 text-right font-black text-sm text-gray-900 italic">
-                          Rp {calculateTotal(activeModal === 'INTERNAL' ? item.qty : item.berat, item.harga)}
-                        </td>
-                        <td className="py-4 text-right">
-                          <button 
-                            onClick={() => {
-                              if (activeModal === 'INTERNAL') setInternalUsage(internalUsage.filter(i => i.id !== item.id));
-                              else setExternalSales(externalSales.filter(i => i.id !== item.id));
-                            }}
-                            className="text-red-300 hover:text-red-500 transition-all"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-
-                <button 
-                  onClick={() => {
-                    const newItem = { id: Date.now(), kode: '', nama: '', jenis: 'Sapi Perah', qty: 0, berat: 0, customer: '', harga: 0 };
-                    if (activeModal === 'INTERNAL') setInternalUsage([...internalUsage, newItem]);
-                    else setExternalSales([...externalSales, newItem]);
-                  }}
-                  className="mt-4 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[#8da070] hover:bg-[#8da070]/5 p-2 rounded-xl transition-all"
-                >
-                  <Plus size={14} /> Add New Row
-                </button>
+                {activeModal === 'HISTORY' ? (
+                  /* Tampilan KHUSUS MODAL HISTORY */
+                  <div className="space-y-6">
+                    <div className="relative">
+                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18}/>
+                      <input 
+                        type="text" 
+                        placeholder="Cari item atau tipe transaksi..." 
+                        className="w-full pl-12 pr-4 py-4 bg-gray-50 rounded-2xl border-none font-bold text-sm outline-none focus:ring-2 focus:ring-[#8da070]/20"
+                        value={historySearch}
+                        onChange={(e) => setHistorySearch(e.target.value)}
+                      />
+                    </div>
+                    <div className="overflow-hidden border border-gray-100 rounded-2xl">
+                      <table className="w-full text-left">
+                        <thead>
+                          <tr className="bg-gray-50 text-[10px] font-black uppercase text-gray-400 border-b">
+                            <th className="px-6 py-4">Waktu</th>
+                            <th className="px-6 py-4">Tipe</th>
+                            <th className="px-6 py-4">Item</th>
+                            <th className="px-6 py-4">Jumlah</th>
+                            <th className="px-6 py-4 text-right">Total Nilai</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-50">
+                          {filteredHistory.length > 0 ? filteredHistory.map(log => (
+                            <tr key={log.id} className="hover:bg-gray-50 transition-colors">
+                              <td className="px-6 py-4 text-[11px] font-bold text-gray-400 tabular-nums">{log.date}</td>
+                              <td className="px-6 py-4">
+                                <span className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase ${log.type === 'INTERNAL' ? 'bg-blue-50 text-blue-600' : 'bg-orange-50 text-orange-600'}`}>
+                                  {log.type}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 font-black text-sm uppercase italic">{log.item}</td>
+                              <td className="px-6 py-4 font-bold text-gray-900 tabular-nums">{log.qty}</td>
+                              <td className="px-6 py-4 text-right font-black text-[#8da070] tabular-nums">{log.total}</td>
+                            </tr>
+                          )) : (
+                            <tr>
+                              <td colSpan="5" className="px-6 py-20 text-center text-gray-400 font-bold uppercase italic">Data tidak ditemukan</td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ) : (
+                  /* Tampilan FORM INPUT */
+                  <>
+                    <table className="w-full text-left">
+                      <thead>
+                        <tr className="text-[10px] font-black uppercase text-gray-400 border-b pb-2">
+                          <th>Pilih Item</th>
+                          {activeModal === 'EXTERNAL' && <th>Customer</th>}
+                          <th className="text-center">Jumlah (Kg)</th>
+                          <th className="text-right">Aksi</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {formData.map((row) => (
+                          <tr key={row.id} className="border-b border-gray-50">
+                            <td className="py-4">
+                              <select 
+                                className="bg-gray-50 p-2 rounded-lg font-bold text-sm outline-none w-full"
+                                value={row.targetItem}
+                                onChange={(e) => setFormData(formData.map(r => r.id === row.id ? {...r, targetItem: e.target.value} : r))}
+                              >
+                                {inventoryData.map(inv => <option key={inv.id} value={inv.item}>{inv.item}</option>)}
+                              </select>
+                            </td>
+                            {activeModal === 'EXTERNAL' && (
+                              <td className="py-4 px-2">
+                                <input placeholder="Nama Pembeli" className="bg-transparent border-b border-gray-200 font-bold text-sm outline-none w-full uppercase" onChange={(e) => setFormData(formData.map(r => r.id === row.id ? {...r, customer: e.target.value} : r))}/>
+                              </td>
+                            )}
+                            <td className="py-4">
+                              <input type="number" className="w-24 mx-auto block bg-gray-100 rounded-lg py-2 text-center font-black outline-none focus:ring-2 focus:ring-blue-500" onChange={(e) => setFormData(formData.map(r => r.id === row.id ? {...r, qty: parseFloat(e.target.value) || 0} : r))}/>
+                            </td>
+                            <td className="py-4 text-right">
+                              <button onClick={() => setFormData(formData.filter(r => r.id !== row.id))} className="text-red-300 hover:text-red-500"><Trash2 size={18}/></button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    <button onClick={() => setFormData([...formData, { id: Date.now(), targetItem: inventoryData[0].item, qty: 0 }])} className="mt-4 flex items-center gap-2 text-[10px] font-black uppercase text-[#8da070]"><Plus size={16}/> Add Row</button>
+                  </>
+                )}
               </div>
 
               {/* Modal Footer */}
-              <div className="p-8 border-t border-gray-50 bg-gray-50/30 flex justify-end gap-4">
-                <button 
-                  onClick={() => setActiveModal(null)}
-                  className="px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest text-gray-400 hover:text-gray-900 transition-all"
-                >
-                  Cancel
-                </button>
-                <button 
-                  onClick={handleFinalizeReport}
-                  disabled={isSaving}
-                  className={`px-8 py-3 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] transition-all shadow-lg flex items-center gap-3 active:scale-95 italic ${activeModal === 'INTERNAL' ? 'bg-blue-600' : 'bg-orange-500'} text-white`}
-                >
-                  {isSaving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
-                  {isSaving ? 'Processing...' : 'Verify & Save Log'}
-                </button>
+              <div className="p-8 bg-gray-50/50 border-t flex justify-end gap-4">
+                <button onClick={() => setActiveModal(null)} className="font-black text-[10px] uppercase text-gray-400">Tutup</button>
+                {activeModal !== 'HISTORY' && (
+                  <button 
+                    onClick={handleFinalizeReport}
+                    disabled={isSaving}
+                    className={`px-10 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest text-white shadow-lg flex items-center gap-3 active:scale-95 ${activeModal === 'INTERNAL' ? 'bg-blue-600' : 'bg-orange-500'}`}
+                  >
+                    {isSaving ? <Loader2 className="animate-spin" size={16}/> : <Save size={16}/>}
+                    {isSaving ? 'Processing...' : 'Simpan Data'}
+                  </button>
+                )}
               </div>
             </div>
           </div>
         )}
-
       </div>
     </div>
   );

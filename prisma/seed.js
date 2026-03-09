@@ -139,9 +139,9 @@ async function main() {
       console.log('--- Seeding Data Warehouse: Bahan Baku ---');
 
       const allBahanBaku = [
-        ...bahanBakuMakro.map(n => ({ name: n, cat: 'BAHAN BAKU - MAKRO' })),
-        ...bahanBakuMikro.map(n => ({ name: n, cat: 'BAHAN BAKU - MIKRO' })),
-        ...bahanBakuHijauan.map(n => ({ name: n, cat: 'BAHAN BAKU - HIJAUAN' }))
+        ...bahanBakuMakro.map(n => ({ name: n, cat: 'MAKRO' })),
+        ...bahanBakuMikro.map(n => ({ name: n, cat: 'MIKRO' })),
+        ...bahanBakuHijauan.map(n => ({ name: n, cat: 'HIJAUAN' }))
       ];
 
       for (const item of allBahanBaku) {

@@ -11,21 +11,12 @@ async function main() {
   const testUsers = [
     {
       email: "staff1@test.com",
-      username: "staff_satu",
-      password: "password123",
+      username: "sali",
+      password: "Kebun2026!",
       role: "Staff",
       firstName: "Test",
       lastName: "Staff One",
       staffId: "STF-001",
-    },
-    {
-      email: "staff2@test.com",
-      username: "staff_dua",
-      password: "password123",
-      role: "Staff",
-      firstName: "Test",
-      lastName: "Staff Two",
-      staffId: "STF-002",
     },
   ];
 
@@ -36,7 +27,8 @@ async function main() {
   try {
     await prisma.$transaction(async (tx) => {
 
-      const user = await tx.user.upsert({
+      // 1. SEED ADMIN USER
+      const adminUser = await tx.user.upsert({
         where: { email: adminEmail },
         update: { password: hashedPassword },
         create: {
@@ -51,7 +43,7 @@ async function main() {
         where: { email: adminEmail },
         update: { updatedAt: new Date() },
         create: {
-          id: user.id,
+          id: adminUser.id,
           email: adminEmail,
           firstName: "Super",
           lastName: "Admin",
@@ -63,6 +55,7 @@ async function main() {
         },
       });
 
+      // 2. SEED TEST USERS
       for (const testData of testUsers) {
         const hashedTestPassword = await bcrypt.hash(testData.password, 10);
 
@@ -94,6 +87,7 @@ async function main() {
         });
       }
 
+      // 3. SEED CONTACTS
       await tx.contact.upsert({
         where: { email: 'supplier.pakan@email.com' },
         update: {},
@@ -118,19 +112,54 @@ async function main() {
         },
       });
 
-      await tx.stock.upsert({
-        where: { name: 'Pakan Ayam Starter' },
-        update: {},
-        create: {
-          name: 'Pakan Ayam Starter',
-          category: 'Feed',
-          stock: 500,
-          unit: 'KG',
-          type: 'STOCKS',
-          price: '15000',
-        },
-      });
+      // 4. SEED WAREHOUSE (STOCKS)
+      const bahanBakuMakro = [
+        "Dedak", "Polard", "Bungkil Kedelai", "Bungkil Kelapa", "Bungkil Sawit", 
+        "Onggok", "Gaplek", "Menir Jagung", "Kulit Kopi", "Molases", "Kulit Coklat", 
+        "CGF", "Biskuit", "Roti Giling", "Sekam Giling", "DDGS", "Ampas Kecap", 
+        "Habbatussauda", "Bungkil Abede", "Millet Putih", "Dust Pollard", "CGF Lokal", 
+        "Janggel Jagung Giling", "Jagung Pipil", "Homini Jagung", "Ampas Gandum", 
+        "Kulit Kacang Tanah", "Separator", "CSL"
+      ];
 
+      const bahanBakuMikro = [
+        "CaCO3 (Kapur)", "Urea", "Garam", "PREMIX", "Sydpro", "Natura", "GAA", 
+        "BEC Premix Advance", "T-Fibre Premix", "Betafine", "ESS 40", "DCP", 
+        "FINISHER", "Calsea Powder", "Socalphost", "PREMIX AJO - 01", "LIPTOMOLD", 
+        "Nutrigromos", "Betaine Hydrocil", "FENANZA", "BEC Premix Base", 
+        "Organic Chrome", "Lagantor ZDI 2", "Sodium Bicarbonat", "Premix Rum CST FPT", 
+        "Premix XPC", "CMR Dufafeed", "Paragin", "Amonium Sulfate", 
+        "BEC MIX BEEF BASE PLUS", "PSE-300 BASEMIX RUMINANT-AG", "PERFORMAX STARTER", 
+        "PERFORMAX GROWER", "BIOZIM", "PERFORMAX FINISHER", "SELENOMETHIONIN", 
+        "suenzym"
+      ];
+
+      const bahanBakuHijauan = ["SILASE"];
+
+      console.log('--- Seeding Data Warehouse: Bahan Baku ---');
+
+      const allBahanBaku = [
+        ...bahanBakuMakro.map(n => ({ name: n, cat: 'BAHAN BAKU - MAKRO' })),
+        ...bahanBakuMikro.map(n => ({ name: n, cat: 'BAHAN BAKU - MIKRO' })),
+        ...bahanBakuHijauan.map(n => ({ name: n, cat: 'BAHAN BAKU - HIJAUAN' }))
+      ];
+
+      for (const item of allBahanBaku) {
+        await tx.stock.upsert({
+          where: { name: item.name },
+          update: {},
+          create: {
+            name: item.name,
+            category: item.cat,
+            stock: 0,
+            unit: 'KG',
+            type: 'STOCKS',
+            price: '0',
+          },
+        });
+      }
+
+      // 5. SEED PURCHASING
       const existingPO = await tx.purchasing.findFirst({
         where: { noPO: 'PO-2026-001' },
       });
@@ -145,12 +174,13 @@ async function main() {
             price: '1000000',
             category: 'Feed',
             supplier: 'PT Pakan Jaya',
-            requestedBy: 'Admin',
+            requestedBy: adminUsername,
             status: PurchaseStatus.PENDING,
           },
         });
       }
 
+      // 6. SEED PRODUCTION
       await tx.production.upsert({
         where: { noBatch: 'BATCH-001' },
         update: {},
@@ -159,7 +189,7 @@ async function main() {
           productName: 'Telur Ayam Grade A',
           targetQty: 100,
           status: ProductionStatus.SCHEDULLING,
-          createdBy: 'Admin',
+          createdBy: adminUsername,
           components: {
             create: [
               { itemName: 'Pakan Ayam Starter', qtyNeeded: 50, unit: 'KG' },
@@ -168,6 +198,7 @@ async function main() {
         },
       });
 
+      // 7. SEED TASK
       const existingTask = await tx.task.findFirst({
         where: { title: 'Cek kesehatan ayam kandang A' },
       });
@@ -179,11 +210,12 @@ async function main() {
             time: '08:00',
             priority: 'High',
             category: 'Maintenance',
-            assignee: 'Admin',
+            assignee: adminUsername,
           },
         });
       }
 
+      // 8. SEED TRANSACTION
       const existingTrx = await tx.transaction.findFirst({
         where: { trxNo: 'TRX-INIT-2026' },
       });
@@ -193,16 +225,16 @@ async function main() {
           data: {
             trxNo: 'TRX-INIT-2026',
             category: 'Modal Awal',
-            amount: 50000000,
+            amount: 50000000.0,
             type: 'INCOME',
             method: 'BANK TRANSFER',
-            createdBy: 'Admin',
+            createdBy: adminUsername,
             description: 'Saldo awal operasional keboen bapak',
           },
         });
       }
 
-      console.log('✅ Seeding Selesai: Semua data berhasil dibuat.');
+      console.log('✅ Seeding Selesai: Semua data berhasil disesuaikan dengan schema.');
     });
   } catch (error) {
     console.error('❌ Gagal melakukan seeding:', error);

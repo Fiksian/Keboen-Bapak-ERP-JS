@@ -5,7 +5,10 @@ import AddStaff from './AddStaff';
 import StaffProfile from './StaffProfile';
 import SearchInput from '@/app/(Main)/Components/SeachInput'; 
 import Pagination from '@/app/(Main)/Components/Pagination';   
-import { Plus, Loader2, Users, RefreshCw, UserCircle, Shield, ChevronRight } from 'lucide-react';
+import { 
+  Plus, Loader2, Users, RefreshCw, UserCircle, 
+  Shield, ChevronRight, Trash2 
+} from 'lucide-react';
 import { useSession } from "next-auth/react";
 
 const StaffManager = () => {
@@ -55,6 +58,29 @@ const StaffManager = () => {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  const handleDelete = async (id, name) => {
+    if (window.confirm(`Are you sure you want to delete ${name}? This action cannot be undone.`)) {
+      try {
+        const res = await fetch(`/api/staff/${id}`, {
+          method: 'DELETE',
+        });
+
+        if (res.ok) {
+          setStaffData(prev => prev.filter(staff => staff.id !== id));
+          if (currentStaffTableData.length === 1 && currentPage > 1) {
+            setCurrentPage(currentPage - 1);
+          }
+        } else {
+          const errorData = await res.json();
+          alert(errorData.message || "Failed to delete staff.");
+        }
+      } catch (error) {
+        console.error("Delete Error:", error);
+        alert("An error occurred while deleting staff.");
+      }
+    }
+  };
 
   const filteredStaff = useMemo(() => {
     return staffData.filter(staff => {
@@ -200,12 +226,23 @@ const StaffManager = () => {
                       </div>
                     </td>
                     <td className="px-8 py-6 text-right">
-                      <button 
-                        onClick={() => handleViewDetails(staff)}
-                        className="px-5 py-2 bg-white border border-gray-200 text-gray-900 rounded-xl text-[10px] font-black uppercase italic hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all shadow-sm active:scale-90"
-                      >
-                        MANAGE
-                      </button>
+                      <div className="flex justify-end items-center gap-2">
+                        <button 
+                          onClick={() => handleViewDetails(staff)}
+                          className="px-5 py-2 bg-white border border-gray-200 text-gray-900 rounded-xl text-[10px] font-black uppercase italic hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all shadow-sm active:scale-90"
+                        >
+                          MANAGE
+                        </button>
+                        {userProfile?.role === 'Admin' && (
+                          <button 
+                            onClick={() => handleDelete(staff.id, `${staff.firstName} ${staff.lastName}`)}
+                            className="p-2.5 text-gray-300 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all active:scale-90"
+                            title="Delete Staff"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -217,10 +254,12 @@ const StaffManager = () => {
             {currentStaffTableData.map((staff, index) => (
               <div 
                 key={staff.id} 
-                onClick={() => handleViewDetails(staff)}
                 className="p-5 active:bg-blue-50 transition-colors flex items-center justify-between group"
               >
-                <div className="flex items-center gap-4">
+                <div 
+                  className="flex items-center gap-4 flex-1"
+                  onClick={() => handleViewDetails(staff)}
+                >
                   <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center font-black text-gray-400 text-xs">
                     {(currentPage - 1) * itemsPerPage + index + 1}
                   </div>
@@ -238,7 +277,25 @@ const StaffManager = () => {
                     </div>
                   </div>
                 </div>
-                <ChevronRight size={18} className="text-gray-300 group-hover:text-blue-500 transition-colors" />
+                
+                <div className="flex items-center gap-3">
+                  {userProfile?.role === 'Admin' && (
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(staff.id, `${staff.firstName} ${staff.lastName}`);
+                      }}
+                      className="p-2 text-gray-300 active:text-red-600"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  )}
+                  <ChevronRight 
+                    size={18} 
+                    className="text-gray-300 group-hover:text-blue-500 transition-colors" 
+                    onClick={() => handleViewDetails(staff)}
+                  />
+                </div>
               </div>
             ))}
           </div>

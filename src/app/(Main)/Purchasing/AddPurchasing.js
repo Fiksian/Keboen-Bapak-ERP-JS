@@ -4,7 +4,7 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { useSession } from 'next-auth/react';
 import { 
   X, ShoppingBag, CheckCircle2, Users, 
-  Loader2, Plus, Trash2, ChevronRight, Box
+  Loader2, Plus, Trash2, ChevronRight, Box, AlertCircle
 } from 'lucide-react';
 
 const AddPurchasing = ({ isOpen, onClose, onAdd }) => {
@@ -57,6 +57,19 @@ const AddPurchasing = ({ isOpen, onClose, onAdd }) => {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [activeRowId]);
+  
+  const isVendorValid = useMemo(() => {
+    return contacts.some(c => c.name.toUpperCase() === supplier.toUpperCase());
+  }, [supplier, contacts]);
+
+  const checkItemValidity = (itemName) => {
+    return stockMaster.some(s => s.name.toUpperCase() === itemName.toUpperCase());
+  };
+
+  const handleVendorChange = (e) => {
+    setSupplier(e.target.value);
+    setShowVendorDropdown(true);
+  };
 
   const filteredContacts = useMemo(() => {
     if (!supplier) return [];
@@ -65,11 +78,6 @@ const AddPurchasing = ({ isOpen, onClose, onAdd }) => {
       (c.companyName && c.companyName.toLowerCase().includes(supplier.toLowerCase()))
     ).slice(0, 8);
   }, [supplier, contacts]);
-
-  const handleVendorChange = (e) => {
-    setSupplier(e.target.value);
-    setShowVendorDropdown(true);
-  };
 
   const filteredStocks = useMemo(() => {
     if (!searchTerm) return [];
@@ -117,8 +125,9 @@ const AddPurchasing = ({ isOpen, onClose, onAdd }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
+    if (!isVendorValid || items.some(i => !checkItemValidity(i.item))) return;
 
+    setLoading(true);
     const payload = items.map(i => ({
       supplier: supplier.toUpperCase(),
       item: i.item.toUpperCase(),         
@@ -138,7 +147,6 @@ const AddPurchasing = ({ isOpen, onClose, onAdd }) => {
           headers: { 'Content-Type': 'application/json' }
         })
       );
-
       const results = await Promise.all(promises);
       if (results.every(res => res.ok)) {
         onAdd(); 
@@ -162,7 +170,7 @@ const AddPurchasing = ({ isOpen, onClose, onAdd }) => {
             <div className="p-3 bg-blue-600 rounded-2xl text-white"><ShoppingBag size={24} /></div>
             <div>
               <h2 className="text-xl font-black tracking-tight uppercase italic">Create Bulk PO</h2>
-              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1 italic">Database Real-time Sync</p>
+              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1 italic text-blue-600">Strict Database Mode Active</p>
             </div>
           </div>
           <button onClick={handleClose} className="p-2 hover:bg-gray-100 rounded-xl transition-all active:scale-95"><X size={24} className="text-gray-400" /></button>
@@ -170,29 +178,28 @@ const AddPurchasing = ({ isOpen, onClose, onAdd }) => {
 
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-5 sm:p-8 space-y-8 custom-scrollbar">
           
-          <div className="bg-blue-50/50 p-6 rounded-[24px] border border-blue-100/50 space-y-3 relative" ref={vendorRef}>
-            <label className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] italic ml-1 flex items-center gap-2">
-              <Users size={12} /> Vendor Utama
+          <div className={`p-6 rounded-[24px] border transition-all relative ${!isVendorValid && supplier ? 'bg-red-50 border-red-200' : 'bg-blue-50/50 border-blue-100/50'}`} ref={vendorRef}>
+            <label className={`text-[10px] font-black uppercase tracking-[0.2em] italic ml-1 flex items-center gap-2 ${!isVendorValid && supplier ? 'text-red-600' : 'text-blue-600'}`}>
+              <Users size={12} /> Vendor Utama {!isVendorValid && supplier && "(Data Tidak Terdaftar)"}
             </label>
-            <div className="relative">
+            <div className="relative mt-3">
               <input 
                 required 
                 autoComplete="off"
-                className="w-full bg-white border border-blue-200 rounded-2xl px-5 py-4 text-sm font-bold outline-none focus:ring-4 focus:ring-blue-100 transition-all uppercase" 
-                placeholder="Ketik Nama Vendor..." 
+                className={`w-full bg-white border rounded-2xl px-5 py-4 text-sm font-bold outline-none transition-all uppercase ${!isVendorValid && supplier ? 'border-red-300 focus:ring-4 focus:ring-red-100' : 'border-blue-200 focus:ring-4 focus:ring-blue-100'}`} 
+                placeholder="Cari & Pilih Vendor..." 
                 value={supplier}
                 onChange={handleVendorChange}
-                onFocus={() => supplier.length > 0 && setShowVendorDropdown(true)}
               />
               {showVendorDropdown && filteredContacts.length > 0 && (
                 <div className="absolute z-[200] left-0 right-0 mt-2 bg-white border border-gray-100 rounded-2xl shadow-2xl overflow-hidden max-h-[200px] overflow-y-auto">
                   {filteredContacts.map((c) => (
-                    <div key={c.id} onClick={() => { setSupplier(c.name); setShowVendorDropdown(false); }} className="px-5 py-4 border-b border-gray-50 hover:bg-blue-600 hover:text-white cursor-pointer flex justify-between items-center group transition-colors">
-                      <div className="text-left">
+                    <div key={c.id} onClick={() => { setSupplier(c.name); setShowVendorDropdown(false); }} className="px-5 py-4 border-b border-gray-50 hover:bg-blue-600 hover:text-white cursor-pointer flex justify-between items-center group transition-colors text-left">
+                      <div>
                         <p className="text-xs font-black uppercase italic">{c.name}</p>
-                        <p className="text-[9px] font-bold opacity-70 uppercase">{c.companyName || "Supplier"}</p>
+                        <p className="text-[9px] font-bold opacity-70 uppercase">{c.companyName || "Verified Supplier"}</p>
                       </div>
-                      <ChevronRight size={14} />
+                      <CheckCircle2 size={14} className="opacity-0 group-hover:opacity-100" />
                     </div>
                   ))}
                 </div>
@@ -209,75 +216,73 @@ const AddPurchasing = ({ isOpen, onClose, onAdd }) => {
             </div>
 
             <div className="space-y-4">
-              {items.map((row) => (
-                <div key={row.id} className="group relative bg-white border border-gray-100 p-5 rounded-[24px] shadow-sm hover:border-blue-300 transition-all">
-                  
-                  {items.length > 1 && (
-                    <button type="button" onClick={() => setItems(items.filter(i => i.id !== row.id))} className="absolute -top-2 -right-2 p-2 bg-red-50 text-red-500 rounded-full border border-red-100 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500 hover:text-white z-10">
-                      <Trash2 size={14} />
-                    </button>
-                  )}
-
-                  <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+              {items.map((row) => {
+                const isItemValid = checkItemValidity(row.item);
+                return (
+                  <div key={row.id} className={`group relative p-5 rounded-[24px] border transition-all ${!isItemValid && row.item ? 'bg-red-50 border-red-200' : 'bg-white border-gray-100 shadow-sm hover:border-blue-300'}`}>
                     
-                    <div className="md:col-span-4 space-y-1.5 text-left relative" ref={el => stockRefs.current[row.id] = el}>
-                      <p className="text-[9px] font-black text-gray-400 uppercase tracking-tighter ml-1">Nama Barang</p>
-                      <input 
-                        required
-                        autoComplete="off"
-                        className="w-full bg-gray-50 border border-transparent rounded-xl px-4 py-3 text-xs font-bold focus:bg-white focus:border-blue-200 outline-none uppercase"
-                        placeholder="Cari Barang..."
-                        value={row.item}
-                        onChange={(e) => handleItemInputChange(row.id, e.target.value)}
-                        onFocus={() => {
-                            if(row.item.length > 0) {
-                                setActiveRowId(row.id);
-                                setSearchTerm(row.item);
-                            }
-                        }}
-                      />
-                      
-                      {activeRowId === row.id && filteredStocks.length > 0 && (
-                        <div className="absolute z-[300] left-0 right-0 mt-2 bg-white border border-gray-200 rounded-2xl shadow-2xl max-h-[220px] overflow-y-auto animate-in fade-in slide-in-from-top-1">
-                          {filteredStocks.map((s) => (
-                            <div key={s.id} onClick={() => selectStockItem(row.id, s)} className="px-4 py-3 border-b border-gray-50 hover:bg-blue-600 hover:text-white cursor-pointer flex items-center gap-3 transition-colors group">
-                              <Box size={14} className="text-blue-400 group-hover:text-white" />
-                              <div className="text-left">
-                                <p className="text-[10px] font-black uppercase italic">{s.name}</p>
-                                <p className="text-[8px] font-bold opacity-70 uppercase">{s.category} | Stok: {s.stock} {s.unit}</p>
+                    {items.length > 1 && (
+                      <button type="button" onClick={() => setItems(items.filter(i => i.id !== row.id))} className="absolute -top-2 -right-2 p-2 bg-red-50 text-red-500 rounded-full border border-red-100 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500 hover:text-white z-10">
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                      <div className="md:col-span-4 space-y-1.5 text-left relative" ref={el => stockRefs.current[row.id] = el}>
+                        <p className={`text-[9px] font-black uppercase tracking-tighter ml-1 ${!isItemValid && row.item ? 'text-red-500' : 'text-gray-400'}`}>
+                          Nama Barang {!isItemValid && row.item && "(Not in DB)"}
+                        </p>
+                        <input 
+                          required
+                          autoComplete="off"
+                          className={`w-full border rounded-xl px-4 py-3 text-xs font-bold outline-none uppercase transition-all ${!isItemValid && row.item ? 'bg-white border-red-300 focus:ring-red-100' : 'bg-gray-50 border-transparent focus:bg-white focus:border-blue-200'}`}
+                          placeholder="Ketik & Pilih Barang..."
+                          value={row.item}
+                          onChange={(e) => handleItemInputChange(row.id, e.target.value)}
+                        />
+                        
+                        {activeRowId === row.id && filteredStocks.length > 0 && (
+                          <div className="absolute z-[300] left-0 right-0 mt-2 bg-white border border-gray-200 rounded-2xl shadow-2xl max-h-[220px] overflow-y-auto">
+                            {filteredStocks.map((s) => (
+                              <div key={s.id} onClick={() => selectStockItem(row.id, s)} className="px-4 py-3 border-b border-gray-50 hover:bg-blue-600 hover:text-white cursor-pointer flex items-center gap-3 transition-colors group text-left">
+                                <Box size={14} className="text-blue-400 group-hover:text-white" />
+                                <div>
+                                  <p className="text-[10px] font-black uppercase italic">{s.name}</p>
+                                  <p className="text-[8px] font-bold opacity-70 uppercase">{s.category} | Stok: {s.stock} {s.unit}</p>
+                                </div>
                               </div>
-                            </div>
-                          ))}
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="md:col-span-2 space-y-1.5 text-left">
+                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-tighter ml-1">Kategori</p>
+                        <input readOnly className="w-full bg-gray-100 border-none rounded-xl px-3 py-3 text-xs font-bold text-gray-400 cursor-not-allowed" value={row.category} />
+                      </div>
+
+                      <div className="md:col-span-3 grid grid-cols-2 gap-2">
+                        <div className="space-y-1.5 text-left">
+                          <p className="text-[9px] font-black text-gray-400 uppercase tracking-tighter ml-1">Qty</p>
+                          <input type="number" step="any" required className="w-full bg-gray-50 border-none rounded-xl px-3 py-3 text-xs font-bold focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none" value={row.qty} onChange={(e) => updateItem(row.id, 'qty', e.target.value)} />
                         </div>
-                      )}
-                    </div>
-
-                    <div className="md:col-span-2 space-y-1.5 text-left">
-                      <p className="text-[9px] font-black text-gray-400 uppercase tracking-tighter ml-1">Kategori</p>
-                      <input readOnly className="w-full bg-gray-100 border-none rounded-xl px-3 py-3 text-xs font-bold text-gray-400 cursor-not-allowed" value={row.category} />
-                    </div>
-
-                    <div className="md:col-span-3 grid grid-cols-2 gap-2">
-                      <div className="space-y-1.5 text-left">
-                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-tighter ml-1">Qty</p>
-                        <input type="number" step="any" required className="w-full bg-gray-50 border-none rounded-xl px-3 py-3 text-xs font-bold focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none" value={row.qty} onChange={(e) => updateItem(row.id, 'qty', e.target.value)} />
+                        <div className="space-y-1.5 text-left">
+                          <p className="text-[9px] font-black text-gray-400 uppercase tracking-tighter ml-1">Unit</p>
+                          <input readOnly className="w-full bg-gray-100 border-none rounded-xl px-3 py-3 text-xs font-bold text-gray-400 cursor-not-allowed" value={row.unit} />
+                        </div>
                       </div>
-                      <div className="space-y-1.5 text-left">
-                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-tighter ml-1">Unit</p>
-                        <input readOnly className="w-full bg-gray-100 border-none rounded-xl px-3 py-3 text-xs font-bold text-gray-400 cursor-not-allowed" value={row.unit} />
-                      </div>
-                    </div>
 
-                    <div className="md:col-span-3 space-y-1.5 text-left">
-                      <p className="text-[9px] font-black text-blue-600 uppercase tracking-tighter ml-1">Harga Satuan</p>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-gray-400">Rp</span>
-                        <input type="number" required className="w-full bg-blue-50/30 border-none rounded-xl pl-8 pr-3 py-3 text-xs font-bold focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none" value={row.price} onChange={(e) => updateItem(row.id, 'price', e.target.value)} />
+                      <div className="md:col-span-3 space-y-1.5 text-left">
+                        <p className="text-[9px] font-black text-blue-600 uppercase tracking-tighter ml-1">Harga Satuan</p>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-gray-400">Rp</span>
+                          <input type="number" required className="w-full bg-blue-50/30 border-none rounded-xl pl-8 pr-3 py-3 text-xs font-bold focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none" value={row.price} onChange={(e) => updateItem(row.id, 'price', e.target.value)} />
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </form>
@@ -292,13 +297,22 @@ const AddPurchasing = ({ isOpen, onClose, onAdd }) => {
               <button onClick={handleClose} className="flex-1 sm:flex-none px-8 py-4 rounded-2xl text-[11px] font-black uppercase italic text-gray-400 hover:bg-gray-50 transition-colors">Discard</button>
               <button 
                 onClick={handleSubmit} 
-                disabled={loading || !supplier || items.some(i => !i.item || i.qty <= 0)} 
+                disabled={
+                  loading || 
+                  !isVendorValid || 
+                  items.some(i => !checkItemValidity(i.item) || i.qty <= 0)
+                } 
                 className="flex-[2] sm:flex-none bg-blue-600 hover:bg-blue-700 text-white rounded-2xl px-10 py-4 text-[11px] font-black shadow-xl shadow-blue-100 uppercase tracking-widest italic flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? <Loader2 className="animate-spin" size={16} /> : <><CheckCircle2 size={16} /> Submit {items.length} Items</>}
               </button>
             </div>
           </div>
+          {!isVendorValid && supplier && (
+            <p className="text-[10px] text-red-500 font-bold uppercase mt-3 flex items-center justify-center gap-1">
+              <AlertCircle size={12} /> Periksa kembali Vendor atau Barang. Pastikan semua terpilih dari daftar.
+            </p>
+          )}
         </div>
       </div>
     </div>

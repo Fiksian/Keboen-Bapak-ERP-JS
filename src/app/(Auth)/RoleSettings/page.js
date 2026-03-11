@@ -7,7 +7,8 @@ import {
   LayoutDashboard, CloudSun, BarChart3, User, User2, CheckSquare, 
   Warehouse, Settings, Clock, Package, ShoppingCart, Store, 
   CircleDollarSign, Calendar, ArrowLeft,
-  Feather
+  Feather,
+  Factory
 } from 'lucide-react';
 
 const MENU_ICONS = {
@@ -20,6 +21,7 @@ const MENU_ICONS = {
   kandang: <Warehouse size={20} />,
   produksi: <Settings size={20} />,
   feedmill: <Feather size={20} />,
+  feedlot: <Factory size={20} />,
   arrival: <Clock size={20} />,
   warehouse: <Package size={20} />,
   purchasing: <ShoppingCart size={20} />,

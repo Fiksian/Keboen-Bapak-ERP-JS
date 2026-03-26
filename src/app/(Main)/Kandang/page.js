@@ -208,7 +208,7 @@ const Kandang = () => {
           </div>
 
           {/* Quick Stats: Monthly Movement */}
-          <div className="p-6 bg-gradient-to-br from-gray-900 to-gray-800 rounded-[32px] shadow-xl text-white">
+          <div className="p-6 bg-linear-to-br from-gray-900 to-gray-800 rounded-[32px] shadow-xl text-white">
              <div className='flex items-center gap-3 mb-6'>
                 <div className='p-2 bg-emerald-500/20 rounded-lg'>
                     <TrendingUp className='text-emerald-400' size={18}/>

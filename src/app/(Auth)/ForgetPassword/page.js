@@ -1,26 +1,79 @@
 "use client";
 
 import { useState } from 'react';
-import { Mail, ChevronLeft, HelpCircle, CheckCircle2 } from 'lucide-react';
-import Link from 'next/link'; // Import Link
+import { ChevronLeft, HelpCircle, CheckCircle2, User, Loader2, Lock, Eye, EyeOff } from 'lucide-react';
+import Link from 'next/link';
 
 const ForgetPassword = () => {
-  const [email, setEmail] = useState('');
-  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [identifier, setIdentifier] = useState('');
+  const [passwordData, setPasswordData] = useState({ oldPassword: '', newPassword: '', confirmPassword: '' });
+  const [step, setStep] = useState(1); // 1: Cari User, 2: Reset Password, 3: Sukses
+  const [isLoading, setIsLoading] = useState(false);
+  const [showPass, setShowPass] = useState(false);
+  const [message, setMessage] = useState({ type: '', text: '' });
 
-  const handleSubmit = (e) => {
+  // Step 1: Cek apakah user ada di database
+  const handleCheckUser = async (e) => {
     e.preventDefault();
-    console.log("Reset link sent to:", email);
-    setIsSubmitted(true);
+    setIsLoading(true);
+    setMessage({ type: '', text: '' });
+
+    try {
+      const response = await fetch('/api/auth/forget/check-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier }),
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        setStep(2);
+      } else {
+        setMessage({ type: 'error', text: data.message || 'User tidak ditemukan.' });
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Gagal terhubung ke server.' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Step 2: Kirim Password baru dan lama untuk divalidasi
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      return setMessage({ type: 'error', text: 'Konfirmasi password tidak cocok.' });
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/auth/forget/reset-direct', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier, ...passwordData }),
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        setStep(3);
+      } else {
+        setMessage({ type: 'error', text: data.message || 'Gagal memperbarui password.' });
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Gagal memproses permintaan.' });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <div className="min-h-screen w-full flex flex-col justify-center items-center bg-[#f0f2f5] relative overflow-hidden font-sans">
       
+      {/* Header Logo */}
       <div className="text-center mb-10 z-10">
         <div className="flex items-center justify-center gap-3 mb-2">
           <div className="w-10 h-10 bg-[#7a9d54] rounded-lg flex items-center justify-center shadow-md">
-            <span className="text-white font-bold text-xl">K</span>
+            <span className="text-white font-bold text-xl">KB</span>
           </div>
           <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Keboen Bapak</h1>
         </div>
@@ -30,92 +83,87 @@ const ForgetPassword = () => {
       <div className="z-10 w-full max-w-[420px] px-6">
         <div className="bg-white p-8 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100">
           
-          {!isSubmitted ? (
+          {step === 1 && (
             <>
               <div className="flex items-center gap-2 mb-6">
-                {/* Perbaikan: Gunakan Link untuk kembali ke Login */}
-                <Link 
-                  href="/Login" 
-                  className="p-1 hover:bg-gray-100 rounded-full transition-colors text-gray-600"
-                >
-                  <ChevronLeft size={24} />
-                </Link>
-                <h2 className="text-xl font-extrabold text-gray-900">Forgot Password</h2>
+                <Link href="/Login" className="p-1 hover:bg-gray-100 rounded-full text-gray-600"><ChevronLeft size={24} /></Link>
+                <h2 className="text-xl font-extrabold text-gray-900">Cari Akun</h2>
               </div>
-
-              <p className="text-sm text-gray-700 mb-6 leading-relaxed font-medium">
-                Enter your email address and we'll send you a link to reset your password.
-              </p>
-
-              <form onSubmit={handleSubmit} className="space-y-5">
-                <div className="relative group">
-                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-blue-600 transition-colors">
-                    <Mail size={18} />
-                  </div>
+              <p className="text-sm text-gray-700 mb-6 font-medium">Masukkan Username atau Email untuk memverifikasi akun Anda.</p>
+              {message.text && <div className="mb-4 p-3 rounded-lg text-xs font-bold bg-red-50 border border-red-100 text-red-600">{message.text}</div>}
+              <form onSubmit={handleCheckUser} className="space-y-5">
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                   <input
-                    type="email"
-                    required
-                    placeholder="Email Address"
-                    className="w-full py-3.5 pl-10 pr-4 bg-gray-50 border border-gray-300 rounded-lg outline-none focus:border-blue-500 focus:bg-white transition-all text-sm text-gray-900 placeholder:text-gray-500 font-bold"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    type="text" required placeholder="Username or Email"
+                    className="w-full text-slate-500 py-3.5 pl-10 pr-4 bg-gray-50 border border-gray-300 rounded-lg outline-none focus:border-blue-500 font-bold text-sm"
+                    value={identifier} onChange={(e) => setIdentifier(e.target.value)}
                   />
                 </div>
-
-                <button 
-                  type="submit" 
-                  className="w-full py-3.5 bg-[#1890ff] hover:bg-[#40a9ff] text-white rounded-lg font-extrabold shadow-lg shadow-blue-500/20 transition-all active:scale-[0.98]"
-                >
-                  Send Reset Link
+                <button type="submit" disabled={isLoading} className="w-full py-3.5 bg-[#1890ff] text-white rounded-lg font-extrabold flex justify-center items-center gap-2">
+                  {isLoading ? <Loader2 className="animate-spin" size={18} /> : "Verifikasi Akun"}
                 </button>
               </form>
             </>
-          ) : (
-            <div className="text-center py-4 animate-in fade-in zoom-in duration-300">
-              <div className="flex justify-center mb-4">
-                <div className="w-16 h-16 bg-green-50 text-green-600 rounded-full flex items-center justify-center border border-green-100">
-                  <CheckCircle2 size={40} />
-                </div>
-              </div>
-              <h2 className="text-xl font-extrabold text-gray-900 mb-2">Check your email</h2>
-              <p className="text-sm text-gray-700 mb-8 leading-relaxed font-medium">
-                We have sent a password reset link to <br />
-                <span className="font-extrabold text-blue-600 underline decoration-2 underline-offset-4">{email}</span>
-              </p>
-              {/* Perbaikan: Gunakan Link untuk tombol sukses */}
-              <Link 
-                href="/Login"
-                className="w-full py-3 bg-gray-900 text-white rounded-lg font-extrabold hover:bg-gray-800 transition-all shadow-md inline-block text-center"
-              >
-                Back to Login
-              </Link>
-            </div>
           )}
 
-          <div className="mt-8 text-center">
-            {/* Perbaikan: Gunakan Link untuk teks bawah */}
-            <Link 
-              href="/Login"
-              className="text-blue-600 hover:text-blue-700 text-sm font-extrabold transition-colors underline-offset-2 hover:underline"
-            >
-              Remember your password? Sign In
-            </Link>
-          </div>
+          {step === 2 && (
+            <>
+              <div className="flex items-center gap-2 mb-6">
+                <button onClick={() => setStep(1)} className="p-1 hover:bg-gray-100 rounded-full text-gray-600"><ChevronLeft size={24} /></button>
+                <h2 className="text-xl font-extrabold text-gray-900">Reset Password</h2>
+              </div>
+              <p className="text-xs text-blue-600 mb-6 font-bold bg-blue-50 p-2 rounded">Akun ditemukan: {identifier}</p>
+              {message.text && <div className="mb-4 p-3 rounded-lg text-xs font-bold bg-red-50 border border-red-100 text-red-600">{message.text}</div>}
+              <form onSubmit={handleResetPassword} className="space-y-4">
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                  <input
+                    type={showPass ? "text" : "password"} required placeholder="Password Lama"
+                    className="w-full text-slate-500 py-3.5 pl-10 pr-10 bg-gray-50 border border-gray-300 rounded-lg outline-none focus:border-blue-500 font-bold text-sm"
+                    value={passwordData.oldPassword} onChange={(e) => setPasswordData({...passwordData, oldPassword: e.target.value})}
+                  />
+                </div>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                  <input
+                    type={showPass ? "text" : "password"} required placeholder="Password Baru"
+                    className="w-full text-slate-500 py-3.5 pl-10 pr-10 bg-gray-50 border border-gray-300 rounded-lg outline-none focus:border-blue-500 font-bold text-sm"
+                    value={passwordData.newPassword} onChange={(e) => setPasswordData({...passwordData, newPassword: e.target.value})}
+                  />
+                  <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+                    {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                  <input
+                    type={showPass ? "text" : "password"} required placeholder="Konfirmasi Password Baru"
+                    className="w-full text-slate-500 py-3.5 pl-10 pr-4 bg-gray-50 border border-gray-300 rounded-lg outline-none focus:border-blue-500 font-bold text-sm"
+                    value={passwordData.confirmPassword} onChange={(e) => setPasswordData({...passwordData, confirmPassword: e.target.value})}
+                  />
+                </div>
+                <button type="submit" disabled={isLoading} className="w-full py-3.5 bg-green-600 hover:bg-green-700 text-white rounded-lg font-extrabold flex justify-center items-center gap-2">
+                  {isLoading ? <Loader2 className="animate-spin" size={18} /> : "Update Password"}
+                </button>
+              </form>
+            </>
+          )}
+
+          {step === 3 && (
+            <div className="text-center py-4">
+              <div className="flex justify-center mb-4"><div className="w-16 h-16 bg-green-50 text-green-600 rounded-full flex items-center justify-center border border-green-100"><CheckCircle2 size={40} /></div></div>
+              <h2 className="text-xl font-extrabold text-gray-900 mb-2">Password Diperbarui!</h2>
+              <p className="text-sm text-gray-700 mb-8 font-medium">Password Anda telah berhasil diubah. Silakan login kembali.</p>
+              <Link href="/Login" className="w-full py-3 bg-gray-900 text-white rounded-lg font-extrabold block text-center">Login Sekarang</Link>
+            </div>
+          )}
         </div>
       </div>
 
       <div className="absolute bottom-8 w-full text-center">
-        <p className="text-gray-500 text-xs font-bold tracking-wider">
-          COPYRIGHT © 2026 KEBOEN BAPAK. ALL RIGHTS RESERVED.
-        </p>
+        <p className="text-gray-400 text-[10px] font-bold tracking-widest uppercase">Copyright © 2026 Keboen Bapak. All Rights Reserved.</p>
       </div>
-
-      <button 
-        type="button"
-        className="fixed bottom-8 right-8 w-12 h-12 bg-white shadow-xl rounded-full flex items-center justify-center text-gray-700 hover:bg-gray-50 transition-all border border-gray-100 active:scale-90"
-      >
-        <HelpCircle size={24} />
-      </button>
     </div>
   );
 };

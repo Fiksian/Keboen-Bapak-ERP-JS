@@ -140,15 +140,37 @@ const Plants = () => {
               </button>
             </div>
 
-            {/* Dosing Action Card */}
-            <div className="border-2 border-dashed border-blue-100 rounded-3xl p-1">
-               <div className="bg-blue-50/30 rounded-[22px] p-5 space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Pemberian Nutrisi</span>
-                    <Droplets size={16} className="text-blue-400" />
-                  </div>
-               </div>
-            </div>
+            <button className='w-full py-3 bg-emerald-50 text-emerald-600 rounded-xl font-bold text-[10px] uppercase hover:bg-emerald-100 transition-all flex items-center justify-center gap-2'>
+                Lihat Detail Inventaris <ArrowRight size={14} />
+            </button>
+          </div>
+
+          {/* Quick Stats: Monthly Movement */}
+          <div className="p-6 bg-gradient-to-br from-gray-900 to-gray-800 rounded-[32px] shadow-xl text-white">
+             <div className='flex items-center gap-3 mb-6'>
+                <div className='p-2 bg-emerald-500/20 rounded-lg'>
+                    <TrendingUp className='text-emerald-400' size={18}/>
+                </div>
+                <h4 className='font-bold text-xs uppercase tracking-tighter'>Mutasi Bulan Ini</h4>
+             </div>
+             
+             <div className='grid grid-cols-2 gap-4'>
+                <div className='space-y-1'>
+                    <p className='text-[9px] font-bold text-gray-400 uppercase'>Sapi Masuk</p>
+                    <p className='text-xl font-black text-emerald-400'>+42</p>
+                </div>
+                <div className='space-y-1'>
+                    <p className='text-[9px] font-bold text-gray-400 uppercase'>Sapi Keluar</p>
+                    <p className='text-xl font-black text-amber-400'>-18</p>
+                </div>
+             </div>
+
+             <div className='mt-6 pt-6 border-t border-white/10'>
+                <div className='flex items-center gap-2 text-[10px] text-gray-400 italic'>
+                    <Activity size={12} />
+                    <span>Perubahan Stok Netto: +24 Ekor</span>
+                </div>
+             </div>
           </div>
         </div>
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { ChevronDown, Droplet, Leaf, RefreshCcw, Warehouse, Wind, Droplets, Thermometer} from 'lucide-react'
+import { ChevronDown, Droplet, Leaf, RefreshCcw, Warehouse, Wind, Droplets, Thermometer, ArrowRight, TrendingUp, Activity} from 'lucide-react'
 import  {useState} from 'react'
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 

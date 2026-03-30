@@ -47,6 +47,7 @@ const Sidebar = ({ isCollapsed, toggleSidebar, userRole, isOpenMobile, onCloseMo
     { id: 'penjualan', name: 'Penjualan', icon: <Store size={18} />, path: '/Penjualan' },
     { id: 'finance', name: 'Finance', icon: <CircleDollarSign size={18} />, path: '/Finance' },
     { id: 'history', name: 'History', icon: <Calendar size={18} />, path: '/History' },
+    // { id: 'test', name: 'test', path: '/Components/NotaPenjualan' }
   ];
 
   const canAccess = (itemId) => {

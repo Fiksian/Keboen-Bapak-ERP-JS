@@ -1,12 +1,51 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { 
-    X, User, Calendar, Package, CheckCircle, AlertCircle, Tag 
+    X, User, Calendar, Package, CheckCircle, AlertCircle, Tag, FileText, ArrowLeft 
 } from 'lucide-react';
+import PrintSalesNote from '@/app/(Main)/Components/NotaPenjualan/page.js'; 
 
 const SaleDetail = ({ isOpen, sale, onClose, onStatusUpdate }) => {
+    const [showInvoice, setShowInvoice] = useState(false);
+
     if (!isOpen || !sale) return null;
+
+    if (showInvoice) {
+        return (
+        <div className="fixed inset-0 z-[250] bg-white flex flex-col animate-in fade-in duration-300">
+        
+        <div className="h-14 px-6 bg-[#1a1c18] flex items-center justify-between shrink-0 shadow-md">
+            <button 
+                onClick={() => setShowInvoice(false)}
+                className="flex items-center gap-3 text-white/80 hover:text-white transition-all group"
+            >
+                <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
+                <span className="font-black uppercase text-[10px] tracking-[0.2em]">Tutup Pratinjau</span>
+            </button>
+        </div>
+
+        <div className="flex-1 w-full bg-slate-100">
+            <PrintSalesNote 
+                data={{
+                    invoiceId: sale.id,
+                    createdAt: sale.createdAt,
+                    customer: {
+                        name: sale.customer,
+                        address: sale.customerAddress,
+                        phone: sale.customerPhone
+                    },
+                    items: sale.items,
+                    totalAmount: sale.total,
+                    status: sale.status,
+                    notes: sale.notes
+                }} 
+
+            />
+        </div>
+    </div>
+        );
+    }
 
     return (
         <div className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
@@ -17,9 +56,19 @@ const SaleDetail = ({ isOpen, sale, onClose, onStatusUpdate }) => {
                         <h2 className="text-lg md:text-xl font-black text-gray-900 uppercase italic tracking-tight">Detail Transaksi</h2>
                         <p className="text-[10px] font-bold text-[#8da070] tracking-[0.2em] uppercase">{sale.id}</p>
                     </div>
-                    <button onClick={onClose} className="p-2.5 bg-white border border-gray-100 rounded-xl text-gray-400 active:scale-90 transition-all shadow-sm">
-                        <X size={20} />
-                    </button>
+                    <div className="flex items-center gap-2">
+                        {sale.status === 'COMPLETED' && (
+                            <button 
+                                onClick={() => setShowInvoice(true)}
+                                className="p-2.5 bg-[#8da070]/10 text-[#8da070] border border-[#8da070]/20 rounded-xl hover:bg-[#8da070] hover:text-white transition-all shadow-sm flex items-center gap-2 font-bold text-[10px] uppercase tracking-wider"
+                            >
+                                <FileText size={18} /> <span className="hidden sm:inline">Cetak Nota</span>
+                            </button>
+                        )}
+                        <button onClick={onClose} className="p-2.5 bg-white border border-gray-100 rounded-xl text-gray-400 active:scale-90 transition-all shadow-sm">
+                            <X size={20} />
+                        </button>
+                    </div>
                 </div>
 
                 <div className="p-5 md:p-8 overflow-y-auto space-y-6 md:space-y-8 custom-scrollbar">
@@ -108,13 +157,13 @@ const SaleDetail = ({ isOpen, sale, onClose, onStatusUpdate }) => {
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <button 
                                     onClick={() => onStatusUpdate(sale.id, 'COMPLETED')}
-                                    className="flex items-center justify-center gap-3 py-4.5 md:py-4 bg-[#8da070] hover:bg-[#7a8c61] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all shadow-lg shadow-[#8da070]/20 active:scale-95 order-1 sm:order-none"
+                                    className="flex items-center justify-center gap-3 py-4 bg-[#8da070] hover:bg-[#7a8c61] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all shadow-lg active:scale-95"
                                 >
                                     <CheckCircle size={18}/> Selesaikan
                                 </button>
                                 <button 
                                     onClick={() => onStatusUpdate(sale.id, 'CANCELLED')}
-                                    className="flex items-center justify-center gap-3 py-4.5 md:py-4 bg-white border-2 border-red-100 text-red-500 hover:bg-red-50 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-95 order-2 sm:order-none"
+                                    className="flex items-center justify-center gap-3 py-4 bg-white border-2 border-red-100 text-red-500 hover:bg-red-50 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-95"
                                 >
                                     <AlertCircle size={18}/> Batalkan
                                 </button>
@@ -126,12 +175,12 @@ const SaleDetail = ({ isOpen, sale, onClose, onStatusUpdate }) => {
                                 : 'bg-red-50 border-red-100 text-red-700'
                             }`}>
                                 {sale.status === 'COMPLETED' ? <CheckCircle size={24} className="shrink-0" /> : <AlertCircle size={24} className="shrink-0" />}
-                                <div>
+                                <div className="flex-1">
                                     <p className="text-[10px] font-black uppercase tracking-widest mb-1">Status Transaksi: {sale.status}</p>
                                     <p className="text-[11px] font-bold leading-relaxed opacity-80">
                                         {sale.status === 'COMPLETED' 
-                                            ? 'Pesanan sudah diselesaikan. Invoice telah divalidasi dan stok telah terpotong secara otomatis.' 
-                                            : 'Pesanan telah dibatalkan. Sistem telah mengembalikan kuantitas stok barang ke gudang.'}
+                                            ? 'Pesanan sudah diselesaikan. Klik tombol di atas untuk mencetak nota.' 
+                                            : 'Pesanan telah dibatalkan.'}
                                     </p>
                                 </div>
                             </div>

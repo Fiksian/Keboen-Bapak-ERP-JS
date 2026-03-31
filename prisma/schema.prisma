@@ -8,17 +8,30 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// --- MODEL BARU: WAREHOUSE ---
+model Warehouse {
+  id        String    @id @default(cuid())
+  name      String    @unique // Contoh: "Gudang Pakan", "Gudang A"
+  code      String?   @unique // Contoh: WH-A
+  address   String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // Relasi
+  receipts  Receipt[]
+  stocks    Stock[]
+}
+
 model User {
-  id        String   @id @default(cuid())
-  username  String   @unique
-  email     String   @unique
+  id        String          @id @default(cuid())
+  username  String          @unique
+  email     String          @unique
   password  String
   phone     String?
-  role      String   @default("Staff")
-  createdAt DateTime @default(now())
+  role      String          @default("Staff")
+  createdAt DateTime        @default(now())
   staffs    staffs?
-
-  roleData         RolePermission? @relation("UserToRole", fields: [role], references: [roleName])
+  roleData  RolePermission? @relation("UserToRole", fields: [role], references: [roleName])
 }
 
 model RolePermission {
@@ -26,13 +39,12 @@ model RolePermission {
   roleName    String   @unique
   permissions String[]
   updatedAt   DateTime @updatedAt
-  
   users       User[]   @relation("UserToRole")
 }
 
 model Purchasing {
   id          String         @id @default(cuid())
-  noPO        String         
+  noPO        String
   item        String
   qty         Float          @default(0)
   unit        String         @default("KG")
@@ -57,19 +69,24 @@ model Receipt {
   imageUrl     String?
   vehicleNo    String
   receivedQty  Float
-  grossWeight  Float      @default(0) // Berat Isi
-  tareWeight   Float      @default(0) // Berat Kosong
-  netWeight    Float      @default(0) // Netto
+  grossWeight  Float      @default(0)
+  tareWeight   Float      @default(0)
+  netWeight    Float      @default(0)
   receivedBy   String
   condition    String     @default("GOOD")
   notes        String?
   receivedAt   DateTime   @default(now())
   purchasing   Purchasing @relation(fields: [purchasingId], references: [id])
+
+  // RELASI KE WAREHOUSE
+  // Menentukan barang ini masuk ke gudang mana saat diterima
+  warehouseId  String
+  warehouse    Warehouse  @relation(fields: [warehouseId], references: [id])
 }
 
 model Stock {
-  id              String   @id @default(cuid())
-  name            String   @unique
+  id              String    @id @default(cuid())
+  name            String
   category        String
   stock           Float
   unit            String
@@ -77,7 +94,16 @@ model Stock {
   price           String?
   status          String?
   lastPurchasedId String?
-  updatedAt       DateTime @updatedAt
+  updatedAt       DateTime  @updatedAt
+
+  // RELASI KE WAREHOUSE
+  // Agar stok terpisah per lokasi gudang
+  warehouseId     String
+  warehouse       Warehouse @relation(fields: [warehouseId], references: [id])
+
+  // Constraint: Nama barang yang sama bisa ada di gudang berbeda, 
+  // tapi tidak boleh duplikat di gudang yang sama.
+  @@unique([name, warehouseId])
 }
 
 model Production {
@@ -157,16 +183,16 @@ model PenjualanItem {
 }
 
 model Contact {
-  id            String      @id @default(cuid())
-  name          String
-  nik           String?     @unique
-  companyName   String?
-  type          ContactType @default(CUSTOMER)
-  email         String?     @unique
-  phone         String?
-  address       String?
-  createdAt     DateTime    @default(now())
-  penjualan     Penjualan[]
+  id          String      @id @default(cuid())
+  name        String
+  nik         String?     @unique
+  companyName String?
+  type        ContactType @default(CUSTOMER)
+  email       String?     @unique
+  phone       String?
+  address     String?
+  createdAt   DateTime    @default(now())
+  penjualan   Penjualan[]
 }
 
 model staffs {
@@ -190,7 +216,7 @@ model Transaction {
   trxNo       String
   category    String
   description String?
-  amount      Float    
+  amount      Float
   type        String
   date        DateTime @default(now())
   method      String   @default("CASH")

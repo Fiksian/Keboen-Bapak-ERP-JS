@@ -1,104 +1,106 @@
-'use client'
+'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Clock, Activity } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import ArrivalCard from './ArrivalCard';
 import ArrivalModal from './ArrivalModal';
 
+const INITIAL_FORM = {
+  suratJalan: '',
+  vehicleNo: '',
+  condition: 'GOOD',
+  notes: '',
+  beratIsi: '',
+  beratKosong: '',
+  netto: '0.00',
+  receivedQty: 0,
+  sourceUnit: 'KG',  
+  warehouseUnit: 'KG', 
+  warehouseId: '',
+  image: null,
+};
+
 const ArrivalMonitor = ({ arrivals = [], onRefresh }) => {
   const { data: session } = useSession();
   const [selectedArrival, setSelectedArrival] = useState(null);
-  const [warehouseUnit, setWarehouseUnit] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  const [formData, setFormData] = useState({
-    suratJalan: '',
-    vehicleNo: '',
-    condition: 'GOOD',
-    notes: '',
-    beratIsi: '',
-    beratKosong: '',
-    netto: '0.00',
-    receivedQty: 0,
-    unit: '',
-    image: null
-  });
+  const [warehouses, setWarehouses] = useState([]);
+  const [formData, setFormData] = useState(INITIAL_FORM);
 
-  const isAuthorized = ["Admin", "Supervisor", "Test"].includes(session?.user?.role);
+  const fetchWarehouses = useCallback(async () => {
+    try {
+      const res = await fetch('/api/warehouse');
+      if (res.ok) {
+        const data = await res.json();
+        setWarehouses(data);
+      }
+    } catch (err) {
+      console.error("Gagal mengambil data gudang:", err);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchWarehouses();
+  }, [fetchWarehouses]);
+
+  const isAuthorized = ["Admin", "Supervisor", "Staff"].includes(session?.user?.role);
 
   if (!arrivals || arrivals.length === 0) return null;
 
   const handleOpenReceipt = async (arrival) => {
     setSelectedArrival(arrival);
-    setWarehouseUnit(null);
-
-    setFormData({ 
-      suratJalan: '', 
-      vehicleNo: '', 
-      condition: 'GOOD', 
-      notes: '',
-      beratIsi: '',
-      beratKosong: '',
-      netto: '0.00',
-      receivedQty: arrival.qty,
-      unit: arrival.unit,
-      image: null
-    });
 
     try {
       const res = await fetch('/api/stock');
       const stocks = await res.json();
       const itemInDb = stocks.find(
-        s => s.name.toLowerCase() === arrival.item.toLowerCase()
+        (s) => s.name.toLowerCase() === arrival.item.toLowerCase()
       );
-      const targetUnit = itemInDb ? itemInDb.unit : (arrival.unit || "KG");
-      setWarehouseUnit(targetUnit);
+      const resolvedWarehouseUnit = itemInDb?.unit || arrival.unit || 'KG';
+      setFormData((prev) => ({ ...prev, warehouseUnit: resolvedWarehouseUnit }));
     } catch (err) {
       console.error("Gagal sinkronisasi unit:", err);
-      setWarehouseUnit(arrival.unit || "KG");
+      setFormData((prev) => ({ ...prev, warehouseUnit: arrival.unit || 'KG' }));
     }
+  };
+
+  const handleClose = () => {
+    setSelectedArrival(null);
+    setFormData(INITIAL_FORM); 
   };
 
   const handleFinalSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.image) {
-      return alert("FOTO SURAT JALAN WAJIB DIUNGGAH! Gunakan kamera untuk mengambil bukti fisik.");
-    }
-
     setIsSubmitting(true);
-    
+
     try {
       const dataToSend = new FormData();
-      
-      dataToSend.append('suratJalan', formData.suratJalan);
-      dataToSend.append('vehicleNo', formData.vehicleNo);
-      dataToSend.append('condition', formData.condition);
-      dataToSend.append('notes', formData.notes || '');
-      dataToSend.append('receivedBy', session?.user?.name || 'Warehouse Staff');
-
-      dataToSend.append('receivedQty', parseFloat(formData.receivedQty));
-
-      dataToSend.append('unit', warehouseUnit || formData.unit);
+      dataToSend.append('suratJalan',   formData.suratJalan);
+      dataToSend.append('vehicleNo',    formData.vehicleNo);
+      dataToSend.append('condition',    formData.condition);
+      dataToSend.append('notes',        formData.notes || '');
+      dataToSend.append('receivedBy',   session?.user?.name || 'Warehouse Staff');
+      dataToSend.append('receivedQty',  parseFloat(formData.receivedQty));
 
       if (formData.beratIsi) {
-        dataToSend.append('grossWeight', formData.beratIsi);   
-        dataToSend.append('tareWeight', formData.beratKosong);
-        dataToSend.append('netWeight', formData.netto);        
-        dataToSend.append('fieldUnit', formData.unit);        
+        dataToSend.append('beratIsi',   formData.beratIsi);
+        dataToSend.append('beratKosong', formData.beratKosong);
+        dataToSend.append('netto',      formData.netto);
       }
+
+      dataToSend.append('warehouseId',  formData.warehouseId);
 
       dataToSend.append('file', formData.image);
 
-      const res = await fetch(`/api/purchasing/${selectedArrival.id}/receive`, { 
+      const res = await fetch(`/api/purchasing/${selectedArrival.id}/receive`, {
         method: 'PATCH',
-        body: dataToSend
+        body: dataToSend,
       });
 
       if (res.ok) {
-        setSelectedArrival(null);
-        setWarehouseUnit(null);
+        handleClose();
         if (onRefresh) onRefresh();
       } else {
         const error = await res.json();
@@ -106,7 +108,7 @@ const ArrivalMonitor = ({ arrivals = [], onRefresh }) => {
       }
     } catch (err) {
       console.error("SUBMIT_RECEIPT_ERROR:", err);
-      alert("Terjadi kesalahan sistem saat memproses data atau mengunggah gambar.");
+      alert("Terjadi kesalahan sistem.");
     } finally {
       setIsSubmitting(false);
     }
@@ -114,7 +116,7 @@ const ArrivalMonitor = ({ arrivals = [], onRefresh }) => {
 
   return (
     <div className="animate-in slide-in-from-top duration-700 bg-orange-50/50 p-4 md:p-6 rounded-[24px] md:rounded-[32px] border border-orange-100 mb-8">
-      
+
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <div className="p-2.5 bg-orange-500 rounded-xl text-white shadow-lg shadow-orange-200 shrink-0">
@@ -129,31 +131,31 @@ const ArrivalMonitor = ({ arrivals = [], onRefresh }) => {
             </p>
           </div>
         </div>
-        
+
         <div className="flex items-center gap-2 px-3 py-1 bg-white/50 rounded-full border border-orange-100">
           <Activity size={12} className="text-orange-500 animate-pulse" />
           <span className="text-[8px] font-black text-orange-700 uppercase italic tracking-widest">Live System</span>
         </div>
       </div>
-      
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
         {arrivals.map((arrival) => (
-          <ArrivalCard 
-            key={arrival.id} 
-            arrival={arrival} 
-            isAuthorized={isAuthorized} 
-            onOpen={handleOpenReceipt} 
+          <ArrivalCard
+            key={arrival.id}
+            arrival={arrival}
+            isAuthorized={isAuthorized}
+            onOpen={handleOpenReceipt}
           />
         ))}
       </div>
 
-      <ArrivalModal 
+      <ArrivalModal
         arrival={selectedArrival}
-        warehouseUnit={warehouseUnit}      
+        warehouses={warehouses}
         formData={formData}
         setFormData={setFormData}
         isSubmitting={isSubmitting}
-        onClose={() => { setSelectedArrival(null); setWarehouseUnit(null); }}
+        onClose={handleClose}
         onSubmit={handleFinalSubmit}
       />
     </div>

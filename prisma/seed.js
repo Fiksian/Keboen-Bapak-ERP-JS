@@ -27,7 +27,25 @@ async function main() {
   try {
     await prisma.$transaction(async (tx) => {
 
+<<<<<<< HEAD
       // 1. SEED ADMIN USER
+=======
+      console.log('📦 Seeding Warehouses...');
+      const warehouses = [
+        { id: 'wh-a', name: 'Warehouse A', code: 'WH-A', address: 'Ciparay, Bandung' },
+        { id: 'wh-b', name: 'Warehouse B', code: 'WH-B', address: 'Baleendah, Bandung' }
+      ];
+
+      for (const wh of warehouses) {
+        await tx.warehouse.upsert({
+          where: { id: wh.id },
+          update: { name: wh.name, code: wh.code, address: wh.address },
+          create: wh,
+        });
+      }
+
+      console.log('👤 Seeding Admin...');
+>>>>>>> 9038349 (Warehouse system di bagian arrival dan stock)
       const adminUser = await tx.user.upsert({
         where: { email: adminEmail },
         update: { password: hashedPassword },
@@ -55,7 +73,11 @@ async function main() {
         },
       });
 
+<<<<<<< HEAD
       // 2. SEED TEST USERS
+=======
+      console.log('👥 Seeding Test Users...');
+>>>>>>> 9038349 (Warehouse system di bagian arrival dan stock)
       for (const testData of testUsers) {
         const hashedTestPassword = await bcrypt.hash(testData.password, 10);
 
@@ -112,7 +134,10 @@ async function main() {
         },
       });
 
+<<<<<<< HEAD
       // 4. SEED WAREHOUSE (STOCKS)
+=======
+>>>>>>> 9038349 (Warehouse system di bagian arrival dan stock)
       const bahanBakuMakro = [
         "Dedak", "Polard", "Bungkil Kedelai", "Bungkil Kelapa", "Bungkil Sawit", 
         "Onggok", "Gaplek", "Menir Jagung", "Kulit Kopi", "Molases", "Kulit Coklat", 
@@ -136,30 +161,58 @@ async function main() {
 
       const bahanBakuHijauan = ["SILASE"];
 
+<<<<<<< HEAD
       console.log('--- Seeding Data Warehouse: Bahan Baku ---');
 
       const allBahanBaku = [
         ...bahanBakuMakro.map(n => ({ name: n, cat: 'MAKRO' })),
         ...bahanBakuMikro.map(n => ({ name: n, cat: 'MIKRO' })),
         ...bahanBakuHijauan.map(n => ({ name: n, cat: 'HIJAUAN' }))
+=======
+      console.log('🌾 Seeding Stocks: Bahan Baku...');
+      const allBahanBaku = [
+        ...bahanBakuMakro.map(n => ({ name: n.toUpperCase(), cat: 'MAKRO' })),
+        ...bahanBakuMikro.map(n => ({ name: n.toUpperCase(), cat: 'MIKRO' })),
+        ...bahanBakuHijauan.map(n => ({ name: n.toUpperCase(), cat: 'HIJAUAN' }))
+>>>>>>> 9038349 (Warehouse system di bagian arrival dan stock)
       ];
 
       for (const item of allBahanBaku) {
         await tx.stock.upsert({
+<<<<<<< HEAD
           where: { name: item.name },
           update: {},
           create: {
             name: item.name.toLocaleUpperCase(),
+=======
+          where: { 
+            name_warehouseId: { 
+              name: item.name, 
+              warehouseId: 'wh-a'
+            } 
+          },
+          update: {},
+          create: {
+            name: item.name,
+>>>>>>> 9038349 (Warehouse system di bagian arrival dan stock)
             category: item.cat,
             stock: 0,
             unit: 'KG',
             type: 'STOCKS',
             price: '0',
+<<<<<<< HEAD
+=======
+            warehouseId: 'wh-a',
+>>>>>>> 9038349 (Warehouse system di bagian arrival dan stock)
           },
         });
       }
 
+<<<<<<< HEAD
       // 5. SEED TASK
+=======
+      console.log('📝 Seeding Tasks...');
+>>>>>>> 9038349 (Warehouse system di bagian arrival dan stock)
       const existingTask = await tx.task.findFirst({
         where: { title: 'Cek kesehatan ayam kandang A' },
       });
@@ -176,7 +229,11 @@ async function main() {
         });
       }
 
+<<<<<<< HEAD
       // 6. SEED TRANSACTION
+=======
+      console.log('💰 Seeding Transactions...');
+>>>>>>> 9038349 (Warehouse system di bagian arrival dan stock)
       const existingTrx = await tx.transaction.findFirst({
         where: { trxNo: 'TRX-INIT-2026' },
       });
@@ -195,7 +252,11 @@ async function main() {
         });
       }
 
+<<<<<<< HEAD
       console.log('✅ Seeding Selesai: Semua data berhasil disesuaikan dengan schema.');
+=======
+      console.log('✅ Seeding Selesai: Semua data berhasil disesuaikan.');
+>>>>>>> 9038349 (Warehouse system di bagian arrival dan stock)
     });
   } catch (error) {
     console.error('❌ Gagal melakukan seeding:', error);

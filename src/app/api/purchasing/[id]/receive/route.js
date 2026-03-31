@@ -19,20 +19,21 @@ export async function PATCH(request, context) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    const { id } = await context.params; 
-    
+    const { id } = await context.params;
+
     const data = await request.formData();
-    
-    const suratJalan = data.get("suratJalan");
-    const vehicleNo = data.get("vehicleNo");
-    const condition = data.get("condition");
-    const notes = data.get("notes");
+
+    const suratJalan  = data.get("suratJalan");
+    const vehicleNo   = data.get("vehicleNo");
+    const condition   = data.get("condition");
+    const notes       = data.get("notes");
     const receivedQty = data.get("receivedQty");
-    const receivedBy = data.get("receivedBy");
-    const beratIsi = data.get("beratIsi");
+    const receivedBy  = data.get("receivedBy");
+    const beratIsi    = data.get("beratIsi");
     const beratKosong = data.get("beratKosong");
-    const netto = data.get("netto");
-    const imageFile = data.get("file");
+    const netto       = data.get("netto");
+    const warehouseId = data.get("warehouseId");
+    const imageFile   = data.get("file");
 
     let imageUrl = null;
     if (imageFile && typeof imageFile !== "string") {
@@ -40,124 +41,139 @@ export async function PATCH(request, context) {
       const buffer = Buffer.from(bytes);
 
       const uploadDir = path.join(process.cwd(), "public", "uploads", "receipts");
-      
       try {
         await mkdir(uploadDir, { recursive: true });
-      } catch (e) {}
+      } catch (e) {
+      }
 
       const uniqueFileName = `${Date.now()}-${imageFile.name.replace(/\s+/g, "_")}`;
       const filePath = path.join(uploadDir, uniqueFileName);
-      
       await writeFile(filePath, buffer);
       imageUrl = `/uploads/receipts/${uniqueFileName}`;
     }
 
-    const userName = receivedBy || session.user.name || "Warehouse Admin";
+    const userName    = receivedBy || session.user.name || "Warehouse Admin";
     const currentTime = new Date();
-    const dateStr = currentTime.toISOString().split('T')[0].replace(/-/g, '');
+    const dateStr     = currentTime.toISOString().split('T')[0].replace(/-/g, '');
 
-    const purchase = await prisma.purchasing.findUnique({
-      where: { id: id }
-    });
+    const purchase = await prisma.purchasing.findUnique({ where: { id } });
 
     if (!purchase) {
-      return NextResponse.json({ message: "Data pengadaan tidak ditemukan" }, { status: 404 });
+      return NextResponse.json(
+        { message: "Data pengadaan tidak ditemukan" },
+        { status: 404 }
+      );
     }
 
     if (purchase.isReceived) {
-      return NextResponse.json({ message: "Barang sudah pernah diterima sebelumnya" }, { status: 400 });
+      return NextResponse.json(
+        { message: "Barang sudah pernah diterima sebelumnya" },
+        { status: 400 }
+      );
     }
 
-    const incomingQty = netto ? parseFloat(netto) : (receivedQty ? parseFloat(receivedQty) : (purchase.qty || 0));
+    const incomingQty = netto
+      ? parseFloat(netto)
+      : receivedQty
+        ? parseFloat(receivedQty)
+        : (purchase.qty || 0);
+
     const unitLabel = purchase.unit || "Unit";
 
     const result = await prisma.$transaction(async (tx) => {
-      
+
       const receipt = await tx.receipt.create({
         data: {
-          receiptNo: `GRN-${dateStr}-${Math.floor(1000 + Math.random() * 9000)}`,
+          receiptNo:    `GRN-${dateStr}-${Math.floor(1000 + Math.random() * 9000)}`,
           purchasingId: id,
-          suratJalan: suratJalan || "TANPA-SJ",
-          imageUrl: imageUrl,
-          vehicleNo: vehicleNo || "N/A",
-          receivedQty: incomingQty,
-          grossWeight: parseFloat(beratIsi) || 0,
-          tareWeight: parseFloat(beratKosong) || 0,
-          netWeight: parseFloat(netto) || 0, 
-          receivedBy: userName,
-          condition: condition || "GOOD",
-          notes: notes || "",
-          receivedAt: currentTime
-        }
+          suratJalan:   suratJalan || "TANPA-SJ",
+          imageUrl:     imageUrl,
+          vehicleNo:    vehicleNo || "N/A",
+          receivedQty:  incomingQty,
+          grossWeight:  parseFloat(beratIsi)    || 0,
+          tareWeight:   parseFloat(beratKosong) || 0,
+          netWeight:    parseFloat(netto)       || 0,
+          receivedBy:   userName,
+          condition:    condition || "GOOD",
+          notes:        notes || "",
+          receivedAt:   currentTime,
+          ...(warehouseId ? { warehouseId } : {}),
+        },
       });
 
       await tx.purchasing.update({
-        where: { id: id },
-        data: { 
+        where: { id },
+        data: {
           isReceived: true,
-          status: "RECEIVED"
-        }
+          status: "RECEIVED",
+        },
       });
 
       const existingStock = await tx.stock.findUnique({
-        where: { name: purchase.item }
+        where: { name: purchase.item },
       });
 
       const currentQty = existingStock ? existingStock.stock : 0;
-      const finalQty = currentQty + incomingQty;
+      const finalQty   = currentQty + incomingQty;
       const finalStatus = getAutoStatus(finalQty);
 
       await tx.stock.upsert({
         where: { name: purchase.item },
         update: {
-          stock: finalQty,
-          status: finalStatus, 
-          price: purchase.price,
-          type: purchase.type,
+          stock:           finalQty,
+          status:          finalStatus,
+          price:           purchase.price,
+          type:            purchase.type,
           lastPurchasedId: id,
-          updatedAt: currentTime
+          updatedAt:       currentTime,
         },
         create: {
-          name: purchase.item,
-          category: purchase.category || "General",
-          stock: finalQty,
-          unit: unitLabel,
-          type: purchase.type || "STOCKS",
-          price: purchase.price,
-          status: finalStatus,
-          lastPurchasedId: id
-        }
+          name:            purchase.item,
+          category:        purchase.category || "General",
+          stock:           finalQty,
+          unit:            unitLabel,
+          type:            purchase.type || "STOCKS",
+          price:           purchase.price,
+          status:          finalStatus,
+          lastPurchasedId: id,
+        },
       });
 
       await tx.history.create({
         data: {
-          action: "STOCK_IN",
-          item: purchase.item,
-          category: purchase.category || "General",
-          type: purchase.type || "STOCKS",
-          quantity: incomingQty,
-          unit: unitLabel,
-          user: userName,
+          action:      "STOCK_IN",
+          item:        purchase.item,
+          category:    purchase.category || "General",
+          type:        purchase.type || "STOCKS",
+          quantity:    incomingQty,
+          unit:        unitLabel,
+          user:        userName,
           referenceId: receipt.id,
-          notes: `PO: ${purchase.noPO} | SJ: ${suratJalan} | Bukti: ${imageUrl ? 'Tersedia' : 'Tidak Ada'}`
-        }
+          notes:       `PO: ${purchase.noPO} | SJ: ${suratJalan} | Bukti: ${imageUrl ? 'Tersedia' : 'Tidak Ada'}`,
+        },
       });
 
       return receipt;
     });
 
-    return NextResponse.json({ 
-      message: `Penerimaan PO ${purchase.noPO} berhasil diproses`,
-      receiptNo: result.receiptNo,
-      imageUrl: imageUrl,
-      receivedAt: currentTime
-    }, { status: 200 });
+    return NextResponse.json(
+      {
+        message:    `Penerimaan PO ${purchase.noPO} berhasil diproses`,
+        receiptNo:  result.receiptNo,
+        imageUrl:   imageUrl,
+        receivedAt: currentTime,
+      },
+      { status: 200 }
+    );
 
   } catch (error) {
     console.error("RECEIVE_ERROR:", error);
-    return NextResponse.json({ 
-      message: "Gagal memproses penerimaan barang", 
-      error: error.message 
-    }, { status: 500 });
+    return NextResponse.json(
+      {
+        message: "Gagal memproses penerimaan barang",
+        error:   error.message,
+      },
+      { status: 500 }
+    );
   }
 }

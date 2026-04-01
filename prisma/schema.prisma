@@ -59,6 +59,51 @@ model Purchasing {
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
   receipts    Receipt[]
+
+  // --- TAMBAHAN RELASI KE DO ---
+  // Menghubungkan PO ini dengan DO asalnya (jika ada)
+  deliveryOrderId String?
+  deliveryOrder   DeliveryOrder? @relation(fields: [deliveryOrderId], references: [id])
+}
+
+model DeliveryOrder {
+  id           String    @id @default(cuid())
+  doNo         String    @unique
+  supplier     String
+  expectedDate DateTime?
+  notes        String?   @default("")
+  requestedBy  String
+  status       String    @default("PENDING")
+  // "DRAFT" | "PENDING" | "APPROVED" | "REJECTED" | "LINKED"
+
+  approvedBy String?
+  approvedAt DateTime?
+
+  // Referensi PO yang dihasilkan dari DO ini
+  linkedPOId String?
+  linkedPONo String?
+
+  items DeliveryOrderItem[]
+
+  // --- TAMBAHAN RELASI BALIK KE PURCHASING ---
+  purchasing Purchasing[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model DeliveryOrderItem {
+  id              String        @id @default(cuid())
+  deliveryOrderId String
+  deliveryOrder   DeliveryOrder @relation(fields: [deliveryOrderId], references: [id], onDelete: Cascade)
+
+  description   String
+  qty           Float   @default(0)
+  unit          String  @default("Kg")
+  estimasiHarga Float   @default(0)
+  notes         String? @default("")
+
+  createdAt DateTime @default(now())
 }
 
 model Receipt {

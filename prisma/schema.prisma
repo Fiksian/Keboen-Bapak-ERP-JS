@@ -69,7 +69,6 @@ model Purchasing {
 model DeliveryOrder {
   id           String    @id @default(cuid())
   doNo         String    @unique
-  supplier     String
   expectedDate DateTime?
   notes        String?   @default("")
   requestedBy  String

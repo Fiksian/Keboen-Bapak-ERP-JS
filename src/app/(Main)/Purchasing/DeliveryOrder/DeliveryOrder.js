@@ -75,7 +75,6 @@ export const AddDOModal = ({ isOpen, onClose, onSuccess, editData = null }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!isVendorValid) return;
     setLoading(true);
     try {
       const payload = {

@@ -110,7 +110,6 @@ export async function PATCH(request, { params }) {
           const po = await tx.purchasing.create({
             data: {
               noPO,
-              supplier:    existing.supplier,
               item:        item.description,
               qty:         item.qty,
               unit:        item.unit,
@@ -150,11 +149,10 @@ export async function PATCH(request, { params }) {
       if (!["DRAFT", "PENDING"].includes(existing.status)) {
         return NextResponse.json({ message: "Hanya DO Draft/Pending yang dapat diedit" }, { status: 400 });
       }
-      const { supplier, expectedDate, notes, items } = body;
+      const { expectedDate, notes, items } = body;
       const updated = await prisma.deliveryOrder.update({
         where: { id },
         data: {
-          supplier:     supplier || existing.supplier,
           expectedDate: expectedDate ? new Date(expectedDate) : existing.expectedDate,
           notes:        notes ?? existing.notes,
           items: items ? {

@@ -42,11 +42,11 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const { supplier, expectedDate, notes, items } = body;
+    const { expectedDate, notes, items } = body;
 
-    if (!supplier || !items?.length) {
+    if (!items?.length) {
       return NextResponse.json(
-        { message: "supplier dan items wajib diisi" },
+        { message: "Items wajib diisi" },
         { status: 400 }
       );
     }
@@ -56,7 +56,6 @@ export async function POST(request) {
     const newDO = await prisma.deliveryOrder.create({
       data: {
         doNo,
-        supplier,
         expectedDate: expectedDate ? new Date(expectedDate) : null,
         notes: notes || "",
         requestedBy: session.user.name || session.user.email,

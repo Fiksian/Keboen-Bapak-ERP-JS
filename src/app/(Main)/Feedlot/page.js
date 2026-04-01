@@ -14,17 +14,19 @@ import {
   Scale,
   Save,
   Lock,
-  Leaf
+  Leaf,
+  Loader2 // Tambahkan icon loader
 } from 'lucide-react';
 
 const FeedlotInventory = () => {
   const { data: session } = useSession();
-  const [activeForm, setActiveForm] = useState('penerimaan'); // penerimaan atau mutasi
+  const [activeForm, setActiveForm] = useState('penerimaan');
+  const [isLoading, setIsLoading] = useState(false); // State Loading
+  
   const isAdmin = session?.user?.role === 'Admin' || session?.user?.role === 'ADMIN';
 
   // State untuk form
   const [formData, setFormData] = useState({
-    // Penerimaan
     tanggalTerima: '',
     noPo: '',
     shipmentTerima: '',
@@ -34,11 +36,8 @@ const FeedlotInventory = () => {
     noRfidTerima: '',
     noEartagTerima: '',
     beratTerima: '',
-    // Mutasi
     tanggalMutasi: '',
     jenisMutasi: 'PENJUALAN',
-    shipmentMutasi: '',
-    jenisSapiMutasi: '',
     noRfidMutasi: '',
     noEartagMutasi: '',
     beratMutasi: ''
@@ -49,13 +48,56 @@ const FeedlotInventory = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  // FUNGSI HANDLE SUBMIT KE API
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // 1. Validasi Akses
     if (!isAdmin && activeForm === 'penerimaan') {
       alert("Hanya Admin yang dapat menambah penerimaan sapi baru.");
       return;
     }
-    console.log("Submitting:", formData);
+
+    // 2. Validasi Input Dasar
+    const weight = activeForm === 'penerimaan' ? formData.beratTerima : formData.beratMutasi;
+    if (!weight || weight <= 0) {
+      alert("Mohon masukkan berat sapi yang valid.");
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const response = await fetch('/api/feedlot', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          type: activeForm,
+          data: formData,
+          userEmail: session?.user?.email || 'Unknown User'
+        }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        alert(`${activeForm === 'penerimaan' ? 'Penerimaan' : 'Mutasi'} Berhasil Disimpan!`);
+        // Reset field spesifik setelah sukses
+        setFormData(prev => ({
+          ...prev,
+          noRfidTerima: '', noEartagTerima: '', beratTerima: '',
+          noRfidMutasi: '', noEartagMutasi: '', beratMutasi: ''
+        }));
+      } else {
+        throw new Error(result.message || "Terjadi kesalahan pada server");
+      }
+    } catch (error) {
+      alert("Error: " + error.message);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -77,15 +119,16 @@ const FeedlotInventory = () => {
           </div>
         </div>
 
-        {/* NAVIGATION TOGGLE */}
         <div className="flex bg-slate-100 p-1.5 rounded-2xl w-full md:w-auto overflow-x-auto">
           <button 
+            disabled={isLoading}
             onClick={() => setActiveForm('penerimaan')}
             className={`flex-1 md:flex-none px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeForm === 'penerimaan' ? 'bg-white text-[#8da070] shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
           >
             Penerimaan Sapi
           </button>
           <button 
+            disabled={isLoading}
             onClick={() => setActiveForm('mutasi')}
             className={`flex-1 md:flex-none px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeForm === 'mutasi' ? 'bg-white text-[#8da070] shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
           >
@@ -95,7 +138,6 @@ const FeedlotInventory = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* FORM SECTION */}
         <div className="lg:col-span-8">
           <form onSubmit={handleSubmit} className="bg-white rounded-[32px] shadow-sm border border-slate-100 overflow-hidden">
             <div className="p-8 space-y-8">
@@ -109,57 +151,55 @@ const FeedlotInventory = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {activeForm === 'penerimaan' ? (
                   <>
-                    {/* INPUT PENERIMAAN SAPI */}
                     <div className="space-y-2">
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 ml-1">
                         <Calendar size={12} /> Tanggal Terima
                       </label>
-                      <input type="date" name="tanggalTerima" onChange={handleInputChange} className="w-full text-slate-600 bg-slate-50 border-none rounded-2xl px-5 py-4 text-sm font-bold outline-none focus:ring-2 focus:ring-[#8da070]/30 transition-all" />
+                      <input type="date" name="tanggalTerima" value={formData.tanggalTerima} onChange={handleInputChange} required className="w-full text-slate-600 bg-slate-50 border-none rounded-2xl px-5 py-4 text-sm font-bold outline-none focus:ring-2 focus:ring-[#8da070]/30 transition-all" />
                     </div>
 
                     <div className="space-y-2">
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 ml-1">
                         <Hash size={12} /> No PO (Master Link)
                       </label>
-                      <input type="text" name="noPo" placeholder="PO-2026-XXXX" onChange={handleInputChange} className="w-full text-slate-600 bg-slate-50 border-none rounded-2xl px-5 py-4 text-sm font-bold outline-none focus:ring-2 focus:ring-[#8da070]/30 transition-all" />
+                      <input type="text" name="noPo" value={formData.noPo} placeholder="PO-2026-XXXX" onChange={handleInputChange} required className="w-full text-slate-600 bg-slate-50 border-none rounded-2xl px-5 py-4 text-sm font-bold outline-none focus:ring-2 focus:ring-[#8da070]/30 transition-all" />
                     </div>
 
                     <div className="space-y-2">
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 ml-1">
                         <Truck size={12} /> Shipment
                       </label>
-                      <input type="text" name="shipmentTerima" placeholder="Nama Kapal/Shipment" onChange={handleInputChange} className="w-full text-slate-600 bg-slate-50 border-none rounded-2xl px-5 py-4 text-sm font-bold outline-none focus:ring-2 focus:ring-[#8da070]/30 transition-all" />
+                      <input type="text" name="shipmentTerima" value={formData.shipmentTerima} placeholder="Nama Kapal" onChange={handleInputChange} className="w-full text-slate-600 bg-slate-50 border-none rounded-2xl px-5 py-4 text-sm font-bold outline-none focus:ring-2 focus:ring-[#8da070]/30 transition-all" />
                     </div>
 
                     <div className="space-y-2">
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 ml-1">
                         <User size={12} /> Nama Importir
                       </label>
-                      <input type="text" name="namaImportir" placeholder="PT. Importir Ternak" onChange={handleInputChange} className="w-full text-slate-600 bg-slate-50 border-none rounded-2xl px-5 py-4 text-sm font-bold outline-none focus:ring-2 focus:ring-[#8da070]/30 transition-all" />
+                      <input type="text" name="namaImportir" value={formData.namaImportir} placeholder="PT. Importir" onChange={handleInputChange} className="w-full text-slate-600 bg-slate-50 border-none rounded-2xl px-5 py-4 text-sm font-bold outline-none focus:ring-2 focus:ring-[#8da070]/30 transition-all" />
                     </div>
 
                     <div className="md:col-span-2 space-y-2">
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 ml-1">
                         <MapPin size={12} /> Alamat Importir
                       </label>
-                      <textarea name="alamatImportir" rows="2" onChange={handleInputChange} className="w-full text-slate-600 bg-slate-50 border-none rounded-2xl px-5 py-4 text-sm font-bold outline-none focus:ring-2 focus:ring-[#8da070]/30 transition-all resize-none"></textarea>
+                      <textarea name="alamatImportir" value={formData.alamatImportir} rows="2" onChange={handleInputChange} className="w-full text-slate-600 bg-slate-50 border-none rounded-2xl px-5 py-4 text-sm font-bold outline-none focus:ring-2 focus:ring-[#8da070]/30 transition-all resize-none"></textarea>
                     </div>
                   </>
                 ) : (
                   <>
-                    {/* INPUT MUTASI SAPI */}
                     <div className="space-y-2">
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 ml-1">
                         <Calendar size={12} /> Tanggal Mutasi
                       </label>
-                      <input type="date" name="tanggalMutasi" onChange={handleInputChange} className="w-full text-slate-600 bg-[#f1f4eb]/50 border-none rounded-2xl px-5 py-4 text-sm font-bold outline-none focus:ring-2 focus:ring-[#8da070]/30 transition-all" />
+                      <input type="date" name="tanggalMutasi" value={formData.tanggalMutasi} onChange={handleInputChange} required className="w-full text-slate-600 bg-[#f1f4eb]/50 border-none rounded-2xl px-5 py-4 text-sm font-bold outline-none focus:ring-2 focus:ring-[#8da070]/30 transition-all" />
                     </div>
 
                     <div className="space-y-2">
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 ml-1">
                         <ArrowRightLeft size={12} /> Jenis Mutasi
                       </label>
-                      <select name="jenisMutasi" onChange={handleInputChange} className="w-full text-slate-600 bg-[#f1f4eb]/50 border-none rounded-2xl px-5 py-4 text-sm font-bold outline-none focus:ring-2 focus:ring-[#8da070]/30 transition-all appearance-none">
+                      <select name="jenisMutasi" value={formData.jenisMutasi} onChange={handleInputChange} className="w-full text-slate-600 bg-[#f1f4eb]/50 border-none rounded-2xl px-5 py-4 text-sm font-bold outline-none focus:ring-2 focus:ring-[#8da070]/30 transition-all appearance-none">
                         <option value="PENJUALAN">PENJUALAN</option>
                         <option value="POTONG PAKSA">POTONG PAKSA</option>
                         <option value="PENJUALAN MITRA">PENJUALAN MITRA</option>
@@ -170,36 +210,34 @@ const FeedlotInventory = () => {
                       <label className="text-[10px] font-black text-[#8da070] uppercase tracking-widest flex items-center gap-2 ml-1 italic">
                         <Hash size={12} /> Scan RFID (Otomatis Tarik Data)
                       </label>
-                      <input type="text" name="noRfidMutasi" placeholder="Tempel RFID Sapi..." onChange={handleInputChange} className="w-full text-slate-600 bg-white border-2 border-[#f1f4eb] rounded-2xl px-5 py-4 text-sm font-bold outline-none focus:border-[#8da070] transition-all shadow-lg shadow-[#8da070]/5" />
+                      <input type="text" name="noRfidMutasi" value={formData.noRfidMutasi} placeholder="Tempel RFID Sapi..." onChange={handleInputChange} required className="w-full text-slate-600 bg-white border-2 border-[#f1f4eb] rounded-2xl px-5 py-4 text-sm font-bold outline-none focus:border-[#8da070] transition-all shadow-lg shadow-[#8da070]/5" />
                     </div>
                   </>
                 )}
 
-                {/* SHARED FIELDS */}
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 ml-1">
                     <Tag size={12} /> Jenis Sapi
                   </label>
-                  <input type="text" name={activeForm === 'penerimaan' ? 'jenisSapiTerima' : 'jenisSapiMutasi'} placeholder="Contoh: Brahman Cross" onChange={handleInputChange} className="w-full text-slate-600 bg-slate-50 border-none rounded-2xl px-5 py-4 text-sm font-bold outline-none focus:ring-2 focus:ring-[#8da070]/30 transition-all" />
+                  <input type="text" name={activeForm === 'penerimaan' ? 'jenisSapiTerima' : 'jenisSapiMutasi'} value={activeForm === 'penerimaan' ? formData.jenisSapiTerima : formData.jenisSapiMutasi} placeholder="Brahman Cross" onChange={handleInputChange} required className="w-full text-slate-600 bg-slate-50 border-none rounded-2xl px-5 py-4 text-sm font-bold outline-none focus:ring-2 focus:ring-[#8da070]/30 transition-all" />
                 </div>
 
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 ml-1">
                     <Hash size={12} /> No Eartag
                   </label>
-                  <input type="text" name={activeForm === 'penerimaan' ? 'noEartagTerima' : 'noEartagMutasi'} placeholder="ET-XXXX" onChange={handleInputChange} className="w-full text-slate-600 bg-slate-50 border-none rounded-2xl px-5 py-4 text-sm font-bold outline-none focus:ring-2 focus:ring-[#8da070]/30 transition-all" />
+                  <input type="text" name={activeForm === 'penerimaan' ? 'noEartagTerima' : 'noEartagMutasi'} value={activeForm === 'penerimaan' ? formData.noEartagTerima : formData.noEartagMutasi} placeholder="ET-XXXX" onChange={handleInputChange} required className="w-full text-slate-600 bg-slate-50 border-none rounded-2xl px-5 py-4 text-sm font-bold outline-none focus:ring-2 focus:ring-[#8da070]/30 transition-all" />
                 </div>
 
                 <div className="space-y-2 md:col-span-2 lg:col-span-1">
                   <label className="text-[10px] font-black text-[#8da070] uppercase tracking-widest flex items-center gap-2 ml-1 font-bold">
                     <Scale size={12} /> Berat Sapi (KG)
                   </label>
-                  <input type="number" name={activeForm === 'penerimaan' ? 'beratTerima' : 'beratMutasi'} placeholder="0.00" onChange={handleInputChange} className="w-full text-slate-600 bg-[#f1f4eb]/50 border-none rounded-2xl px-5 py-4 text-sm font-bold outline-none focus:ring-2 focus:ring-[#8da070] transition-all" />
+                  <input type="number" name={activeForm === 'penerimaan' ? 'beratTerima' : 'beratMutasi'} value={activeForm === 'penerimaan' ? formData.beratTerima : formData.beratMutasi} placeholder="0.00" onChange={handleInputChange} required className="w-full text-slate-600 bg-[#f1f4eb]/50 border-none rounded-2xl px-5 py-4 text-sm font-bold outline-none focus:ring-2 focus:ring-[#8da070] transition-all" />
                 </div>
               </div>
             </div>
 
-            {/* ACTION FOOTER */}
             <div className="p-6 bg-slate-50 flex flex-col md:flex-row justify-between items-center gap-4">
               <div className="flex items-center gap-2 text-[10px] text-slate-400 font-black uppercase italic tracking-widest">
                 {activeForm === 'penerimaan' && !isAdmin ? (
@@ -210,10 +248,11 @@ const FeedlotInventory = () => {
               </div>
               <button 
                 type="submit"
-                disabled={activeForm === 'penerimaan' && !isAdmin}
-                className={`w-full md:w-auto px-10 py-4 rounded-2xl text-[11px] font-black uppercase italic tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 shadow-xl ${activeForm === 'penerimaan' && !isAdmin ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none' : 'bg-slate-900 text-white hover:bg-[#8da070] shadow-slate-200'}`}
+                disabled={isLoading || (activeForm === 'penerimaan' && !isAdmin)}
+                className={`w-full md:w-auto px-10 py-4 rounded-2xl text-[11px] font-black uppercase italic tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 shadow-xl ${isLoading || (activeForm === 'penerimaan' && !isAdmin) ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none' : 'bg-slate-900 text-white hover:bg-[#8da070] shadow-slate-200'}`}
               >
-                <Save size={18} /> Simpan {activeForm === 'penerimaan' ? 'Penerimaan' : 'Mutasi'}
+                {isLoading ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                {isLoading ? 'Processing...' : `Simpan ${activeForm === 'penerimaan' ? 'Penerimaan' : 'Mutasi'}`}
               </button>
             </div>
           </form>
@@ -230,7 +269,7 @@ const FeedlotInventory = () => {
               <div className="p-5 bg-white/5 rounded-2xl border border-white/5 space-y-1">
                 <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Identitas RFID</p>
                 <p className="text-sm font-black text-white uppercase tracking-tighter">
-                  {formData.noRfidMutasi || formData.noRfidTerima || 'Waiting for scan...'}
+                  {(activeForm === 'penerimaan' ? formData.noRfidTerima : formData.noRfidMutasi) || 'Waiting for scan...'}
                 </p>
               </div>
               <div className="p-5 bg-[#8da070]/10 border border-[#8da070]/20 rounded-2xl space-y-1">
@@ -255,7 +294,6 @@ const FeedlotInventory = () => {
             </div>
           </div>
 
-          {/* QUICK LINKS / HELP */}
           <div className="bg-white rounded-[28px] p-6 border border-slate-100 shadow-sm">
             <p className="text-[10px] font-black text-slate-400 uppercase italic tracking-widest mb-4">Quick Information</p>
             <div className="space-y-3">
@@ -275,7 +313,7 @@ const FeedlotInventory = () => {
   );
 };
 
-// Internal sub-component for check icon in status
+// Internal sub-component
 const CheckCircle2 = ({ size, className }) => (
   <svg 
     width={size} 

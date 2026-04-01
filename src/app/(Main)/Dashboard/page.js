@@ -5,7 +5,7 @@ import StockCard from '@/app/(Main)/Stock/StatCard';
 import { useSession } from "next-auth/react";
 import { Loader2, Users, PackageSearch, ShoppingCart } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
-import PurchasingCards from '@/app/(Main)/Purchasing/PurchasingStats';
+import PurchasingCards from '@/app/(Main)/Purchasing/PurchasingItem/PurchasingStats';
 
 export default function DashboardPage() {
   const { data: session, status } = useSession();

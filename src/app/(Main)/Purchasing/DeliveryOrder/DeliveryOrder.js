@@ -31,10 +31,6 @@ const DOStatusBadge = ({ status }) => {
 export const AddDOModal = ({ isOpen, onClose, onSuccess, editData = null }) => {
   const { data: session } = useSession();
   const [loading, setLoading] = useState(false);
-  const [contacts, setContacts]   = useState([]);
-  const [supplier, setSupplier]   = useState('');
-  const [showVendorDropdown, setShowVendorDropdown] = useState(false);
-  const vendorRef = useRef(null);
 
   const [items, setItems] = useState([
     { id: Date.now(), description: '', qty: 1, unit: 'Kg', estimasiHarga: 0, notes: '' },
@@ -43,19 +39,9 @@ export const AddDOModal = ({ isOpen, onClose, onSuccess, editData = null }) => {
   const [expectedDate, setExpectedDate] = useState('');
   const [doNotes, setDoNotes] = useState('');
 
-  // Load contacts
-  useEffect(() => {
-    if (!isOpen) return;
-    fetch('/api/contacts?type=SUPPLIER')
-      .then(r => r.ok ? r.json() : [])
-      .then(setContacts)
-      .catch(() => {});
-  }, [isOpen]);
-
   // Fill edit data
   useEffect(() => {
     if (editData) {
-      setSupplier(editData.supplier || '');
       setExpectedDate(editData.expectedDate?.split('T')[0] || '');
       setDoNotes(editData.notes || '');
       setItems(
@@ -64,28 +50,6 @@ export const AddDOModal = ({ isOpen, onClose, onSuccess, editData = null }) => {
       );
     }
   }, [editData]);
-
-  // Close vendor dropdown on outside click
-  useEffect(() => {
-    const handle = (e) => {
-      if (vendorRef.current && !vendorRef.current.contains(e.target))
-        setShowVendorDropdown(false);
-    };
-    document.addEventListener('mousedown', handle);
-    return () => document.removeEventListener('mousedown', handle);
-  }, []);
-
-  const filteredContacts = useMemo(() =>
-    !supplier ? [] : contacts.filter(c =>
-      c.name.toLowerCase().includes(supplier.toLowerCase())
-    ).slice(0, 8),
-    [supplier, contacts]
-  );
-
-  const isVendorValid = useMemo(() =>
-    contacts.some(c => c.name.toUpperCase() === supplier.toUpperCase()),
-    [supplier, contacts]
-  );
 
   const totalEstimasi = useMemo(() =>
     items.reduce((sum, i) => sum + (parseFloat(i.qty) || 0) * (parseFloat(i.estimasiHarga) || 0), 0),
@@ -103,7 +67,7 @@ export const AddDOModal = ({ isOpen, onClose, onSuccess, editData = null }) => {
     setItems(prev => prev.map(i => i.id === id ? { ...i, [field]: value } : i));
 
   const handleReset = () => {
-    setSupplier(''); setExpectedDate(''); setDoNotes('');
+    setExpectedDate(''); setDoNotes('');
     setItems([{ id: Date.now(), description: '', qty: 1, unit: 'Kg', estimasiHarga: 0, notes: '' }]);
   };
 
@@ -115,7 +79,6 @@ export const AddDOModal = ({ isOpen, onClose, onSuccess, editData = null }) => {
     setLoading(true);
     try {
       const payload = {
-        supplier,
         expectedDate: expectedDate || null,
         notes: doNotes,
         requestedBy: session?.user?.name || 'User',
@@ -178,35 +141,6 @@ export const AddDOModal = ({ isOpen, onClose, onSuccess, editData = null }) => {
 
         {/* Body */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 md:p-8 space-y-6">
-
-          {/* Supplier */}
-          <div ref={vendorRef} className={`p-5 rounded-[20px] border transition-all relative ${!isVendorValid && supplier ? 'bg-red-50 border-red-200' : 'bg-amber-50/40 border-amber-100'}`}>
-            <label className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-2 mb-3 ${!isVendorValid && supplier ? 'text-red-600' : 'text-amber-600'}`}>
-              <Users size={12} /> Supplier / Vendor
-              {!isVendorValid && supplier && ' — Tidak terdaftar'}
-            </label>
-            <input
-              required autoComplete="off"
-              className={`w-full bg-white border rounded-2xl px-5 py-4 text-sm font-bold outline-none uppercase transition-all ${!isVendorValid && supplier ? 'border-red-300 focus:ring-4 focus:ring-red-100' : 'border-amber-200 focus:ring-4 focus:ring-amber-100'}`}
-              placeholder="Cari & pilih supplier..."
-              value={supplier}
-              onChange={e => { setSupplier(e.target.value); setShowVendorDropdown(true); }}
-            />
-            {showVendorDropdown && filteredContacts.length > 0 && (
-              <div className="absolute z-[300] left-6 right-6 mt-2 bg-white border border-gray-100 rounded-2xl shadow-2xl overflow-hidden max-h-[180px] overflow-y-auto">
-                {filteredContacts.map(c => (
-                  <div key={c.id} onClick={() => { setSupplier(c.name); setShowVendorDropdown(false); }}
-                    className="px-5 py-3 border-b border-gray-50 hover:bg-amber-500 hover:text-white cursor-pointer flex justify-between items-center group transition-colors">
-                    <div>
-                      <p className="text-xs font-black uppercase italic">{c.name}</p>
-                      <p className="text-[9px] font-bold opacity-70 uppercase">{c.companyName || 'Verified Supplier'}</p>
-                    </div>
-                    <CheckCircle2 size={14} className="opacity-0 group-hover:opacity-100" />
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
 
           {/* Expected Date + Notes */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -306,17 +240,12 @@ export const AddDOModal = ({ isOpen, onClose, onSuccess, editData = null }) => {
                 className="flex-1 sm:flex-none px-6 py-4 rounded-2xl text-[11px] font-black uppercase italic text-gray-400 hover:bg-gray-50 transition-colors">
                 Batal
               </button>
-              <button onClick={handleSubmit} disabled={loading || !isVendorValid || items.some(i => !i.description || i.qty <= 0)}
+              <button onClick={handleSubmit} disabled={loading || items.some(i => !i.description || i.qty <= 0)}
                 className="flex-[2] sm:flex-none bg-amber-500 hover:bg-amber-600 text-white rounded-2xl px-8 py-4 text-[11px] font-black shadow-xl shadow-amber-100 uppercase tracking-widest italic flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50">
                 {loading ? <Loader2 className="animate-spin" size={16} /> : <><FileText size={16} /> Simpan DO</>}
               </button>
             </div>
           </div>
-          {!isVendorValid && supplier && (
-            <p className="text-[10px] text-red-500 font-bold uppercase mt-3 flex items-center gap-1">
-              <AlertCircle size={12} /> Pilih supplier dari daftar yang tersedia.
-            </p>
-          )}
         </div>
       </div>
     </div>
@@ -364,7 +293,6 @@ export const DODetailModal = ({ isOpen, onClose, doData, onApprove, onReject, on
           {/* Meta info */}
           <div className="grid grid-cols-2 gap-3">
             {[
-              { icon: Building2, label: 'Supplier',  value: doData.supplier },
               { icon: Calendar,  label: 'Est. Kirim', value: doData.expectedDate ? new Date(doData.expectedDate).toLocaleDateString('id-ID') : '-' },
               { icon: Hash,      label: 'Dibuat oleh', value: doData.requestedBy },
               { icon: Calendar,  label: 'Tanggal DO', value: new Date(doData.createdAt).toLocaleDateString('id-ID', { day:'2-digit', month:'short', year:'numeric' }) },
@@ -495,7 +423,7 @@ const DeliveryOrderTable = ({
         <table className="w-full text-left border-separate border-spacing-0">
           <thead>
             <tr className="text-gray-400 text-[10px] font-black uppercase tracking-[0.2em] bg-gray-50/50">
-              {['No DO', 'Supplier', 'Item', 'Est. Nilai', 'Status', 'Tgl Dibuat', 'Aksi'].map(h => (
+              {['No DO', 'Item', 'Est. Nilai', 'Status', 'Tgl Dibuat', 'Aksi'].map(h => (
                 <th key={h} className="px-6 py-5 border-b border-gray-100 font-black">{h}</th>
               ))}
             </tr>
@@ -509,12 +437,6 @@ const DeliveryOrderTable = ({
                     <span className="text-[11px] font-black text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-lg">
                       {do_.doNo}
                     </span>
-                  </td>
-                  <td className="px-6 py-5 border-b border-gray-50">
-                    <div className="flex items-center gap-2">
-                      <Building2 size={13} className="text-gray-300 shrink-0" />
-                      <span className="text-[12px] font-bold text-gray-700 uppercase">{do_.supplier}</span>
-                    </div>
                   </td>
                   <td className="px-6 py-5 border-b border-gray-50">
                     <p className="text-[11px] font-black text-gray-800 uppercase leading-tight">
@@ -576,7 +498,6 @@ const DeliveryOrderTable = ({
               <div className="flex justify-between items-start">
                 <div className="space-y-1">
                   <span className="text-[10px] font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">{do_.doNo}</span>
-                  <h4 className="font-black text-gray-800 text-sm uppercase">{do_.supplier}</h4>
                   <p className="text-[10px] text-gray-500 font-bold">{do_.items?.[0]?.description}</p>
                 </div>
                 <div className="text-right">

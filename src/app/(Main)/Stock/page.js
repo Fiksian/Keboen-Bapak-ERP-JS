@@ -177,7 +177,7 @@ const StockInventory = () => {
           <div className="animate-in slide-in-from-bottom-4 duration-700">
             <StockTable 
               data={filteredData} 
-              onEdit={handleEdit}
+              // onEdit={handleEdit}
               onRefresh={fetchData} 
               isAdmin={isAdmin} 
             />

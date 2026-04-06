@@ -6,43 +6,26 @@ import { useSession } from 'next-auth/react';
 import ArrivalCard from './ArrivalCard';
 import ArrivalModal from './ArrivalModal';
 
+// INITIAL_FORM: tidak ada warehouseId — gudang ditentukan saat Approval STTB
 const INITIAL_FORM = {
-  suratJalan: '',
-  vehicleNo: '',
-  condition: 'GOOD',
-  notes: '',
-  beratIsi: '',
-  beratKosong: '',
-  netto: '0.00',
-  receivedQty: 0,
-  sourceUnit: 'KG',  
-  warehouseUnit: 'KG', 
-  warehouseId: '',
-  image: null,
+  suratJalan:   '',
+  vehicleNo:    '',
+  condition:    'GOOD',
+  notes:        '',
+  beratIsi:     '',
+  beratKosong:  '',
+  netto:        '0.00',
+  receivedQty:  0,
+  sourceUnit:   'KG',
+  warehouseUnit:'KG',
+  image:        null,
 };
 
 const ArrivalMonitor = ({ arrivals = [], onRefresh }) => {
-  const { data: session } = useSession();
-  const [selectedArrival, setSelectedArrival] = useState(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [warehouses, setWarehouses] = useState([]);
-  const [formData, setFormData] = useState(INITIAL_FORM);
-
-  const fetchWarehouses = useCallback(async () => {
-    try {
-      const res = await fetch('/api/warehouse');
-      if (res.ok) {
-        const data = await res.json();
-        setWarehouses(data);
-      }
-    } catch (err) {
-      console.error("Gagal mengambil data gudang:", err);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchWarehouses();
-  }, [fetchWarehouses]);
+  const { data: session }    = useSession();
+  const [selectedArrival,   setSelectedArrival]   = useState(null);
+  const [isSubmitting,      setIsSubmitting]       = useState(false);
+  const [formData,          setFormData]           = useState(INITIAL_FORM);
 
   const isAuthorized = ["Admin", "Supervisor", "Staff"].includes(session?.user?.role);
 
@@ -50,61 +33,56 @@ const ArrivalMonitor = ({ arrivals = [], onRefresh }) => {
 
   const handleOpenReceipt = async (arrival) => {
     setSelectedArrival(arrival);
-
+    // Sync warehouseUnit dari DB jika item sudah ada di Stock
     try {
-      const res = await fetch('/api/stock');
+      const res    = await fetch('/api/stock');
       const stocks = await res.json();
-      const itemInDb = stocks.find(
-        (s) => s.name.toLowerCase() === arrival.item.toLowerCase()
-      );
-      const resolvedWarehouseUnit = itemInDb?.unit || arrival.unit || 'KG';
-      setFormData((prev) => ({ ...prev, warehouseUnit: resolvedWarehouseUnit }));
-    } catch (err) {
-      console.error("Gagal sinkronisasi unit:", err);
-      setFormData((prev) => ({ ...prev, warehouseUnit: arrival.unit || 'KG' }));
+      const found  = stocks.find(s => s.name.toLowerCase() === arrival.item.toLowerCase());
+      const unit   = found?.unit || arrival.unit || 'KG';
+      setFormData(prev => ({ ...prev, warehouseUnit: unit }));
+    } catch {
+      setFormData(prev => ({ ...prev, warehouseUnit: arrival.unit || 'KG' }));
     }
   };
 
   const handleClose = () => {
     setSelectedArrival(null);
-    setFormData(INITIAL_FORM); 
+    setFormData(INITIAL_FORM);
   };
 
   const handleFinalSubmit = async (e) => {
     e.preventDefault();
-
     setIsSubmitting(true);
-
     try {
-      const dataToSend = new FormData();
-      dataToSend.append('suratJalan',   formData.suratJalan);
-      dataToSend.append('vehicleNo',    formData.vehicleNo);
-      dataToSend.append('condition',    formData.condition);
-      dataToSend.append('notes',        formData.notes || '');
-      dataToSend.append('receivedBy',   session?.user?.name || 'Warehouse Staff');
-      dataToSend.append('receivedQty',  parseFloat(formData.receivedQty));
+      const payload = new FormData();
+      payload.append('suratJalan',  formData.suratJalan);
+      payload.append('vehicleNo',   formData.vehicleNo);
+      payload.append('condition',   formData.condition);
+      payload.append('notes',       formData.notes || '');
+      payload.append('receivedBy',  session?.user?.name || 'Warehouse Staff');
+      payload.append('receivedQty', parseFloat(formData.receivedQty));
 
+      // Kirim data timbang jika ada
       if (formData.beratIsi) {
-        dataToSend.append('beratIsi',   formData.beratIsi);
-        dataToSend.append('beratKosong', formData.beratKosong);
-        dataToSend.append('netto',      formData.netto);
+        payload.append('beratIsi',    formData.beratIsi);
+        payload.append('beratKosong', formData.beratKosong);
+        payload.append('netto',       formData.netto);
       }
 
-      dataToSend.append('warehouseId',  formData.warehouseId);
-
-      dataToSend.append('file', formData.image);
+      // Tidak kirim warehouseId — ditentukan nanti di Approval STTB
+      payload.append('file', formData.image);
 
       const res = await fetch(`/api/purchasing/${selectedArrival.id}/receive`, {
         method: 'PATCH',
-        body: dataToSend,
+        body:   payload,
       });
 
       if (res.ok) {
         handleClose();
         if (onRefresh) onRefresh();
       } else {
-        const error = await res.json();
-        alert(`Gagal: ${error.message}`);
+        const err = await res.json();
+        alert(`Gagal: ${err.message}`);
       }
     } catch (err) {
       console.error("SUBMIT_RECEIPT_ERROR:", err);
@@ -149,9 +127,9 @@ const ArrivalMonitor = ({ arrivals = [], onRefresh }) => {
         ))}
       </div>
 
+      {/* Modal: tidak perlu prop warehouses lagi */}
       <ArrivalModal
         arrival={selectedArrival}
-        warehouses={warehouses}
         formData={formData}
         setFormData={setFormData}
         isSubmitting={isSubmitting}

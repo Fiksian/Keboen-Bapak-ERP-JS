@@ -8,7 +8,8 @@ import {
   Warehouse, Settings, Clock, Package, ShoppingCart, Store, 
   CircleDollarSign, Calendar, ArrowLeft,
   Feather,
-  Factory
+  Factory,
+  Book
 } from 'lucide-react';
 
 const MENU_ICONS = {
@@ -23,6 +24,7 @@ const MENU_ICONS = {
   feedmill: <Feather size={20} />,
   feedlot: <Factory size={20} />,
   arrival: <Clock size={20} />,
+  sttb: <Book size={20} />,
   warehouse: <Package size={20} />,
   purchasing: <ShoppingCart size={20} />,
   penjualan: <Store size={20} />,

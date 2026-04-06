@@ -42,6 +42,7 @@ const Sidebar = ({ isCollapsed, toggleSidebar, userRole, isOpenMobile, onCloseMo
     { id: 'produksi', name: 'Produksi', icon: <Settings size={18} />, path: '/Produksi' },
     { id: 'feedmill', name: 'Feedmill', icon: <Settings size={18} />, path: '/Feedmill' },
     { id: 'arrival', name: 'Arrival', icon: <Clock size={18} />, path: '/Arrival' },
+    { id: 'sttb', name: 'STTB', icon: <Clock size={18} />, path: '/STTB' },    
     { id: 'warehouse', name: 'Warehouse', icon: <Package size={18} />, path: '/Stock' },
     { id: 'purchasing', name: 'Purchasing', icon: <ShoppingCart size={18} />, path: '/Purchasing' },
     { id: 'penjualan', name: 'Penjualan', icon: <Store size={18} />, path: '/Penjualan' },

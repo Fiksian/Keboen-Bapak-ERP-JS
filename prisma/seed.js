@@ -44,6 +44,20 @@ async function main() {
         });
       }
 
+      // --- TAMBAHAN: SEEDING ROLES TERLEBIH DAHULU ---
+      console.log('🔐 Seeding Role Permissions...');
+      const roles = ['Admin', 'Supervisor', 'Staff', 'Test'];
+      for (const roleName of roles) {
+        await tx.rolePermission.upsert({
+          where: { roleName: roleName },
+          update: {},
+          create: {
+            roleName: roleName,
+            permissions: [], // Bisa diisi default permissions jika perlu
+          },
+        });
+      }
+
       console.log('👤 Seeding Admin...');
 >>>>>>> 9038349 (Warehouse system di bagian arrival dan stock)
       const adminUser = await tx.user.upsert({

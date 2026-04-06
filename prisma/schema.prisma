@@ -8,20 +8,21 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// --- MODEL BARU: WAREHOUSE ---
+// ─── WAREHOUSE ────────────────────────────────────────────────────────────────
 model Warehouse {
-  id        String    @id @default(cuid())
-  name      String    @unique // Contoh: "Gudang Pakan", "Gudang A"
-  code      String?   @unique // Contoh: WH-A
+  id        String   @id @default(cuid())
+  name      String   @unique
+  code      String?  @unique
   address   String?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  // Relasi
   receipts  Receipt[]
   stocks    Stock[]
+  sttbs     STTB[]
 }
 
+// ─── USER & ROLES ─────────────────────────────────────────────────────────────
 model User {
   id        String          @id @default(cuid())
   username  String          @unique
@@ -42,10 +43,78 @@ model RolePermission {
   users       User[]   @relation("UserToRole")
 }
 
+// ─── DELIVERY ORDER (DO) ──────────────────────────────────────────────────────
+// DO dibuat PERTAMA sebagai dokumen rencana kebutuhan barang.
+// Tidak terikat ke supplier — supplier ditentukan saat PO dibuat.
+//
+// Status flow: DRAFT → PENDING → APPROVED → PARTIAL → FULFILLED
+//   - PARTIAL   : Sebagian item sudah punya PO, belum semua
+//   - FULFILLED : Semua item sudah ter-cover penuh oleh PO
+model DeliveryOrder {
+  id           String    @id @default(cuid())
+  doNo         String    @unique  // auto-generated: DO-YYYYMM-XXXX
+  title        String?            // judul / deskripsi DO opsional
+  expectedDate DateTime?          // estimasi tanggal butuh barang
+  notes        String?   @default("")
+  requestedBy  String
+  status       String    @default("PENDING")
+  // "DRAFT" | "PENDING" | "APPROVED" | "PARTIAL" | "FULFILLED" | "REJECTED"
+
+  approvedBy String?
+  approvedAt DateTime?
+
+  items DeliveryOrderItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ─── DELIVERY ORDER ITEM ──────────────────────────────────────────────────────
+// Setiap baris = satu jenis barang yang dibutuhkan.
+// Tidak terikat supplier — bisa dipecah ke banyak PO dari supplier berbeda.
+// Track fulfillment: qtyRequired vs qtyOrdered (total dari semua PO terkait).
+model DeliveryOrderItem {
+  id              String        @id @default(cuid())
+  deliveryOrderId String
+  deliveryOrder   DeliveryOrder @relation(fields: [deliveryOrderId], references: [id], onDelete: Cascade)
+
+  // Nama barang — harus ada di tabel Stock sebagai referensi
+  itemName        String
+  category        String  @default("")
+  type            String  @default("STOCKS")
+  unit            String  @default("Kg")
+
+  // Qty yang dibutuhkan (dari DO)
+  qtyRequired     Float   @default(0)
+
+  // Qty yang sudah dibuatkan PO (dihitung dari semua Purchasing terkait)
+  // Di-update setiap kali PO baru dibuat / dihapus untuk item ini
+  qtyOrdered      Float   @default(0)
+
+  // Estimasi harga per unit (opsional, bisa diisi saat DO dibuat)
+  estimasiHarga   Float   @default(0)
+
+  notes           String? @default("")
+
+  // PO-PO yang dibuat untuk memenuhi item ini
+  // Satu item DO bisa dipecah ke banyak PO (multi-supplier)
+  purchasingOrders Purchasing[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Helper computed: apakah item ini sudah terpenuhi penuh?
+  // qtyOrdered >= qtyRequired → fulfilled
+}
+
+// ─── PURCHASING (PO) ──────────────────────────────────────────────────────────
+// PO dibuat SETELAH DO disetujui.
+// User memilih item dari DO, lalu isi supplier, qty, dan harga secara manual.
+// Satu PO = satu item dari satu supplier (bisa ada banyak PO untuk satu DO item).
 model Purchasing {
   id          String         @id @default(cuid())
   noPO        String
-  item        String
+  item        String         // nama item (sama dengan DOItem.itemName)
   qty         Float          @default(0)
   unit        String         @default("KG")
   price       String?
@@ -56,80 +125,81 @@ model Purchasing {
   isReceived  Boolean        @default(false)
   requestedBy String
   approvedBy  String?
+  notes       String?
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
-  receipts    Receipt[]
 
-  // --- TAMBAHAN RELASI KE DO ---
-  // Menghubungkan PO ini dengan DO asalnya (jika ada)
-  deliveryOrderId String?
-  deliveryOrder   DeliveryOrder? @relation(fields: [deliveryOrderId], references: [id])
+  // ── Relasi ke DO Item (WAJIB jika PO dibuat dari DO) ─────────────────────
+  // Nullable: PO bisa dibuat langsung tanpa DO (untuk keperluan ad-hoc)
+  deliveryOrderItemId String?
+  deliveryOrderItem   DeliveryOrderItem? @relation(fields: [deliveryOrderItemId], references: [id])
+
+  receipts Receipt[]
+  sttb     STTB?
 }
 
-model DeliveryOrder {
-  id           String    @id @default(cuid())
-  doNo         String    @unique
-  expectedDate DateTime?
-  notes        String?   @default("")
-  requestedBy  String
-  status       String    @default("PENDING")
-  // "DRAFT" | "PENDING" | "APPROVED" | "REJECTED" | "LINKED"
-
-  approvedBy String?
-  approvedAt DateTime?
-
-  // Referensi PO yang dihasilkan dari DO ini
-  linkedPOId String?
-  linkedPONo String?
-
-  items DeliveryOrderItem[]
-
-  // --- TAMBAHAN RELASI BALIK KE PURCHASING ---
-  purchasing Purchasing[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model DeliveryOrderItem {
-  id              String        @id @default(cuid())
-  deliveryOrderId String
-  deliveryOrder   DeliveryOrder @relation(fields: [deliveryOrderId], references: [id], onDelete: Cascade)
-
-  description   String
-  qty           Float   @default(0)
-  unit          String  @default("Kg")
-  estimasiHarga Float   @default(0)
-  notes         String? @default("")
-
-  createdAt DateTime @default(now())
-}
-
+// ─── RECEIPT ──────────────────────────────────────────────────────────────────
 model Receipt {
-  id           String     @id @default(cuid())
-  receiptNo    String     @unique
+  id           String    @id @default(cuid())
+  receiptNo    String    @unique
   purchasingId String
   suratJalan   String
   imageUrl     String?
   vehicleNo    String
   receivedQty  Float
-  grossWeight  Float      @default(0)
-  tareWeight   Float      @default(0)
-  netWeight    Float      @default(0)
+  grossWeight  Float     @default(0)
+  tareWeight   Float     @default(0)
+  netWeight    Float     @default(0)
   receivedBy   String
-  condition    String     @default("GOOD")
+  condition    String    @default("GOOD")
   notes        String?
-  receivedAt   DateTime   @default(now())
-  purchasing   Purchasing @relation(fields: [purchasingId], references: [id])
+  receivedAt   DateTime  @default(now())
 
-  // RELASI KE WAREHOUSE
-  // Menentukan barang ini masuk ke gudang mana saat diterima
-  warehouseId  String
-  warehouse    Warehouse  @relation(fields: [warehouseId], references: [id])
+  purchasing  Purchasing @relation(fields: [purchasingId], references: [id])
+
+  // Gudang diisi saat STTB final approved (nullable dulu)
+  warehouseId String?
+  warehouse   Warehouse? @relation(fields: [warehouseId], references: [id])
+
+  sttb STTB?
 }
 
+// ─── STTB (Surat Tanda Terima Barang) ─────────────────────────────────────────
+model STTB {
+  id           String   @id @default(cuid())
+  sttbNo       String   @unique
+  receiptId    String   @unique
+  receipt      Receipt  @relation(fields: [receiptId], references: [id])
+  purchasingId String   @unique
+  purchasing   Purchasing @relation(fields: [purchasingId], references: [id])
+
+  status       String   @default("PENDING_QC")
+
+  qcApprovedBy          String?
+  qcApprovedAt          DateTime?
+  qcNotes               String?
+  supervisorApprovedBy  String?
+  supervisorApprovedAt  DateTime?
+  supervisorNotes       String?
+  managerApprovedBy     String?
+  managerApprovedAt     DateTime?
+  managerNotes          String?
+
+  warehouseId      String?
+  warehouse        Warehouse? @relation(fields: [warehouseId], references: [id])
+  stockCommitted   Boolean    @default(false)
+  stockCommittedAt DateTime?
+  rejectedBy       String?
+  rejectedAt       DateTime?
+  rejectedNotes    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ─── STOCK ────────────────────────────────────────────────────────────────────
 model Stock {
-  id              String    @id @default(cuid())
+  id              String   @id @default(cuid())
   name            String
   category        String
   stock           Float
@@ -138,18 +208,15 @@ model Stock {
   price           String?
   status          String?
   lastPurchasedId String?
-  updatedAt       DateTime  @updatedAt
+  updatedAt       DateTime @updatedAt
 
-  // RELASI KE WAREHOUSE
-  // Agar stok terpisah per lokasi gudang
-  warehouseId     String
-  warehouse       Warehouse @relation(fields: [warehouseId], references: [id])
+  warehouseId String
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
 
-  // Constraint: Nama barang yang sama bisa ada di gudang berbeda, 
-  // tapi tidak boleh duplikat di gudang yang sama.
   @@unique([name, warehouseId])
 }
 
+// ─── PRODUCTION ───────────────────────────────────────────────────────────────
 model Production {
   id          String                @id @default(cuid())
   noBatch     String                @unique
@@ -178,6 +245,7 @@ model ProductionComponent {
   production   Production @relation(fields: [productionId], references: [id], onDelete: Cascade)
 }
 
+// ─── TASK ─────────────────────────────────────────────────────────────────────
 model Task {
   id        String   @id @default(cuid())
   title     String
@@ -190,6 +258,7 @@ model Task {
   updatedAt DateTime @updatedAt
 }
 
+// ─── HISTORY ──────────────────────────────────────────────────────────────────
 model History {
   id          String   @id @default(uuid())
   action      String
@@ -204,6 +273,7 @@ model History {
   createdAt   DateTime @default(now())
 }
 
+// ─── PENJUALAN ────────────────────────────────────────────────────────────────
 model Penjualan {
   id          String          @id @default(cuid())
   invoiceId   String          @unique
@@ -226,6 +296,7 @@ model PenjualanItem {
   penjualan   Penjualan @relation(fields: [penjualanId], references: [id])
 }
 
+// ─── CONTACT ──────────────────────────────────────────────────────────────────
 model Contact {
   id          String      @id @default(cuid())
   name        String
@@ -239,6 +310,7 @@ model Contact {
   penjualan   Penjualan[]
 }
 
+// ─── STAFFS ───────────────────────────────────────────────────────────────────
 model staffs {
   id          String   @id
   email       String   @unique
@@ -255,6 +327,7 @@ model staffs {
   User        User     @relation(fields: [id], references: [id], onDelete: Cascade)
 }
 
+// ─── TRANSACTION ──────────────────────────────────────────────────────────────
 model Transaction {
   id          String   @id @default(cuid())
   trxNo       String
@@ -270,6 +343,7 @@ model Transaction {
   updatedAt   DateTime @updatedAt
 }
 
+// ─── ENUMS ────────────────────────────────────────────────────────────────────
 enum PurchaseStatus {
   PENDING
   APPROVED

@@ -39,4 +39,4 @@ USER nextjs
 EXPOSE 3000
 
 # Script startup
-CMD ["sh", "-c", "npx prisma db push && npm start"]
+CMD ["npm", "start"]

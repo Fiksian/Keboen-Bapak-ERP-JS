@@ -44,7 +44,7 @@ const StaffProfile = ({ staff, onBack, onUpdate }) => {
   }, [isAdmin]);
 
   const designationOptions = [
-    'IT Support', 'Farm Worker', 'Accountant', 
+    'IT Support', 'Farm Worker', 'Accountant', 'Manager',
     'Marketing', 'Maintenance', 'New Employee', 'Test Akun'
   ];
 

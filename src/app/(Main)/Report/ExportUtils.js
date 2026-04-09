@@ -18,7 +18,6 @@
  *  5. Inventori               (current stock)
  *  6. Keuangan                (transactions)
  *  7. History Log             (activity log)
- *  8. Karyawan                (staff list)
  * 
  * CSV: data mentah tanpa styling, delimiter koma.
  */
@@ -171,7 +170,6 @@ export const exportToExcel = async (data, type = 'Daily') => {
   const stocks       = raw.stocks       || [];
   const transactions = raw.transactions || [];
   const histories    = raw.histories    || [];
-  const staffList    = raw.staffList    || [];
 
   // ══════════════════════════════════════════════════════════════════════════
   // SHEET 1 — KEDATANGAN BAHAN BAKU
@@ -477,31 +475,6 @@ export const exportToExcel = async (data, type = 'Daily') => {
         parseFloat(h.quantity) || 0,
         h.notes || '-',
       ], { rightCols: [5], numFmtMap: { 5: '#,##0.##' } });
-      r++;
-    });
-  }
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // SHEET 8 — KARYAWAN
-  // ══════════════════════════════════════════════════════════════════════════
-  {
-    const sh     = wb.addWorksheet('Karyawan');
-    const WIDTHS = [6, 14, 20, 20, 25, 14, 30];
-    WIDTHS.forEach((w, i) => { sh.getColumn(i + 1).width = w; });
-    writeReportHeader(sh, 7, COMPANY, 'DATA KARYAWAN', periodeStr);
-    writeColHeader(sh, ['NO','STAFF ID','NAMA DEPAN','NAMA BELAKANG','JABATAN','ROLE','EMAIL']);
-
-    let r = 6;
-    staffList.forEach((s, idx) => {
-      writeDataRow(sh, r, [
-        idx === 0 ? 1 : { formula: `A${r-1}+1` },
-        s.staffId          || '-',
-        (s.firstName       || '').toUpperCase(),
-        (s.lastName        || '').toUpperCase(),
-        (s.designation     || '').toUpperCase(),
-        (s.role            || '').toUpperCase(),
-        s.email            || '-',
-      ], { boldCols: [2, 3] });
       r++;
     });
   }

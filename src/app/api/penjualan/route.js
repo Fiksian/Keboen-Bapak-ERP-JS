@@ -1,239 +1,434 @@
+// app/api/penjualan/route.js
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 
-const generateFinanceTrxNo = async (tx) => {
-  const datePrefix = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-  const lastTrx = await tx.transaction.findFirst({
-    where: { trxNo: { startsWith: `TRX-${datePrefix}` } },
-    orderBy: { trxNo: 'desc' }
+// ─── Auto-numbering helpers ───────────────────────────────────────────────────
+const generateInvoiceNo = async (tx) => {
+  const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+  const prefix  = `INV/${dateStr}/`;
+  const last    = await tx.penjualan.findFirst({
+    where:   { invoiceId: { startsWith: prefix } },
+    orderBy: { invoiceId: "desc" },
   });
-
-  let nextNum = "001";
-  if (lastTrx) {
-    const lastNum = parseInt(lastTrx.trxNo.split("-")[2]);
-    nextNum = String(lastNum + 1).padStart(3, "0");
-  }
-  return `TRX-${datePrefix}-${nextNum}`;
+  const nextNum = last ? parseInt(last.invoiceId.split("/").pop()) + 1 : 1;
+  return `${prefix}${String(nextNum).padStart(3, "0")}`;
 };
 
-export async function GET() {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+const generateTrxNo = async (tx) => {
+  const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+  const prefix  = `TRX-${dateStr}-`;
+  const last    = await tx.transaction.findFirst({
+    where:   { trxNo: { startsWith: prefix } },
+    orderBy: { trxNo: "desc" },
+  });
+  const nextNum = last ? parseInt(last.trxNo.split("-").pop()) + 1 : 1;
+  return `${prefix}${String(nextNum).padStart(3, "0")}`;
+};
 
-    const sales = await prisma.penjualan.findMany({
-      include: {
-        customer: { select: { name: true } },
-        items: true
-      },
-      orderBy: { createdAt: 'desc' }
-    });
+// ─── Role check ───────────────────────────────────────────────────────────────
+const isAuthorized = (session, roles = ["Admin", "Sales", "Supervisor"]) =>
+  roles.includes(session?.user?.role);
 
-    const formattedData = sales.map((sale) => ({
-      id: sale.invoiceId,
-      dbId: sale.id,
-      customer: sale.customer?.name || "Pelanggan Umum",
-      date: sale.createdAt ? sale.createdAt.toISOString().split('T')[0] : "-",
-      createdAt: sale.createdAt,
-      total: sale.totalAmount || 0,
-      status: sale.status,
-      itemCount: sale.items?.length || 0,
-      items: sale.items
-    }));
+// ─── Hitung total dari items + tax + discount ─────────────────────────────────
+const calcTotals = (items, discountPct = 0, taxPct = 0, shippingCost = 0) => {
+  const subtotal   = items.reduce((s, i) => s + (parseFloat(i.quantity) * parseFloat(i.price) - (parseFloat(i.discount) || 0)), 0);
+  const discount   = subtotal * (parseFloat(discountPct) / 100);
+  const afterDisc  = subtotal - discount;
+  const taxAmount  = afterDisc * (parseFloat(taxPct) / 100);
+  const total      = afterDisc + taxAmount + parseFloat(shippingCost || 0);
+  return { subtotal, discount, taxAmount, total };
+};
 
-    return NextResponse.json(formattedData, { status: 200 });
-  } catch (error) {
-    console.error("API_GET_SALES_ERROR:", error);
-    return NextResponse.json({ message: "Gagal mengambil data" }, { status: 500 });
-  }
-}
-
-export async function POST(request) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-
-    const currentUser = session.user.name || "System";
-    const body = await request.json();
-    const { customerId, totalAmount, items } = body;
-
-    const result = await prisma.$transaction(async (tx) => {
-      const now = new Date();
-      const dateString = now.toISOString().split('T')[0].replace(/-/g, '');
-      const lastSaleToday = await tx.penjualan.findFirst({
-        where: { invoiceId: { startsWith: `INV/${dateString}/` } },
-        orderBy: { invoiceId: 'desc' }
-      });
-
-      let nextNumber = 1;
-      if (lastSaleToday) {
-        const parts = lastSaleToday.invoiceId.split('/');
-        nextNumber = parseInt(parts[parts.length - 1]) + 1;
-      }
-      const newInvoiceId = `INV/${dateString}/${String(nextNumber).padStart(3, '0')}`;
-
-      const sale = await tx.penjualan.create({
-        data: {
-          invoiceId: newInvoiceId, 
-          totalAmount: parseFloat(totalAmount),
-          status: 'PENDING',
-          customerId,
-          items: {
-            create: items.map((item) => ({
-              productName: item.name,
-              quantity: parseFloat(item.quantity),
-              unit: item.unit || "Unit",
-              price: parseFloat(item.price),
-            })),
-          },
-        },
-        include: { items: true }
-      });
-
-      for (const item of items) {
-        const qty = parseFloat(item.quantity);
-        
-        const updateResult = await tx.stock.updateMany({
-          where: { 
-            name: item.name,
-            stock: { gte: qty }
-          },
-          data: { stock: { decrement: qty } }
-        });
-
-        if (updateResult.count === 0) {
-          throw new Error(`Stok untuk "${item.name}" tidak mencukupi atau barang tidak ditemukan.`);
-        }
-
-        await tx.history.create({
-          data: {
-            action: "SALES_OUT",
-            item: item.name,
-            category: "Sales",
-            type: "STOCKS",
-            quantity: -qty,
-            unit: item.unit || "Unit",
-            user: currentUser,
-            notes: `Penjualan Invoice: ${newInvoiceId}`,
-            referenceId: sale.id
-          }
-        });
-      }
-      return sale;
-    });
-
-    return NextResponse.json(result, { status: 201 });
-  } catch (error) {
-    console.error("API_POST_SALES_ERROR:", error.message);
-    return NextResponse.json({ message: error.message }, { status: 400 });
-  }
-}
-
-export async function PATCH(request) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-
-    const currentUser = session.user.name || "System";
-    const { id, status, method } = await request.json();
-
-    const result = await prisma.$transaction(async (tx) => {
-      const existingSale = await tx.penjualan.findUnique({
-        where: { invoiceId: id },
-        include: { items: true }
-      });
-
-      if (!existingSale) throw new Error("Transaksi tidak ditemukan");
-
-      if (status === "COMPLETED" && existingSale.status === "PENDING") {
-        const financeTrxNo = await generateFinanceTrxNo(tx);
-        
-        await tx.transaction.create({
-          data: {
-            trxNo: financeTrxNo,
-            category: 'Penjualan',
-            description: `Penerimaan Dana Invoice ${id}`,
-            amount: existingSale.totalAmount,
-            type: 'INCOME',
-            date: new Date(),
-            method: method || "CASH",
-            createdBy: currentUser
-          }
-        });
-      }
-
-      if (status === "CANCELLED" && existingSale.status === "PENDING") {
-        for (const item of existingSale.items) {
-          await tx.stock.update({
-            where: { name: item.productName },
-            data: { stock: { increment: item.quantity } }
-          });
-
-          await tx.history.create({
-            data: {
-              action: "SALES_REFUND",
-              item: item.productName,
-              category: "Sales",
-              type: "STOCKS",
-              quantity: item.quantity,
-              unit: item.unit,
-              user: currentUser,
-              notes: `Refund stok: Invoice ${id} dibatalkan`,
-              referenceId: existingSale.id
-            }
-          });
-        }
-      }
-
-      return await tx.penjualan.update({
-        where: { invoiceId: id },
-        data: { status: status }
-      });
-    });
-
-    return NextResponse.json(result, { status: 200 });
-  } catch (error) {
-    console.error("API_PATCH_STATUS_ERROR:", error.message);
-    return NextResponse.json({ message: error.message }, { status: 500 });
-  }
-}
-
-export async function DELETE(request) {
+// =============================================================================
+// GET /api/penjualan
+// =============================================================================
+export async function GET(request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
     const { searchParams } = new URL(request.url);
-    const id = searchParams.get("id");
+    const status  = searchParams.get("status");
+    const from    = searchParams.get("from");
+    const to      = searchParams.get("to");
+
+    const where = {};
+    if (status) where.status = status;
+    if (from || to) {
+      where.createdAt = {};
+      if (from) where.createdAt.gte = new Date(from);
+      if (to)   where.createdAt.lte = new Date(new Date(to).setHours(23, 59, 59));
+    }
+
+    const sales = await prisma.penjualan.findMany({
+      where,
+      include: {
+        customer: { select: { id: true, name: true, phone: true, address: true } },
+        items: true,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    const formatted = sales.map((s) => ({
+      id:              s.invoiceId,
+      dbId:            s.id,
+      customer:        s.customer?.name || "Pelanggan Umum",
+      customerAddress: s.customer?.address || "",
+      customerPhone:   s.customer?.phone   || "",
+      date:            s.createdAt?.toISOString().split("T")[0] || "-",
+      createdAt:       s.createdAt,
+      total:           s.totalAmount || 0,
+      subtotal:        s.subtotal    || 0,
+      discount:        s.discount    || 0,
+      discountPct:     s.discountPct || 0,
+      taxPct:          s.taxPct      || 0,
+      taxAmount:       s.taxAmount   || 0,
+      shippingCost:    s.shippingCost || 0,
+      paymentMethod:   s.paymentMethod || "CASH",
+      status:          s.status,
+      paidAt:          s.paidAt,
+      dueDate:         s.dueDate,
+      notes:           s.notes       || "",
+      salesNotes:      s.salesNotes  || "",
+      deliveryAddress: s.deliveryAddress || "",
+      createdBy:       s.createdBy   || "",
+      quotationId:     s.quotationId || null,
+      itemCount:       s.items?.length || 0,
+      items:           s.items?.map((i) => ({
+        productName: i.productName,
+        quantity:    i.quantity,
+        price:       i.price,
+        discount:    i.discount || 0,
+        subtotal:    i.subtotal || i.quantity * i.price,
+        unit:        i.unit || "Unit",
+        notes:       i.notes || "",
+      })) || [],
+    }));
+
+    return NextResponse.json(formatted, { status: 200 });
+  } catch (err) {
+    console.error("API_GET_SALES:", err);
+    return NextResponse.json({ message: err.message }, { status: 500 });
+  }
+}
+
+// =============================================================================
+// POST /api/penjualan — Buat Sales Order baru
+// Body: { customerId, items[], discountPct?, taxPct?, shippingCost?,
+//         paymentMethod?, dueDate?, notes?, salesNotes?, deliveryAddress?,
+//         quotationId? }
+// =============================================================================
+export async function POST(request) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+
+    // Role check: hanya Admin, Sales, Supervisor bisa input penjualan
+    if (!isAuthorized(session)) {
+      return NextResponse.json({ message: "Akses ditolak. Hanya Admin/Sales/Supervisor." }, { status: 403 });
+    }
+
+    const body = await request.json();
+    const {
+      customerId, items = [], discountPct = 0, taxPct = 0,
+      shippingCost = 0, paymentMethod = "CASH", dueDate,
+      notes, salesNotes, deliveryAddress, quotationId,
+    } = body;
+
+    const currentUser = session.user.name || session.user.email || "System";
+
+    if (!items.length) {
+      return NextResponse.json({ message: "Minimal satu item harus diisi." }, { status: 400 });
+    }
+
+    // ── Hitung totals ─────────────────────────────────────────────────────────
+    const { subtotal, discount, taxAmount, total } = calcTotals(items, discountPct, taxPct, shippingCost);
 
     const result = await prisma.$transaction(async (tx) => {
-      const sale = await tx.penjualan.findUnique({
-        where: { invoiceId: id },
-        include: { items: true }
-      });
+      // 1. Cek & kurangi stok untuk semua item
+      for (const item of items) {
+        const qty = parseFloat(item.quantity);
 
-      if (!sale) throw new Error("Transaksi tidak ditemukan");
+        // Cek stok mencukupi (kurangi dari semua warehouse yang punya barang)
+        const stocks = await tx.stock.findMany({ where: { name: item.name } });
+        const totalStock = stocks.reduce((s, st) => s + st.stock, 0);
 
-      if (sale.status === "PENDING") {
-        for (const item of sale.items) {
+        if (totalStock < qty) {
+          throw new Error(`Stok "${item.name}" tidak mencukupi. Tersedia: ${totalStock}, Dibutuhkan: ${qty}`);
+        }
+
+        // Kurangi stok — dari warehouse pertama yang punya cukup
+        let remaining = qty;
+        for (const stk of stocks) {
+          if (remaining <= 0) break;
+          const toDeduct = Math.min(remaining, stk.stock);
           await tx.stock.update({
-            where: { name: item.productName },
-            data: { stock: { increment: item.quantity } }
+            where: { id: stk.id },
+            data:  { stock: { decrement: toDeduct } },
           });
+          remaining -= toDeduct;
         }
       }
 
-      await tx.penjualanItem.deleteMany({ where: { penjualanId: sale.id } });
-      await tx.penjualan.delete({ where: { id: sale.id } });
+      // 2. Generate Invoice ID
+      const invoiceId = await generateInvoiceNo(tx);
 
-      return { message: "Berhasil dihapus & stok dikembalikan" };
+      // 3. Buat record Penjualan
+      const sale = await tx.penjualan.create({
+        data: {
+          invoiceId,
+          totalAmount:     total,
+          subtotal,
+          discount,
+          discountPct:     parseFloat(discountPct),
+          taxPct:          parseFloat(taxPct),
+          taxAmount,
+          shippingCost:    parseFloat(shippingCost),
+          status:          "PENDING",
+          paymentMethod,
+          dueDate:         dueDate ? new Date(dueDate) : null,
+          notes:           notes        || null,
+          salesNotes:      salesNotes   || null,
+          deliveryAddress: deliveryAddress || null,
+          createdBy:       currentUser,
+          quotationId:     quotationId  || null,
+          ...(customerId ? { customerId } : {}),
+          items: {
+            create: items.map((item) => {
+              const itemSubtotal = parseFloat(item.quantity) * parseFloat(item.price) - (parseFloat(item.discount) || 0);
+              return {
+                productName: item.name,
+                quantity:    parseFloat(item.quantity),
+                unit:        item.unit || "Unit",
+                price:       parseFloat(item.price),
+                discount:    parseFloat(item.discount) || 0,
+                subtotal:    itemSubtotal,
+                notes:       item.notes || null,
+              };
+            }),
+          },
+        },
+        include: { items: true, customer: { select: { name: true } } },
+      });
+
+      // 4. Audit log: SALES_ORDER_CREATED
+      await tx.history.create({
+        data: {
+          action:      "SALES_ORDER_CREATED",
+          item:        `${items.length} item`,
+          category:    "Sales",
+          type:        "MONEY",
+          quantity:    total,
+          unit:        "IDR",
+          user:        currentUser,
+          referenceId: sale.id,
+          notes:       `Invoice ${invoiceId} dibuat | Customer: ${sale.customer?.name || "Umum"} | Total: Rp ${total.toLocaleString("id-ID")}`,
+        },
+      });
+
+      // Jika quotation direferensikan, update statusnya ke ACCEPTED
+      if (quotationId) {
+        await tx.salesQuotation.update({
+          where: { id: quotationId },
+          data:  { status: "ACCEPTED" },
+        }).catch(() => {}); // silent fail jika tabel belum ada
+      }
+
+      return sale;
+    });
+
+    return NextResponse.json(result, { status: 201 });
+  } catch (err) {
+    console.error("API_POST_SALES:", err.message);
+    return NextResponse.json({ message: err.message }, { status: 400 });
+  }
+}
+
+// =============================================================================
+// PATCH /api/penjualan — Update status pesanan
+// Body: { id, status, method? }
+// Status flow: PENDING → COMPLETED | CANCELLED
+// =============================================================================
+export async function PATCH(request) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+
+    if (!isAuthorized(session)) {
+      return NextResponse.json({ message: "Akses ditolak. Hanya Admin/Sales/Supervisor." }, { status: 403 });
+    }
+
+    const body = await request.json();
+    const { id, status, method } = body;
+    const currentUser = session.user.name || session.user.email || "System";
+
+    const validStatuses = ["COMPLETED", "CANCELLED", "PENDING"];
+    if (!validStatuses.includes(status)) {
+      return NextResponse.json({ message: "Status tidak valid." }, { status: 400 });
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      const existing = await tx.penjualan.findUnique({
+        where:   { invoiceId: id },
+        include: { items: true, customer: { select: { name: true } } },
+      });
+      if (!existing) throw new Error("Transaksi tidak ditemukan.");
+
+      // Hanya bisa mengubah dari PENDING
+      if (existing.status !== "PENDING" && status !== "PENDING") {
+        throw new Error(`Status sudah ${existing.status}, tidak bisa diubah.`);
+      }
+
+      // ── COMPLETED: catat ke finance sebagai INCOME ─────────────────────────
+      if (status === "COMPLETED" && existing.status === "PENDING") {
+        const trxNo = await generateTrxNo(tx);
+        await tx.transaction.create({
+          data: {
+            trxNo,
+            category:    "Penjualan",
+            description: `Penerimaan Dana Invoice ${id} — ${existing.customer?.name || "Pelanggan Umum"}`,
+            amount:      existing.totalAmount,
+            type:        "INCOME",
+            date:        new Date(),
+            method:      method || existing.paymentMethod || "CASH",
+            createdBy:   currentUser,
+            referenceId: existing.id,
+          },
+        });
+
+        await tx.history.create({
+          data: {
+            action:      "SALES_COMPLETED",
+            item:        id,
+            category:    "Sales",
+            type:        "MONEY",
+            quantity:    existing.totalAmount,
+            unit:        "IDR",
+            user:        currentUser,
+            referenceId: existing.id,
+            notes:       `Invoice ${id} selesai. Dana Rp ${existing.totalAmount.toLocaleString("id-ID")} tercatat sebagai income. Trx: ${trxNo}`,
+          },
+        });
+      }
+
+      // ── CANCELLED: kembalikan stok ─────────────────────────────────────────
+      if (status === "CANCELLED" && existing.status === "PENDING") {
+        for (const item of existing.items) {
+          // Kembalikan ke warehouse pertama yang menyimpan nama item ini
+          const stk = await tx.stock.findFirst({ where: { name: item.productName } });
+          if (stk) {
+            await tx.stock.update({
+              where: { id: stk.id },
+              data:  { stock: { increment: item.quantity } },
+            });
+          }
+
+          await tx.history.create({
+            data: {
+              action:      "SALES_REFUND",
+              item:        item.productName,
+              category:    "Sales",
+              type:        "STOCKS",
+              quantity:    item.quantity,
+              unit:        item.unit || "Unit",
+              user:        currentUser,
+              referenceId: existing.id,
+              notes:       `Refund stok karena Invoice ${id} dibatalkan`,
+            },
+          });
+        }
+
+        await tx.history.create({
+          data: {
+            action:      "SALES_CANCELLED",
+            item:        id,
+            category:    "Sales",
+            type:        "MONEY",
+            quantity:    existing.totalAmount,
+            unit:        "IDR",
+            user:        currentUser,
+            referenceId: existing.id,
+            notes:       `Invoice ${id} dibatalkan oleh ${currentUser}`,
+          },
+        });
+      }
+
+      return tx.penjualan.update({
+        where: { invoiceId: id },
+        data:  {
+          status,
+          paidAt: status === "COMPLETED" ? new Date() : undefined,
+        },
+      });
     });
 
     return NextResponse.json(result, { status: 200 });
-  } catch (error) {
-    console.error("API_DELETE_SALES_ERROR:", error.message);
-    return NextResponse.json({ message: error.message }, { status: 500 });
+  } catch (err) {
+    console.error("API_PATCH_SALES:", err.message);
+    return NextResponse.json({ message: err.message }, { status: 500 });
+  }
+}
+
+// =============================================================================
+// DELETE /api/penjualan?id=INV/...
+// =============================================================================
+export async function DELETE(request) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+
+    if (!isAuthorized(session, ["Admin"])) {
+      return NextResponse.json({ message: "Hanya Admin yang bisa hapus." }, { status: 403 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const id          = searchParams.get("id");
+    const currentUser = session.user.name || "System";
+
+    const result = await prisma.$transaction(async (tx) => {
+      const sale = await tx.penjualan.findUnique({
+        where:   { invoiceId: id },
+        include: { items: true },
+      });
+      if (!sale) throw new Error("Transaksi tidak ditemukan.");
+
+      // Kembalikan stok hanya jika masih PENDING
+      if (sale.status === "PENDING") {
+        for (const item of sale.items) {
+          const stk = await tx.stock.findFirst({ where: { name: item.productName } });
+          if (stk) {
+            await tx.stock.update({
+              where: { id: stk.id },
+              data:  { stock: { increment: item.quantity } },
+            });
+          }
+        }
+      }
+
+      await tx.history.create({
+        data: {
+          action:      "SALES_DELETED",
+          item:        id,
+          category:    "Sales",
+          type:        "MONEY",
+          quantity:    sale.totalAmount,
+          unit:        "IDR",
+          user:        currentUser,
+          referenceId: sale.id,
+          notes:       `Invoice ${id} dihapus permanen oleh ${currentUser} (status saat hapus: ${sale.status})`,
+        },
+      });
+
+      await tx.penjualanItem.deleteMany({ where: { penjualanId: sale.id } });
+      await tx.penjualan.delete({ where: { id: sale.id } });
+      return { message: "Berhasil dihapus." };
+    });
+
+    return NextResponse.json(result, { status: 200 });
+  } catch (err) {
+    console.error("API_DELETE_SALES:", err.message);
+    return NextResponse.json({ message: err.message }, { status: 500 });
   }
 }

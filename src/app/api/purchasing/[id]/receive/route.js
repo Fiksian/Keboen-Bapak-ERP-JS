@@ -41,6 +41,7 @@ export async function PATCH(request, context) {
     const receivedBy  = data.get("receivedBy");
     const beratIsi    = data.get("beratIsi");
     const beratKosong = data.get("beratKosong");
+    const refraksi    = data.get("refraksi")
     const netto       = data.get("netto");
     const imageFile   = data.get("file");
 
@@ -92,6 +93,7 @@ export async function PATCH(request, context) {
           receivedQty:  incomingQty,
           grossWeight:  parseFloat(beratIsi)    || 0,
           tareWeight:   parseFloat(beratKosong) || 0,
+          refraksi:     parseFloat(refraksi)    || 0,
           netWeight:    parseFloat(netto)       || 0,
           receivedBy:   userName,
           condition:    condition  || "GOOD",

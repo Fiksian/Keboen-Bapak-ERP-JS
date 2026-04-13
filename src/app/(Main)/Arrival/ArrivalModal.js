@@ -23,6 +23,7 @@ const ArrivalModal = ({
     if (arrival) {
       setFormData((prev) => ({
         ...prev,
+        sttbNo:      '',
         suratJalan:  '',
         vehicleNo:   '',
         condition:   'GOOD',
@@ -71,10 +72,16 @@ const ArrivalModal = ({
     
     const gross      = parseFloat(updated.beratIsi) || 0;
     const tare       = parseFloat(updated.beratKosong) || 0;
-    const refraction = parseFloat(updated.refraksi) || 0; // Ambil nilai refraksi
+    const refractionRate = parseFloat(updated.refraksi) || 0; // Ambil nilai refraksi
     
-    // Logika Netto baru: Gross - Tare - Refraksi
-    const nettoLocal = Math.max(0, gross - tare - refraction);
+        // 1. Hitung berat sebelum refraksi
+    const weightBeforeRefraction = Math.max(0, gross - tare);
+
+    // 2. Hitung nilai nominal refraksi (Berat x Persen / 100)
+    const refractionAmount = (weightBeforeRefraction * refractionRate) / 100;
+
+    // 3. Logika Netto baru: (Gross - Tare) - Hasil Potongan Persen
+    const nettoLocal = Math.max(0, weightBeforeRefraction - refractionAmount);
     
     const converted  = convertQty(nettoLocal, formData.sourceUnit, formData.warehouseUnit);
     setDisplayNetto(nettoLocal.toFixed(2));
@@ -118,10 +125,9 @@ const ArrivalModal = ({
           <div className="flex items-start gap-3 p-4 bg-blue-50 border border-blue-100 rounded-2xl">
             <Info size={16} className="text-blue-500 shrink-0 mt-0.5" />
             <div>
-              <p className="text-[10px] font-black text-blue-700 uppercase tracking-wider">Alokasi Gudang</p>
-              <p className="text-[10px] font-medium text-blue-600 mt-0.5 leading-relaxed">
-                Penentuan gudang penyimpanan dilakukan oleh Manager saat Approval STTB. 
-                STTB akan otomatis dibuat setelah penerimaan ini dikonfirmasi.
+              <p className="text-[12px] font-black text-blue-700 uppercase tracking-wider">Supplier</p>
+              <p className="text-[18px] font-bold text-blue-600 leading-relaxed">
+                {arrival.supplier || "Supplier Tidak Terdaftar"}
               </p>
             </div>
           </div>
@@ -182,7 +188,7 @@ const ArrivalModal = ({
                   </p>
                 </div>
 
-                <div className="grid grid-cols-4 gap-2"> {/* Diubah ke grid-cols-4 untuk refraksi */}
+                <div className="grid grid-cols-4 gap-2">
                   <div className="space-y-1">
                     <label className="text-[9px] font-black text-slate-400 uppercase">Gross</label>
                     <input required name="beratIsi" type="number" step="0.01"

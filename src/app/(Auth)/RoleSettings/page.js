@@ -83,7 +83,7 @@ const RoleSettingsPage = () => {
   };
 
   const handleDeleteRole = async (roleName) => {
-    if (roleName === 'Owner' || roleName === 'Admin') {
+    if (roleName === 'Owner' || roleName === 'Super Admin') {
       return alert("Role sistem inti tidak dapat dihapus!");
     }
 
@@ -202,12 +202,12 @@ const RoleSettingsPage = () => {
                       }`}
                     >
                       <span className="flex items-center gap-3">
-                        {role === 'Owner' || role === 'Admin' ? <Lock size={16}/> : <Unlock size={16}/>}
+                        {role === 'Owner' || role === 'Super Admin' ? <Lock size={16}/> : <Unlock size={16}/>}
                         {role}
                       </span>
                     </button>
                     
-                    {role !== 'Owner' && role !== 'Admin' && (
+                    {role !== 'Owner' && role !== 'Super Admin' && (
                       <button 
                         onClick={(e) => { e.stopPropagation(); handleDeleteRole(role); }}
                         className="absolute right-4 top-1/2 -translate-y-1/2 p-2 text-red-300 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-all"

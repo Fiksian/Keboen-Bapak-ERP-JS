@@ -562,7 +562,7 @@ export const CreatePOModal = ({ isOpen, onClose, doData, onSuccess }) => {
 // ─── DODetailModal ─────────────────────────────────────────────────────────────
 export const DODetailModal = ({ isOpen, onClose, doData, onApprove, onReject, onCreatePO, onRefresh }) => {
   const { data: session } = useSession();
-  const isAdmin  = ['Admin', 'Supervisor'].includes(session?.user?.role);
+  const isAdmin  = ['SuperAdmin', 'Supervisor'].includes(session?.user?.role);
   const [actLoad, setActLoad] = useState('');
 
   if (!isOpen || !doData) return null;
@@ -721,7 +721,7 @@ export const DODetailModal = ({ isOpen, onClose, doData, onApprove, onReject, on
 // ─── DO Table ──────────────────────────────────────────────────────────────────
 const DeliveryOrderTable = ({ data = [], onView, onDelete, loading }) => {
   const { data: session } = useSession();
-  const isAdmin = ['Admin', 'Supervisor'].includes(session?.user?.role);
+  const isAdmin = ['SuperAdmin', 'Supervisor'].includes(session?.user?.role);
   const [page, setPage] = useState(1);
   const PER = 6;
   const totalPages = Math.ceil(data.length / PER);

@@ -36,7 +36,7 @@ const StaffManager = () => {
       if (resMe.ok) {
         setUserProfile(profile);
 
-        if (profile.role !== 'Admin') {
+        if (profile.role !== 'SuperAdmin') {
           setSelectedStaff(profile);
           setViewState('DETAILS');
         } else {
@@ -125,7 +125,7 @@ const StaffManager = () => {
       <StaffProfile 
         staff={selectedStaff} 
         currentUserRole={userProfile?.role}
-        onBack={userProfile?.role === 'Admin' ? () => {
+        onBack={userProfile?.role === 'SuperAdmin' ? () => {
           setViewState('LIST');
           setSelectedStaff(null);
         } : null} 
@@ -233,7 +233,7 @@ const StaffManager = () => {
                         >
                           MANAGE
                         </button>
-                        {userProfile?.role === 'Admin' && (
+                        {userProfile?.role === 'SuperAdmin' && (
                           <button 
                             onClick={() => handleDelete(staff.id, `${staff.firstName} ${staff.lastName}`)}
                             className="p-2.5 text-gray-300 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all active:scale-90"
@@ -279,7 +279,7 @@ const StaffManager = () => {
                 </div>
                 
                 <div className="flex items-center gap-3">
-                  {userProfile?.role === 'Admin' && (
+                  {userProfile?.role === 'SuperAdmin' && (
                     <button 
                       onClick={(e) => {
                         e.stopPropagation();

@@ -8,6 +8,7 @@ import ArrivalModal from './ArrivalModal';
 
 // INITIAL_FORM: tidak ada warehouseId — gudang ditentukan saat Approval STTB
 const INITIAL_FORM = {
+  sttbNo:       '',
   suratJalan:   '',
   vehicleNo:    '',
   condition:    'GOOD',
@@ -15,6 +16,7 @@ const INITIAL_FORM = {
   beratIsi:     '',
   beratKosong:  '',
   netto:        '0.00',
+  refraksi:     '0.00',
   receivedQty:  0,
   sourceUnit:   'KG',
   warehouseUnit:'KG',
@@ -27,7 +29,7 @@ const ArrivalMonitor = ({ arrivals = [], onRefresh }) => {
   const [isSubmitting,      setIsSubmitting]       = useState(false);
   const [formData,          setFormData]           = useState(INITIAL_FORM);
 
-  const isAuthorized = ["Admin", "Supervisor", "Staff"].includes(session?.user?.role);
+  const isAuthorized = ['SuperAdmin',"Admin", "Supervisor", "Staff"].includes(session?.user?.role);
 
   if (!arrivals || arrivals.length === 0) return null;
 
@@ -66,6 +68,7 @@ const ArrivalMonitor = ({ arrivals = [], onRefresh }) => {
       if (formData.beratIsi) {
         payload.append('beratIsi',    formData.beratIsi);
         payload.append('beratKosong', formData.beratKosong);
+        payload.append('refraksi',    formData.refraksi);
         payload.append('netto',       formData.netto);
       }
 

@@ -42,7 +42,7 @@ export async function PATCH(request, { params }) {
     const { id }     = await params;
     const body       = await request.json();
     const { action } = body;
-    const isAdmin    = ["Admin", "Supervisor"].includes(session.user.role);
+    const isAdmin    = ["SuperAdmin", "Supervisor"].includes(session.user.role);
 
     const existing = await prisma.deliveryOrder.findUnique({
       where: { id }, include: { items: true },

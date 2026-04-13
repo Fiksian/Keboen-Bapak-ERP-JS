@@ -25,7 +25,7 @@ const StaffProfile = ({ staff, onBack, onUpdate }) => {
     staffId: staff?.staffId || ''
   });
 
-  const isAdmin = session?.user?.role === 'Admin';
+  const isAdmin = session?.user?.role === 'SuperAdmin';
 
   useEffect(() => {
     const fetchRoles = async () => {

@@ -55,6 +55,7 @@ const StockHistory = ({ isOpen, onClose }) => {
     const mainReceipt = log.receipts[0];
     const printData = {
       ...log,
+      sttbNo: mainReceipt.sttbNo,
       suratJalan: mainReceipt.suratJalan,
       vehicleNo: mainReceipt.vehicleNo,
       receivedBy: mainReceipt.receivedBy,
@@ -153,12 +154,6 @@ const StockHistory = ({ isOpen, onClose }) => {
                       <div className="bg-green-600 text-white px-3 py-1.5 rounded-xl text-[10px] font-black italic">
                         + {mainReceipt.receivedQty} {log.unit || 'UNIT'}
                       </div>
-                      <button 
-                        onClick={() => handleOpenPreview(log)}
-                        className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase italic hover:bg-blue-600 transition-all active:scale-95 whitespace-nowrap shadow-sm"
-                      >
-                        <Printer size={14} /> Preview & PDF
-                      </button>
                     </div>
                   </div>
 
@@ -171,7 +166,11 @@ const StockHistory = ({ isOpen, onClose }) => {
                       <p className="text-[7px] font-black text-orange-400 uppercase mb-1 leading-none">Tare</p>
                       <p className="text-[10px] font-black text-slate-700 leading-none">{mainReceipt.tareWeight || 0} kg</p>
                     </div>
-                    <div className="text-left pl-1">
+                    <div className="text-left">
+                      <p className="text-[7px] font-black text-orange-400 uppercase mb-1 leading-none">Refraksi</p>
+                      <p className="text-[10px] font-black text-slate-700 leading-none">{mainReceipt.refraksi || 0}</p>
+                    </div>
+                    <div className="text-left pl-1 pt-5">
                       <p className="text-[7px] font-black text-orange-600 uppercase mb-1 leading-none italic">Netto</p>
                       <p className="text-[10px] font-black text-orange-700 leading-none underline underline-offset-2">{mainReceipt.netWeight || 0} kg</p>
                     </div>

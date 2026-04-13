@@ -1,11 +1,20 @@
 // app/api/sttb/[id]/approve/route.js
-// Multi-stage approval untuk STTB:
-//   stage 1 (QC)         → sudah auto-diisi saat Arrival
-//   stage 2 (Supervisor) → PATCH { stage: "supervisor", notes? }
-//   stage 3 (Manager)    → PATCH { stage: "manager", warehouseId, notes? }
-//                          → Stok dicatat ke Stock, Receipt.warehouseId diisi
 //
-// Reject kapan saja → PATCH { stage: "reject", notes }
+// Alur Approval STTB (4 tahap):
+//   Stage 1 — QC Penerimaan   : AUTO saat barang tiba di ArrivalMonitor
+//   Stage 2 — Admin           : PATCH { stage: "admin", notes? }
+//                               Role: "Admin | "SuperAdmin" 
+//   Stage 3 — Supervisor      : PATCH { stage: "supervisor", notes? }
+//                               Role: "Supervisor" | "Super Admin"
+//   Stage 4 — Manager (Final) : PATCH { stage: "manager", warehouseId, notes? }
+//                               Role: "Manager" | "Super Admin"
+//                               → Stok dicatat, Receipt.warehouseId diisi
+//
+// Reject kapan saja            : PATCH { stage: "reject", notes }
+//
+// Status flow:
+//   PENDING_QC → PENDING_ADMIN → PENDING_SUPERVISOR → PENDING_MANAGER → APPROVED
+//   Setiap tahap bisa → REJECTED
 
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
@@ -26,52 +35,95 @@ export async function PATCH(request, { params }) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    const { id }                 = await params;
-    const { stage, warehouseId, notes } = await request.json();
-    const approver               = session.user.name || session.user.email;
-    const now                    = new Date();
+    const { id }                          = await params;
+    const { stage, warehouseId, notes }   = await request.json();
+    const approver                        = session.user.name || session.user.email;
+    const role                            = session.user.role;
+    const now                             = new Date();
 
-    // ── Load STTB dengan relasi ───────────────────────────────────────────────
+    // ── Load STTB ─────────────────────────────────────────────────────────────
     const sttb = await prisma.sTTB.findUnique({
-      where: { id },
-      include: {
-        receipt:    true,
-        purchasing: true,
-      },
+      where:   { id },
+      include: { receipt: true, purchasing: true },
     });
     if (!sttb) {
       return NextResponse.json({ message: "STTB tidak ditemukan" }, { status: 404 });
     }
 
-    // ── REJECT ────────────────────────────────────────────────────────────────
+    // ═════════════════════════════════════════════════════════════════════════
+    // REJECT — bisa dilakukan oleh siapapun yang punya akses kelola STTB
+    // ═════════════════════════════════════════════════════════════════════════
     if (stage === "reject") {
       if (sttb.status === "APPROVED") {
         return NextResponse.json({ message: "STTB yang sudah APPROVED tidak bisa ditolak" }, { status: 400 });
       }
+      if (sttb.status === "REJECTED") {
+        return NextResponse.json({ message: "STTB sudah ditolak sebelumnya" }, { status: 400 });
+      }
+
+      const canReject = ["Admin", "Supervisor", "Manager", "SuperAdmin"].includes(role);
+      if (!canReject) {
+        return NextResponse.json({ message: "Tidak punya akses untuk menolak STTB" }, { status: 403 });
+      }
+
       const updated = await prisma.sTTB.update({
         where: { id },
         data:  {
-          status:       "REJECTED",
-          rejectedBy:   approver,
-          rejectedAt:   now,
+          status:        "REJECTED",
+          rejectedBy:    approver,
+          rejectedAt:    now,
           rejectedNotes: notes || "",
         },
       });
-      return NextResponse.json({ message: "STTB ditolak", sttb: updated });
+
+      return NextResponse.json({ message: `STTB ${sttb.sttbNo} ditolak.`, sttb: updated });
     }
 
-    // ── STAGE 2: SUPERVISOR ───────────────────────────────────────────────────
-    if (stage === "supervisor") {
+    if (stage === "admin") {
       if (sttb.status !== "PENDING_QC") {
         return NextResponse.json({
-          message: `STTB harus berstatus PENDING_QC (sekarang: ${sttb.status})`,
+          message: `STTB harus berstatus PENDING_QC untuk approval Admin. Status saat ini: ${sttb.status}`,
         }, { status: 400 });
       }
 
-      // Role check: hanya Supervisor atau Admin
-      const allowed = ["Admin", "Supervisor"];
-      if (!allowed.includes(session.user.role)) {
-        return NextResponse.json({ message: "Hanya Supervisor/Admin yang bisa approval tahap ini" }, { status: 403 });
+      if (!["Supervisor", "SuperAdmin"].includes(role)) {
+        return NextResponse.json({
+          message: "Tahap Admin hanya bisa di-approve oleh pengguna dengan role 'Admin'.",
+        }, { status: 403 });
+      }
+
+      const updated = await prisma.sTTB.update({
+        where: { id },
+        data:  {
+          status:          "PENDING_SUPERVISOR",
+          adminApprovedBy: approver,
+          adminApprovedAt: now,
+          adminNotes:      notes || "",
+        },
+        include: { receipt: true, purchasing: true, warehouse: true },
+      });
+
+      return NextResponse.json({
+        message: `Approval Admin selesai. STTB ${sttb.sttbNo} menunggu Supervisor.`,
+        sttb:    updated,
+      });
+    }
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // STAGE 3 — SUPERVISOR
+    // Syarat: status PENDING_SUPERVISOR, role "Supervisor" atau "Super Admin"
+    // ═════════════════════════════════════════════════════════════════════════
+    if (stage === "supervisor") {
+      if (sttb.status !== "PENDING_SUPERVISOR") {
+        return NextResponse.json({
+          message: `STTB harus berstatus PENDING_SUPERVISOR. Status saat ini: ${sttb.status}`,
+        }, { status: 400 });
+      }
+
+      if (!["Supervisor", "SuperAdmin"].includes(role)) {
+        return NextResponse.json({
+          message: "Tahap Supervisor hanya bisa di-approve oleh Supervisor atau Super Admin.",
+        }, { status: 403 });
       }
 
       const updated = await prisma.sTTB.update({
@@ -84,30 +136,39 @@ export async function PATCH(request, { params }) {
         },
         include: { receipt: true, purchasing: true, warehouse: true },
       });
-      return NextResponse.json({ message: "Approval Supervisor berhasil. Menunggu Manager.", sttb: updated });
+
+      return NextResponse.json({
+        message: `Approval Supervisor selesai. STTB ${sttb.sttbNo} menunggu Manager.`,
+        sttb:    updated,
+      });
     }
 
-    // ── STAGE 3: MANAGER — FINAL, stok dicatat ────────────────────────────────
+    // ═════════════════════════════════════════════════════════════════════════
+    // STAGE 4 — MANAGER (Final) → Stok dicatat
+    // Syarat: status PENDING_MANAGER, role "Manager" atau "Super Admin"
+    // warehouseId WAJIB diisi
+    // ═════════════════════════════════════════════════════════════════════════
     if (stage === "manager") {
       if (sttb.status !== "PENDING_MANAGER") {
         return NextResponse.json({
-          message: `STTB harus berstatus PENDING_MANAGER (sekarang: ${sttb.status})`,
+          message: `STTB harus berstatus PENDING_MANAGER. Status saat ini: ${sttb.status}`,
         }, { status: 400 });
       }
+
+      if (!["Manager", "SuperAdmin"].includes(role)) {
+        return NextResponse.json({
+          message: "Tahap Manager hanya bisa di-approve oleh Manager atau Super Admin.",
+        }, { status: 403 });
+      }
+
       if (!warehouseId) {
-        return NextResponse.json({ message: "warehouseId wajib diisi oleh Manager" }, { status: 400 });
+        return NextResponse.json({ message: "Gudang tujuan (warehouseId) wajib diisi oleh Manager." }, { status: 400 });
       }
 
-      // Role check: hanya Admin (acting as Manager) atau role Manager
-      const allowed = ["Admin", "Manager"];
-      if (!allowed.includes(session.user.role)) {
-        return NextResponse.json({ message: "Hanya Manager/Admin yang bisa approval tahap akhir" }, { status: 403 });
-      }
-
-      // Cek warehouse valid
+      // Cek warehouse
       const warehouse = await prisma.warehouse.findUnique({ where: { id: warehouseId } });
       if (!warehouse) {
-        return NextResponse.json({ message: "Warehouse tidak ditemukan" }, { status: 404 });
+        return NextResponse.json({ message: "Warehouse tidak ditemukan." }, { status: 404 });
       }
 
       const purchase    = sttb.purchasing;
@@ -115,10 +176,9 @@ export async function PATCH(request, { params }) {
       const incomingQty = receipt.netWeight > 0 ? receipt.netWeight : receipt.receivedQty;
       const unitLabel   = purchase.unit || "Unit";
 
-      // ── Transaksi final: update STTB + Stock + Receipt.warehouseId ──────────
+      // ── Transaksi final ─────────────────────────────────────────────────────
       const result = await prisma.$transaction(async (tx) => {
-
-        // Update STTB → APPROVED + stockCommitted
+        // 1. Update STTB → APPROVED
         const updatedSTTB = await tx.sTTB.update({
           where: { id },
           data:  {
@@ -133,14 +193,14 @@ export async function PATCH(request, { params }) {
           include: { receipt: true, purchasing: true, warehouse: true },
         });
 
-        // Isi warehouseId pada Receipt
+        // 2. Isi warehouseId pada Receipt
         await tx.receipt.update({
           where: { id: receipt.id },
           data:  { warehouseId },
         });
 
-        // Upsert Stock (unik per [name, warehouseId])
-        const existing = await tx.stock.findUnique({
+        // 3. Upsert Stock — unique per [name, warehouseId]
+        const existing   = await tx.stock.findUnique({
           where: { name_warehouseId: { name: purchase.item, warehouseId } },
         });
         const currentQty = existing?.stock || 0;
@@ -169,7 +229,7 @@ export async function PATCH(request, { params }) {
           },
         });
 
-        // Catat history final
+        // 4. Catat History
         await tx.history.create({
           data: {
             action:      "STOCK_IN",
@@ -180,7 +240,7 @@ export async function PATCH(request, { params }) {
             unit:        unitLabel,
             user:        approver,
             referenceId: updatedSTTB.id,
-            notes:       `STTB: ${sttb.sttbNo} | Gudang: ${warehouse.name} | Final Approved by ${approver}`,
+            notes:       `STTB: ${sttb.sttbNo} | Gudang: ${warehouse.name} | Final Approved (4-stage) oleh ${approver}`,
           },
         });
 
@@ -193,7 +253,9 @@ export async function PATCH(request, { params }) {
       });
     }
 
-    return NextResponse.json({ message: "Stage tidak dikenal. Gunakan: supervisor | manager | reject" }, { status: 400 });
+    return NextResponse.json({
+      message: "Stage tidak dikenal. Gunakan: admin | supervisor | manager | reject",
+    }, { status: 400 });
 
   } catch (error) {
     console.error("STTB_APPROVE_ERROR:", error);

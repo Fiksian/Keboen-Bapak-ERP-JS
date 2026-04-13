@@ -11,11 +11,11 @@ async function main() {
   const testUsers = [
     {
       email: "staff1@test.com",
-      username: "sali",
+      username: "erpdev",
       password: "Kebun2026!",
       role: "Staff",
-      firstName: "Test",
-      lastName: "Staff One",
+      firstName: "Erpdev",
+      lastName: "Test Akun",
       staffId: "STF-001",
     },
   ];
@@ -43,7 +43,7 @@ async function main() {
 
       // --- TAMBAHAN: SEEDING ROLES TERLEBIH DAHULU ---
       console.log('🔐 Seeding Role Permissions...');
-      const roles = ['Admin', 'Supervisor', 'Staff', 'Test'];
+      const roles = ['Super Admin', 'Admin', 'Supervisor', 'Staff', 'Test'];
       for (const roleName of roles) {
         await tx.rolePermission.upsert({
           where: { roleName: roleName },
@@ -63,7 +63,7 @@ async function main() {
           username: adminUsername,
           email: adminEmail,
           password: hashedPassword,
-          role: "Admin",
+          role: "Super Admin",
         },
       });
 
@@ -77,7 +77,7 @@ async function main() {
           lastName: "Admin",
           gender: "Male",
           staffId: "ADM-001",
-          role: "Admin",
+          role: "Super Admin",
           designation: "System Administrator",
           updatedAt: new Date(),
         },

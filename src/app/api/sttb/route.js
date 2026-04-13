@@ -21,6 +21,7 @@ export async function GET(request) {
             receivedQty: true,
             grossWeight: true,
             tareWeight:  true,
+            refraksi:    true,
             netWeight:   true,
             condition:   true,
             notes:       true,

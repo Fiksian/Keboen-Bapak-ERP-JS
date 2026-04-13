@@ -150,6 +150,7 @@ model Receipt {
   grossWeight  Float     @default(0)
   tareWeight   Float     @default(0)
   netWeight    Float     @default(0)
+  refraksi     Float     @default(0)
   receivedBy   String
   condition    String    @default("GOOD")
   notes        String?
@@ -174,10 +175,13 @@ model STTB {
   purchasing   Purchasing @relation(fields: [purchasingId], references: [id])
 
   status       String   @default("PENDING_QC")
-
+  
   qcApprovedBy          String?
   qcApprovedAt          DateTime?
   qcNotes               String?
+  adminApprovedBy       String?
+  adminApprovedAt       DateTime?
+  adminNotes            String?
   supervisorApprovedBy  String?
   supervisorApprovedAt  DateTime?
   supervisorNotes       String?

@@ -148,7 +148,7 @@ const STTBDocument = ({ data }) => {
             { 
               label: 'Refraksi',     
               val: data.refraksi,    
-              unit: '%' // Ubah satuan menjadi persen
+              unit: '%'
             },
             { label: 'Netto',        val: data.netWeight,   unit: 'KG', netto: true },
           ].map(w => (

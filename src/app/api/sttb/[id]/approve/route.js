@@ -8,7 +8,7 @@
 //                               Role: "Supervisor" | "Super Admin"
 //   Stage 4 — Manager (Final) : PATCH { stage: "manager", warehouseId, notes? }
 //                               Role: "Manager" | "Super Admin"
-//                               → Stok dicatat, Receipt.warehouseId diisi
+//                               → Stok dicatat dengan FIFO batch, Receipt.warehouseId diisi
 //
 // Reject kapan saja            : PATCH { stage: "reject", notes }
 //
@@ -20,6 +20,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { createBatch, syncStockFromBatches } from "@/lib/fifoService";
 
 const getAutoStatus = (qty) => {
   const q = parseFloat(qty) || 0;
@@ -86,9 +87,9 @@ export async function PATCH(request, { params }) {
         }, { status: 400 });
       }
 
-      if (!["Supervisor", "SuperAdmin"].includes(role)) {
+      if (!["Admin", "SuperAdmin"].includes(role)) {
         return NextResponse.json({
-          message: "Tahap Admin hanya bisa di-approve oleh pengguna dengan role 'Admin'.",
+          message: "Tahap Admin hanya bisa di-approve oleh pengguna dengan role 'Admin' atau 'SuperAdmin'.",
         }, { status: 403 });
       }
 
@@ -109,7 +110,7 @@ export async function PATCH(request, { params }) {
       });
     }
 
-    // ═════════════════════════════════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════════════════════���══
     // STAGE 3 — SUPERVISOR
     // Syarat: status PENDING_SUPERVISOR, role "Supervisor" atau "Super Admin"
     // ═════════════════════════════════════════════════════════════════════════
@@ -144,7 +145,7 @@ export async function PATCH(request, { params }) {
     }
 
     // ═════════════════════════════════════════════════════════════════════════
-    // STAGE 4 — MANAGER (Final) → Stok dicatat
+    // STAGE 4 — MANAGER (Final) → Stok dicatat dengan FIFO batch
     // Syarat: status PENDING_MANAGER, role "Manager" atau "Super Admin"
     // warehouseId WAJIB diisi
     // ═════════════════════════════════════════════════════════════════════════
@@ -199,37 +200,32 @@ export async function PATCH(request, { params }) {
           data:  { warehouseId },
         });
 
-        // 3. Upsert Stock — unique per [name, warehouseId]
-        const existing   = await tx.stock.findUnique({
-          where: { name_warehouseId: { name: purchase.item, warehouseId } },
-        });
-        const currentQty = existing?.stock || 0;
-        const finalQty   = currentQty + incomingQty;
+        // 3a. Buat StockBatch baru (FIFO entry)
+        const newBatch = await createBatch(
+          tx,
+          purchase.item,
+          warehouseId,
+          incomingQty,
+          unitLabel,
+          {
+            purchasingId:  purchase.id,
+            receiptId:     receipt.id,
+            sttbId:        sttb.id,
+            supplierName:  purchase.supplier || null,
+            noPO:          purchase.noPO     || null,
+            suratJalan:    receipt.suratJalan || null,
+            category:      purchase.category || "General",
+            type:          purchase.type     || "STOCKS",
+            price:         purchase.price    || null,
+            condition:     receipt.condition || "GOOD",
+            notes:         `STTB: ${sttb.sttbNo} | Gudang: ${warehouse.name}`,
+          }
+        );
 
-        await tx.stock.upsert({
-          where:  { name_warehouseId: { name: purchase.item, warehouseId } },
-          update: {
-            stock:           finalQty,
-            status:          getAutoStatus(finalQty),
-            price:           purchase.price,
-            type:            purchase.type,
-            lastPurchasedId: purchase.id,
-            updatedAt:       now,
-          },
-          create: {
-            name:            purchase.item,
-            category:        purchase.category || "General",
-            stock:           finalQty,
-            unit:            unitLabel,
-            type:            purchase.type || "STOCKS",
-            price:           purchase.price,
-            status:          getAutoStatus(finalQty),
-            lastPurchasedId: purchase.id,
-            warehouseId,
-          },
-        });
+        // 3b. Sync tabel Stock dari total semua batch (bukan manual increment)
+        await syncStockFromBatches(tx, purchase.item, warehouseId);
 
-        // 4. Catat History
+        // 4. Catat History dengan referensi ke batch
         await tx.history.create({
           data: {
             action:      "STOCK_IN",
@@ -240,7 +236,8 @@ export async function PATCH(request, { params }) {
             unit:        unitLabel,
             user:        approver,
             referenceId: updatedSTTB.id,
-            notes:       `STTB: ${sttb.sttbNo} | Gudang: ${warehouse.name} | Final Approved (4-stage) oleh ${approver}`,
+            batchId:     newBatch.id,
+            notes:       `STTB: ${sttb.sttbNo} | Batch: ${newBatch.batchNo} | Gudang: ${warehouse.name} | Supplier: ${purchase.supplier || "-"}`,
           },
         });
 

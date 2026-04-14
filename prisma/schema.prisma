@@ -17,6 +17,7 @@ model Warehouse {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  batches   StockBatch[]
   receipts  Receipt[]
   stocks    Stock[]
   sttbs     STTB[]
@@ -108,9 +109,6 @@ model DeliveryOrderItem {
 }
 
 // ─── PURCHASING (PO) ──────────────────────────────────────────────────────────
-// PO dibuat SETELAH DO disetujui.
-// User memilih item dari DO, lalu isi supplier, qty, dan harga secara manual.
-// Satu PO = satu item dari satu supplier (bisa ada banyak PO untuk satu DO item).
 model Purchasing {
   id          String         @id @default(cuid())
   noPO        String
@@ -135,6 +133,7 @@ model Purchasing {
   deliveryOrderItem   DeliveryOrderItem? @relation(fields: [deliveryOrderItemId], references: [id])
 
   receipts Receipt[]
+  batches  StockBatch[]
   sttb     STTB?
 }
 
@@ -163,6 +162,7 @@ model Receipt {
   warehouse   Warehouse? @relation(fields: [warehouseId], references: [id])
 
   sttb STTB?
+  batch StockBatch?
 }
 
 // ─── STTB (Surat Tanda Terima Barang) ─────────────────────────────────────────
@@ -199,6 +199,8 @@ model STTB {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  batch StockBatch?
 }
 
 // ─── STOCK ────────────────────────────────────────────────────────────────────
@@ -218,6 +220,81 @@ model Stock {
   warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
 
   @@unique([name, warehouseId])
+}
+
+// ─── STOCK-BATCH ────────────────────────────────────────────────────────────────────
+model StockBatch {
+  id          String   @id @default(cuid())
+  batchNo     String   @unique               // auto: BATCH/YYYYMMDD/XXXX
+
+  // Referensi ke item stok (nama item + warehouse)
+  itemName    String
+  warehouseId String
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
+
+  // Referensi ke sumber barang untuk traceability
+  purchasingId String?
+  purchasing   Purchasing? @relation(fields: [purchasingId], references: [id])
+  receiptId    String?     @unique 
+  receipt      Receipt?    @relation(fields: [receiptId], references: [id])
+  sttbId       String?     @unique
+  sttb         STTB?       @relation(fields: [sttbId], references: [id])
+
+  // Supplier snapshot (denormalized untuk traceability cepat)
+  supplierName String?
+  noPO         String?     // No PO referensi
+  suratJalan   String?     // No SJ referensi
+
+  // Stok quantities
+  qtyInitial  Float        // qty yang masuk pertama kali
+  qtyRemaining Float       // sisa stok di batch ini (dikurangi saat FIFO deduct)
+
+  unit        String       @default("KG")
+  category    String       @default("General")
+  type        String       @default("STOCKS")
+  price       String?      // harga saat masuk (untuk COGS tracking)
+  condition   String?      @default("GOOD") // GOOD / DAMAGED / PARTIAL
+  notes       String?
+
+  // Status batch: ACTIVE (ada sisa) | DEPLETED (habis) | EXPIRED (kadaluarsa)
+  status      String       @default("ACTIVE")
+  receivedAt  DateTime     @default(now())
+  depletedAt  DateTime?    // kapan batch ini habis
+
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  // Relasi ke log deduction
+  deductions  BatchDeduction[]
+
+  @@index([itemName, warehouseId, status])
+  @@index([receivedAt])
+  @@index([status])
+}
+
+// ─── BATCH DEDUCTION ─────────────────────────────────────────────────────────
+// Setiap kali FIFO memotong dari batch, dicatat di sini.
+// Satu transaksi keluar bisa menyentuh beberapa batch (deduction lines).
+model BatchDeduction {
+  id          String      @id @default(cuid())
+  batchId     String
+  batch       StockBatch  @relation(fields: [batchId], references: [id])
+
+  // Referensi transaksi yang memicu deduction
+  referenceId   String?    // ID produksi / penjualan / invoice
+  referenceType String?    // "PRODUCTION" | "SALES" | "MANUAL_OUT" | "ADJUSTMENT"
+  referenceNo   String?    // No batch produksi / invoice
+
+  qtyDeducted Float        // qty yang dipotong dari batch ini
+  unit        String       @default("KG")
+  deductedBy  String?      // user yang trigger
+  notes       String?
+
+  createdAt   DateTime     @default(now())
+
+  @@index([batchId])
+  @@index([referenceId])
+  @@index([createdAt])
 }
 
 // ─── PRODUCTION ───────────────────────────────────────────────────────────────
@@ -267,6 +344,7 @@ model History {
   id          String   @id @default(uuid())
   action      String
   item        String
+  batchId     String?
   category    String
   type        String
   quantity    Float
@@ -275,6 +353,7 @@ model History {
   notes       String?
   referenceId String?
   createdAt   DateTime @default(now())
+  
 }
 
 // ─── PENJUALAN ────────────────────────────────────────────────────────────────

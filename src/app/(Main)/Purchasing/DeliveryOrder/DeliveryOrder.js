@@ -777,7 +777,7 @@ const DeliveryOrderTable = ({ data = [], onView, onDelete, loading }) => {
                     </span>
                   </td>
                   <td className="px-6 py-5 border-b border-gray-50 text-right">
-                    <div className="flex justify-end gap-2">
+                    <div className="flex justify-start gap-2">
                       <button onClick={() => onView(do_)}
                         className="p-2.5 text-blue-600 hover:bg-blue-500 hover:text-white rounded-xl transition-all border border-blue-100 bg-white shadow-sm active:scale-90">
                         <Eye size={16} />

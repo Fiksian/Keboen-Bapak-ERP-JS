@@ -309,7 +309,7 @@ const BatchDetailModal = ({ isOpen, onClose, item, warehouseId }) => {
                   <div className="relative flex-1">
                     <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                     <input
-                      className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-[11px] font-bold outline-none focus:ring-2 focus:ring-indigo-100"
+                      className="w-full text-slate-500 pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-[11px] font-bold outline-none focus:ring-2 focus:ring-indigo-100"
                       placeholder="Cari batch / supplier..."
                       value={search}
                       onChange={e => setSearch(e.target.value)}

@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, memo } from 'react';
-import { Package, Database, Trash2, ChevronDown, Layers, Warehouse as WarehouseIcon } from 'lucide-react';
+import React, { useState, memo, useMemo } from 'react';
+import { Package, Database, Trash2, ChevronDown, Layers, Warehouse as WarehouseIcon, ChevronRight } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import Pagination from '@/app/(Main)/Components/Pagination';
 import BatchDetailModal from './BatchDetailModal';
@@ -10,15 +10,37 @@ const StockTable = ({ data = [], onEdit, onRefresh, type = 'stock', warehouses =
   const { data: session } = useSession();
   const [unitPreferences, setUnitPreferences] = useState({});
   const [currentPage, setCurrentPage] = useState(1);
+  const [expandedItems, setExpandedItems] = useState({});
   const [batchModal, setBatchModal] = useState({ open: false, item: null, warehouseId: null });
   const itemsPerPage = 6;
 
   const canDelete = ["SuperAdmin"].includes(session?.user?.role);
 
-  const totalPages = Math.ceil(data.length / itemsPerPage);
+  // ─── Group items by name ──────────────────────────────────────────────────
+  const groupedData = useMemo(() => {
+    const groups = {};
+    
+    data.forEach(item => {
+      const key = item.name.toUpperCase();
+      if (!groups[key]) {
+        groups[key] = {
+          name: item.name,
+          category: item.category,
+          items: [],
+          totalStock: 0,
+        };
+      }
+      groups[key].items.push(item);
+      groups[key].totalStock += item.stock;
+    });
+
+    return Object.values(groups);
+  }, [data]);
+
+  const totalPages = Math.ceil(groupedData.length / itemsPerPage);
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentData = data.slice(indexOfFirstItem, indexOfLastItem);
+  const currentGroupedData = groupedData.slice(indexOfFirstItem, indexOfLastItem);
 
   // Helper: Get warehouse name by ID
   const getWarehouseName = (warehouseId) => {
@@ -89,6 +111,13 @@ const StockTable = ({ data = [], onEdit, onRefresh, type = 'stock', warehouses =
     setBatchModal({ open: true, item, warehouseId: item.warehouseId || null });
   };
 
+  const toggleExpand = (groupKey) => {
+    setExpandedItems(prev => ({
+      ...prev,
+      [groupKey]: !prev[groupKey],
+    }));
+  };
+
   return (
     <>
       {/* Batch Detail Modal */}
@@ -105,110 +134,189 @@ const StockTable = ({ data = [], onEdit, onRefresh, type = 'stock', warehouses =
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="text-slate-400 text-[10px] font-black uppercase tracking-widest border-b border-slate-50 bg-slate-50/30">
+                <th className="px-4 py-6 w-12"></th>
                 <th className="px-8 py-6">Produk / Material</th>
                 <th className="px-6 py-6">Kategori</th>
-                <th className="px-6 py-6 text-center">Warehouse</th>
-                <th className="px-6 py-6 text-center">Stok Tersedia</th>
+                <th className="px-6 py-6 text-center">Total Stok</th>
+                <th className="px-6 py-6 text-center">Lokasi</th>
                 <th className="px-6 py-6 text-center">Status</th>
-                <th className="px-6 py-6 text-center">Batch FIFO</th>
                 <th className="px-8 py-6 text-right">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {currentData.length > 0 ? currentData.map((item) => {
-                const { options } = getExtendedConversion(item.stock, item.unit);
-                const currentStatus = getDerivedStatus(item);
-                const userPrefKey = unitPreferences[item.id] || 'default';
+              {currentGroupedData.length > 0 ? currentGroupedData.map((group, idx) => {
+                const groupKey = group.name.toUpperCase();
+                const isExpanded = expandedItems[groupKey];
+                const { options } = getExtendedConversion(group.totalStock, group.items[0]?.unit);
+                const userPrefKey = unitPreferences[groupKey] || 'default';
                 const displayData = options[userPrefKey] || options.default;
-                const warehouseName = getWarehouseName(item.warehouseId);
+                
+                // Hitung status dari total stok
+                const { baseInKg } = getExtendedConversion(group.totalStock, group.items[0]?.unit);
+                let statusTot = 'READY';
+                if (baseInKg <= 0) statusTot = 'EMPTY';
+                else if (baseInKg <= 50) statusTot = 'LIMITED';
 
                 return (
-                  <tr key={item.id} className="hover:bg-slate-50/50 transition-colors group">
-                    <td className="px-8 py-5">
-                      <div className="flex items-center gap-4">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center border shrink-0 transition-all ${
-                          currentStatus === 'EMPTY'
-                            ? 'bg-rose-50 text-rose-300 border-rose-100'
-                            : 'bg-white text-slate-400 group-hover:text-indigo-500 group-hover:border-indigo-100 shadow-sm'
-                        }`}>
-                          {type === 'stock' ? <Package size={18} /> : <Database size={18} />}
-                        </div>
-                        <div className="min-w-0">
-                          <span className="font-black text-slate-800 uppercase tracking-tight block truncate">{item.name}</span>
-                          <span className="text-[9px] text-slate-400 font-bold uppercase italic">
-                            DB: {formatNumber(item.stock)} {item.unit}
-                          </span>
-                        </div>
-                      </div>
-                    </td>
-
-                    <td className="px-6 py-5">
-                      <span className="bg-slate-100 text-slate-500 px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-tighter">
-                        {item.category || "General"}
-                      </span>
-                    </td>
-
-                    {/* ── WAREHOUSE COLUMN ─────────────────────────────── */}
-                    <td className="px-6 py-5">
-                      <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-100 rounded-xl">
-                        <WarehouseIcon size={14} className="text-blue-500 shrink-0" />
-                        <span className="text-[10px] font-black text-blue-700 uppercase tracking-tight">
-                          {warehouseName}
-                        </span>
-                      </div>
-                    </td>
-
-                    <td className="px-6 py-5 text-center">
-                      <div className="flex flex-col items-center justify-center">
-                        <span className={`text-xl font-black italic tracking-tighter ${
-                          currentStatus === 'READY' ? 'text-indigo-600' :
-                          currentStatus === 'LIMITED' ? 'text-amber-500' : 'text-rose-500'
-                        }`}>
-                          {formatNumber(displayData.val)}
-                        </span>
-                        <div className="relative mt-1.5">
-                          <select
-                            value={userPrefKey}
-                            onChange={(e) => handleUnitChange(item.id, e.target.value)}
-                            className="appearance-none bg-slate-100 hover:bg-slate-200 text-slate-600 text-[9px] font-black px-4 py-1.5 pr-7 rounded-full cursor-pointer uppercase transition-all outline-none border border-transparent focus:border-slate-300"
+                  <React.Fragment key={groupKey}>
+                    {/* Main Row - Clickable anywhere */}
+                    <tr 
+                      className="hover:bg-indigo-50/30 transition-colors group cursor-pointer"
+                      onClick={() => {
+                        if (group.items.length > 1) {
+                          toggleExpand(groupKey);
+                        }
+                      }}
+                    >
+                      <td className="px-4 py-5 text-center">
+                        {group.items.length > 1 && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleExpand(groupKey);
+                            }}
+                            className={`p-1 rounded transition-transform ${isExpanded ? 'rotate-90' : ''}`}
                           >
-                            {Object.entries(options).map(([key, opt]) => (
-                              <option key={key} value={key}>{opt.label} ({opt.unit})</option>
-                            ))}
-                          </select>
-                          <ChevronDown size={10} className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" />
-                        </div>
-                      </div>
-                    </td>
-
-                    <td className="px-6 py-5 text-center">
-                      <span className={`px-3 py-1.5 rounded-lg text-[9px] font-black border uppercase tracking-wider ${getStatusStyle(currentStatus)}`}>
-                        {currentStatus}
-                      </span>
-                    </td>
-
-                    {/* ── Batch FIFO column ──────────────────────────────── */}
-                    <td className="px-6 py-5 text-center">
-                      <button
-                        onClick={() => openBatchModal(item)}
-                        className="inline-flex items-center gap-1.5 px-3 py-2 bg-indigo-50 hover:bg-indigo-500 text-indigo-600 hover:text-white border border-indigo-100 hover:border-indigo-500 rounded-xl text-[9px] font-black uppercase transition-all active:scale-95 group/btn"
-                      >
-                        <Layers size={12} className="shrink-0" />
-                        <span>Lihat Batch</span>
-                      </button>
-                    </td>
-
-                    <td className="px-8 py-5 text-right">
-                      <div className="flex justify-end gap-2">
-                        {canDelete && (
-                          <button onClick={() => deleteItem(item.id)}
-                            className="p-2 text-slate-300 hover:text-rose-600 transition-colors active:scale-90">
-                            <Trash2 size={18} />
+                            <ChevronRight size={18} className="text-slate-400 group-hover:text-indigo-600" />
                           </button>
                         )}
-                      </div>
-                    </td>
-                  </tr>
+                      </td>
+
+                      <td className="px-8 py-5">
+                        <div className="flex items-center gap-4">
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center border shrink-0 transition-all ${
+                            statusTot === 'EMPTY'
+                              ? 'bg-rose-50 text-rose-300 border-rose-100'
+                              : 'bg-white text-slate-400 group-hover:text-indigo-500 group-hover:border-indigo-100 shadow-sm'
+                          }`}>
+                            {type === 'stock' ? <Package size={18} /> : <Database size={18} />}
+                          </div>
+                          <div className="min-w-0">
+                            <span className="font-black text-slate-800 uppercase tracking-tight block truncate">{group.name}</span>
+                            <span className="text-[9px] text-slate-400 font-bold uppercase italic">
+                              {group.items.length} warehouse{group.items.length > 1 ? 's' : ''}
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+
+                      <td className="px-6 py-5">
+                        <span className="bg-slate-100 text-slate-500 px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-tighter">
+                          {group.category || "General"}
+                        </span>
+                      </td>
+
+                      <td className="px-6 py-5 text-center">
+                        <div className="flex flex-col items-center justify-center">
+                          <span className={`text-xl font-black italic tracking-tighter ${
+                            statusTot === 'READY' ? 'text-indigo-600' :
+                            statusTot === 'LIMITED' ? 'text-amber-500' : 'text-rose-500'
+                          }`}>
+                            {formatNumber(displayData.val)}
+                          </span>
+                          <div className="relative mt-1.5">
+                            <select
+                              value={userPrefKey}
+                              onChange={(e) => {
+                                e.stopPropagation();
+                                handleUnitChange(groupKey, e.target.value);
+                              }}
+                              className="appearance-none bg-slate-100 hover:bg-slate-200 text-slate-600 text-[9px] font-black px-4 py-1.5 pr-7 rounded-full cursor-pointer uppercase transition-all outline-none border border-transparent focus:border-slate-300"
+                            >
+                              {Object.entries(options).map(([key, opt]) => (
+                                <option key={key} value={key}>{opt.label}</option>
+                              ))}
+                            </select>
+                            <ChevronDown size={10} className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" />
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Lokasi - Show multiple warehouses */}
+                      <td className="px-6 py-5">
+                        <div className="flex items-center gap-1 flex-wrap justify-center">
+                          {group.items.map((item, i) => (
+                            <div key={item.id} className="flex items-center gap-1 px-2 py-1 bg-blue-50 border border-blue-100 rounded-lg">
+                              <WarehouseIcon size={12} className="text-blue-500 shrink-0" />
+                              <span className="text-[9px] font-black text-blue-700 uppercase">
+                                {getWarehouseName(item.warehouseId)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </td>
+
+                      <td className="px-6 py-5 text-center">
+                        <span className={`px-3 py-1.5 rounded-lg text-[9px] font-black border uppercase tracking-wider ${getStatusStyle(statusTot)}`}>
+                          {statusTot}
+                        </span>
+                      </td>
+
+                      <td className="px-8 py-5 text-right">
+                        <div className="flex justify-end gap-2">
+                          {canDelete && group.items.length > 0 && (
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteItem(group.items[0].id);
+                              }}
+                              className="p-2 text-slate-300 hover:text-rose-600 transition-colors active:scale-90">
+                              <Trash2 size={18} />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+
+                    {/* Expanded Rows - Detail per warehouse */}
+                    {isExpanded && group.items.map((item) => {
+                      const itemStatus = getDerivedStatus(item);
+                      const { options: itemOptions } = getExtendedConversion(item.stock, item.unit);
+                      const itemPrefKey = unitPreferences[item.id] || 'default';
+                      const itemDisplay = itemOptions[itemPrefKey] || itemOptions.default;
+
+                      return (
+                        <tr key={item.id} className="bg-slate-50/50 hover:bg-slate-100/50 transition-colors">
+                          <td className="px-4 py-4"></td>
+                          <td className="px-8 py-4">
+                            <div className="flex items-center gap-3 ml-4">
+                              <div className="w-2 h-2 rounded-full bg-indigo-400"></div>
+                              <span className="text-[10px] font-bold text-slate-600">Detail per Warehouse</span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4"></td>
+                          <td className="px-6 py-4 text-center">
+                            <span className="text-sm font-black text-slate-700 italic">{formatNumber(itemDisplay.val)}</span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-2 px-3 py-2 bg-blue-100 border border-blue-200 rounded-xl">
+                              <WarehouseIcon size={14} className="text-blue-600 shrink-0" />
+                              <span className="text-[10px] font-black text-blue-800 uppercase">
+                                {getWarehouseName(item.warehouseId)}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <span className={`px-3 py-1 rounded-lg text-[9px] font-black border uppercase ${getStatusStyle(itemStatus)}`}>
+                              {itemStatus}
+                            </span>
+                          </td>
+                          <td className="px-8 py-4 text-right">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openBatchModal(item);
+                              }}
+                              className="inline-flex items-center gap-1.5 px-3 py-2 bg-indigo-50 hover:bg-indigo-500 text-indigo-600 hover:text-white border border-indigo-100 hover:border-indigo-500 rounded-xl text-[9px] font-black uppercase transition-all active:scale-95"
+                            >
+                              <Layers size={12} />
+                              <span>Batch</span>
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </React.Fragment>
                 );
               }) : (
                 <tr>
@@ -223,78 +331,129 @@ const StockTable = ({ data = [], onEdit, onRefresh, type = 'stock', warehouses =
 
         {/* Mobile cards */}
         <div className="lg:hidden grid grid-cols-1 gap-4">
-          {currentData.length > 0 ? currentData.map((item) => {
-            const { options } = getExtendedConversion(item.stock, item.unit);
-            const currentStatus = getDerivedStatus(item);
-            const userPrefKey = unitPreferences[item.id] || 'default';
+          {currentGroupedData.length > 0 ? currentGroupedData.map((group) => {
+            const groupKey = group.name.toUpperCase();
+            const isExpanded = expandedItems[groupKey];
+            const { baseInKg } = getExtendedConversion(group.totalStock, group.items[0]?.unit);
+            let statusTot = 'READY';
+            if (baseInKg <= 0) statusTot = 'EMPTY';
+            else if (baseInKg <= 50) statusTot = 'LIMITED';
+            const { options } = getExtendedConversion(group.totalStock, group.items[0]?.unit);
+            const userPrefKey = unitPreferences[groupKey] || 'default';
             const displayData = options[userPrefKey] || options.default;
-            const warehouseName = getWarehouseName(item.warehouseId);
 
             return (
-              <div key={item.id} className="bg-white rounded-[28px] border border-slate-100 p-6 shadow-sm space-y-4">
-                <div className="flex justify-between items-start">
-                  <div className="flex gap-4 flex-1">
-                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border shrink-0 ${getStatusStyle(currentStatus)}`}>
-                      {type === 'stock' ? <Package size={22} /> : <Database size={22} />}
+              <div key={groupKey} className="bg-white rounded-[28px] border border-slate-100 shadow-sm overflow-hidden">
+                {/* Main Card - Clickable anywhere */}
+                <div 
+                  className="p-6 space-y-4 cursor-pointer hover:bg-indigo-50/20 transition-colors"
+                  onClick={() => {
+                    if (group.items.length > 1) {
+                      toggleExpand(groupKey);
+                    }
+                  }}
+                >
+                  <div className="flex justify-between items-start">
+                    <div className="flex gap-4 flex-1">
+                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border shrink-0 ${getStatusStyle(statusTot)}`}>
+                        {type === 'stock' ? <Package size={22} /> : <Database size={22} />}
+                      </div>
+                      <div className="flex-1">
+                        <span className="font-black text-slate-800 uppercase text-[14px] tracking-tight block">{group.name}</span>
+                        <span className="text-[10px] text-slate-400 font-black uppercase italic">
+                          {group.items.length} warehouse{group.items.length > 1 ? 's' : ''}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex-1">
-                      <span className="font-black text-slate-800 uppercase text-[14px] tracking-tight block">{item.name}</span>
-                      <span className="text-[10px] text-slate-400 font-black uppercase italic">Base: {item.stock} {item.unit}</span>
-                    </div>
+                    <span className={`px-2.5 py-1 rounded-lg text-[8px] font-black border uppercase shrink-0 ${getStatusStyle(statusTot)}`}>
+                      {statusTot}
+                    </span>
                   </div>
-                  <span className={`px-2.5 py-1 rounded-lg text-[8px] font-black border uppercase shrink-0 ${getStatusStyle(currentStatus)}`}>
-                    {currentStatus}
+
+                  <span className="bg-slate-100 text-slate-500 px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-tighter inline-block">
+                    {group.category || "General"}
                   </span>
-                </div>
 
-                {/* ── WAREHOUSE INFO (Mobile) ──────────────────────────── */}
-                <div className="flex items-center gap-2 px-4 py-3 bg-blue-50 border border-blue-100 rounded-2xl">
-                  <WarehouseIcon size={16} className="text-blue-500 shrink-0" />
-                  <div>
-                    <p className="text-[9px] text-blue-600 font-black uppercase tracking-widest">Lokasi Penyimpanan</p>
-                    <p className="text-[12px] font-black text-blue-900">{warehouseName}</p>
+                  {/* Warehouse tags */}
+                  <div className="flex flex-wrap gap-2">
+                    {group.items.map((item) => (
+                      <div key={item.id} className="flex items-center gap-1.5 px-3 py-2 bg-blue-50 border border-blue-100 rounded-xl">
+                        <WarehouseIcon size={12} className="text-blue-500" />
+                        <span className="text-[9px] font-black text-blue-700 uppercase">
+                          {getWarehouseName(item.warehouseId)}
+                        </span>
+                      </div>
+                    ))}
                   </div>
-                </div>
 
-                <div className="bg-slate-50 rounded-2xl p-4 flex justify-between items-center border border-slate-100">
-                  <div>
-                    <span className="text-[9px] text-slate-400 font-black uppercase tracking-widest block mb-1">Stok Saat Ini</span>
-                    <div className="flex items-baseline gap-1">
-                      <span className={`text-2xl font-black italic tracking-tighter ${currentStatus === 'READY' ? 'text-indigo-600' : 'text-amber-500'}`}>
-                        {formatNumber(displayData.val)}
-                      </span>
-                      <span className="text-[10px] font-black text-slate-400 uppercase">{displayData.unit}</span>
+                  <div className="bg-slate-50 rounded-2xl p-4 flex justify-between items-center border border-slate-100">
+                    <div>
+                      <span className="text-[9px] text-slate-400 font-black uppercase tracking-widest block mb-1">Total Stok</span>
+                      <div className="flex items-baseline gap-1">
+                        <span className={`text-2xl font-black italic tracking-tighter ${statusTot === 'READY' ? 'text-indigo-600' : 'text-amber-500'}`}>
+                          {formatNumber(displayData.val)}
+                        </span>
+                        <span className="text-[10px] font-black text-slate-400 uppercase">{displayData.unit}</span>
+                      </div>
                     </div>
                   </div>
-                  <div className="relative">
-                    <select
-                      value={userPrefKey}
-                      onChange={(e) => handleUnitChange(item.id, e.target.value)}
-                      className="appearance-none bg-white border border-slate-200 text-slate-600 text-[10px] font-black px-4 py-2.5 pr-9 rounded-xl cursor-pointer uppercase shadow-sm outline-none"
-                    >
-                      {Object.entries(options).map(([key, opt]) => (
-                        <option key={key} value={key}>{opt.unit}</option>
-                      ))}
-                    </select>
-                    <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" />
-                  </div>
-                </div>
 
-                <div className="flex gap-3">
-                  {/* Batch detail button */}
-                  <button
-                    onClick={() => openBatchModal(item)}
-                    className="flex-1 py-4 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded-2xl font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-2 active:scale-95 hover:bg-indigo-500 hover:text-white transition-all"
-                  >
-                    <Layers size={16} /> Lihat Batch FIFO
-                  </button>
-                  {canDelete && (
-                    <button onClick={() => deleteItem(item.id)}
-                      className="w-14 h-14 flex items-center justify-center bg-rose-50 text-rose-500 rounded-2xl border border-rose-100 hover:bg-rose-500 hover:text-white transition-all active:scale-90">
-                      <Trash2 size={22} />
+                  {/* Expand button */}
+                  {group.items.length > 1 && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleExpand(groupKey);
+                      }}
+                      className={`w-full py-3 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded-2xl font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-2 active:scale-95 hover:bg-indigo-500 hover:text-white transition-all ${
+                        isExpanded ? 'bg-indigo-500 text-white' : ''
+                      }`}
+                    >
+                      <ChevronRight size={14} className={`transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                      {isExpanded ? 'Sembunyikan' : 'Lihat'} Detail ({group.items.length})
                     </button>
                   )}
                 </div>
+
+                {/* Expanded Details */}
+                {isExpanded && (
+                  <div className="border-t border-slate-100 bg-slate-50/50 space-y-3 p-4">
+                    {group.items.map((item) => {
+                      const itemStatus = getDerivedStatus(item);
+                      const { options: itemOptions } = getExtendedConversion(item.stock, item.unit);
+                      const itemPrefKey = unitPreferences[item.id] || 'default';
+                      const itemDisplay = itemOptions[itemPrefKey] || itemOptions.default;
+
+                      return (
+                        <div key={item.id} className="bg-white rounded-2xl p-4 border border-slate-100">
+                          <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-100 rounded-xl mb-3">
+                            <WarehouseIcon size={14} className="text-blue-500" />
+                            <span className="text-[10px] font-black text-blue-700 uppercase">
+                              {getWarehouseName(item.warehouseId)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center mb-3">
+                            <div>
+                              <p className="text-[9px] text-slate-400 font-black uppercase mb-1">Stok</p>
+                              <p className={`text-lg font-black italic ${itemStatus === 'READY' ? 'text-indigo-600' : 'text-amber-500'}`}>
+                                {formatNumber(itemDisplay.val)} {itemDisplay.unit}
+                              </p>
+                            </div>
+                            <span className={`px-2.5 py-1 rounded-lg text-[8px] font-black border uppercase ${getStatusStyle(itemStatus)}`}>
+                              {itemStatus}
+                            </span>
+                          </div>
+                          <button
+                            onClick={() => openBatchModal(item)}
+                            className="w-full py-2 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded-xl font-black text-[10px] uppercase transition-all active:scale-95 hover:bg-indigo-500 hover:text-white flex items-center justify-center gap-1"
+                          >
+                            <Layers size={12} /> Batch FIFO
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             );
           }) : (
@@ -304,7 +463,7 @@ const StockTable = ({ data = [], onEdit, onRefresh, type = 'stock', warehouses =
           )}
         </div>
 
-        {data.length > 0 && (
+        {groupedData.length > 0 && (
           <div className="mt-8 flex justify-center lg:justify-end">
             <Pagination
               currentPage={currentPage}

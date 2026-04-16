@@ -257,9 +257,10 @@ export const traceBatchByReference = async (referenceId) => {
 // ─── Sync tabel Stock dengan total batch ─────────────────────────────────────
 // Panggil setelah deduction agar tabel Stock tetap konsisten dengan batch
 // ─── Sync tabel Stock dengan total batch ─────────────────────────────────────
-export const syncStockFromBatches = async (tx, itemName, warehouseId) => {
+export const syncStockFromBatches = async (tx, itemName, warehouseId, optionalData = {}) => {
   const db = tx || prisma;
 
+  // 1. Hitung total qty dari semua batch aktif
   const result = await db.stockBatch.aggregate({
     where: { itemName, warehouseId, status: "ACTIVE" },
     _sum:  { qtyRemaining: true },
@@ -272,7 +273,7 @@ export const syncStockFromBatches = async (tx, itemName, warehouseId) => {
     return "READY";
   };
 
-  // AMAN: Menggunakan upsert agar barang baru otomatis terdaftar di tabel Stock
+  // 2. Jalankan Upsert
   await db.stock.upsert({
     where: {
       name_warehouseId: { 
@@ -280,6 +281,7 @@ export const syncStockFromBatches = async (tx, itemName, warehouseId) => {
         warehouseId: warehouseId 
       }
     },
+
     update: { 
       stock: totalFromBatches, 
       status: autoStatus(totalFromBatches), 
@@ -290,7 +292,8 @@ export const syncStockFromBatches = async (tx, itemName, warehouseId) => {
       warehouseId: warehouseId,
       stock: totalFromBatches,
       status: autoStatus(totalFromBatches),
-      unit: "UNIT", // Sesuaikan default unit
+      unit: optionalData.unit || "UNIT",
+      category: optionalData.category || "GENERAL", 
       type: "STOCKS"
     }
   });

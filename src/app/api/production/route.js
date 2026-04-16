@@ -1,222 +1,366 @@
+// app/api/production/route.js
+
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { convertQty } from "@/lib/unitConverter";
+import {
+  deductStockFIFO,
+  createBatch,
+  syncStockFromBatches,
+} from "@/lib/fifoService";
 
-export async function GET() {
+// ─── Generate nomor batch auto ──────────────────────────────────────────────
+const generateNoBatch = async () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const prefix = `PROD/${year}/${month}/`;
+
+  const last = await prisma.production.findFirst({
+    where: { noBatch: { startsWith: prefix } },
+    orderBy: { noBatch: "desc" },
+  });
+
+  let nextNumber = 1;
+  if (last?.noBatch) {
+    const parts = last.noBatch.split("/");
+    const lastSequence = parseInt(parts[parts.length - 1]);
+    if (!isNaN(lastSequence)) nextNumber = lastSequence + 1;
+  }
+
+  return `${prefix}${String(nextNumber).padStart(3, "0")}`;
+};
+
+// ─── Kalkulasi HPP weighted average dari batch allocation ─────────────────────
+const calcWeightedHPP = (ingredients) => {
+  let totalCostAll = 0;
+  let totalQtyAll = 0;
+
+  for (const comp of ingredients) {
+    const alloc = Array.isArray(comp.batchAllocation)
+      ? comp.batchAllocation
+      : JSON.parse(comp.batchAllocation || "[]");
+
+    for (const a of alloc) {
+      const price = parseFloat(a.price) || 0;
+      const qty = parseFloat(a.qty) || 0;
+      totalCostAll += price * qty;
+      totalQtyAll += qty;
+    }
+  }
+
+  return {
+    totalCost: totalCostAll,
+    avgUnitCost: totalQtyAll > 0 ? totalCostAll / totalQtyAll : 0,
+  };
+};
+
+// =============================================================================
+// GET /api/production
+// =============================================================================
+export async function GET(request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const status = searchParams.get("status");
+
+    const where = status ? { status } : {};
+
     const orders = await prisma.production.findMany({
-      include: { components: true },
-      orderBy: { createdAt: 'desc' }
+      where,
+      include: {
+        components: true,
+        warehouse: { select: { id: true, name: true } },
+      },
+      orderBy: { createdAt: "desc" },
     });
+
     return NextResponse.json(orders);
   } catch (error) {
     console.error("GET_PRODUCTION_ERROR:", error);
-    return NextResponse.json({ message: "Gagal mengambil data" }, { status: 500 });
+    return NextResponse.json({ message: error.message }, { status: 500 });
   }
 }
 
+// =============================================================================
+// POST /api/production
+// =============================================================================
 export async function POST(request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-
-    const body = await request.json();
-    const { productName, targetQty, date, ingredients } = body;
-    const userName = session.user.name || "System";
-
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const datePattern = `${year}/${month}`; 
-
-    const lastBatch = await prisma.production.findFirst({
-      where: { noBatch: { startsWith: `PROD/${datePattern}` } },
-      orderBy: { createdAt: 'desc' } 
-    });
-
-    let nextNumber = 1;
-    if (lastBatch?.noBatch) {
-      const parts = lastBatch.noBatch.split('/');
-      const lastSequence = parseInt(parts[parts.length - 1]); 
-      if (!isNaN(lastSequence)) nextNumber = lastSequence + 1;
+    if (!session?.user) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    const autoNoBatch = `PROD/${datePattern}/${String(nextNumber).padStart(3, '0')}`;
+    // ─ Parse JSON dari request body ───────────────────────────────────────────
+    let body;
+    try {
+      const text = await request.text();
+      body = JSON.parse(text);
+    } catch (parseError) {
+      console.error("JSON Parse Error:", parseError);
+      return NextResponse.json(
+        { message: `Invalid JSON: ${parseError.message}` },
+        { status: 400 }
+      );
+    }
 
-    const result = await prisma.$transaction(async (tx) => {
-      const processedIngredients = [];
+    const { productName, targetQty, targetUnit, date, ingredients } = body;
+    const userName = session.user.name || "System";
 
-      for (const item of ingredients) {
-        const stockItem = await tx.stock.findFirst({
-          where: { name: { equals: item.itemName, mode: 'insensitive' } }
-        });
+    // ─ Validasi input ─────────────────────────────────────────────────────────
+    if (!productName || !productName.trim()) {
+      return NextResponse.json(
+        { message: "Product name wajib diisi." },
+        { status: 400 }
+      );
+    }
 
-        if (!stockItem) throw new Error(`Bahan "${item.itemName}" tidak ditemukan.`);
+    if (!targetQty || parseFloat(targetQty) <= 0) {
+      return NextResponse.json(
+        { message: "Target qty harus > 0." },
+        { status: 400 }
+      );
+    }
 
-        const systemQty = convertQty(parseFloat(item.qtyNeeded), item.unit, stockItem.unit);
+    if (!date) {
+      return NextResponse.json(
+        { message: "Tanggal produksi wajib diisi." },
+        { status: 400 }
+      );
+    }
 
-        processedIngredients.push({
-          itemName: stockItem.name,
-          qtyNeeded: systemQty,
-          unit: stockItem.unit,
-          category: stockItem.category
-        });
+    if (!ingredients?.length) {
+      return NextResponse.json(
+        { message: "Minimal satu bahan baku harus diisi." },
+        { status: 400 }
+      );
+    }
+
+    // ─ Validasi setiap ingredient ─────────────────────────────────────────────
+    for (const ing of ingredients) {
+      const qty = parseFloat(ing.qtyNeeded) || 0;
+      const whId = ing.warehouseId;
+
+      if (!ing.itemName || !ing.itemName.trim()) {
+        return NextResponse.json(
+          { message: `Nama bahan baku tidak boleh kosong.` },
+          { status: 400 }
+        );
       }
 
-      const order = await tx.production.create({
-        data: {
-          productName: productName.toUpperCase(),
-          noBatch: autoNoBatch,
-          targetQty: parseFloat(targetQty),
-          status: "IN_PROGRESS",
-          startDate: new Date(date),
-          createdBy: userName,
-          components: {
-            create: processedIngredients.map(ing => ({
-              itemName: ing.itemName,
-              qtyNeeded: ing.qtyNeeded,
-              unit: ing.unit
-            }))
-          }
-        }
-      });
+      if (qty <= 0) {
+        return NextResponse.json(
+          { message: `Qty untuk "${ing.itemName}" harus > 0.` },
+          { status: 400 }
+        );
+      }
 
-      for (const ing of processedIngredients) {
-        const updated = await tx.stock.updateMany({
-          where: { 
-            name: ing.itemName, 
-            stock: { gte: ing.qtyNeeded }
+      if (!whId) {
+        return NextResponse.json(
+          { message: `Pilih gudang sumber untuk bahan "${ing.itemName}".` },
+          { status: 400 }
+        );
+      }
+
+      const alloc = Array.isArray(ing.batchAllocation)
+        ? ing.batchAllocation
+        : JSON.parse(ing.batchAllocation || "[]");
+
+      const allocQty = alloc.reduce((s, a) => s + (parseFloat(a.qty) || 0), 0);
+
+      if (allocQty < qty) {
+        return NextResponse.json(
+          {
+            message: `Batch FIFO untuk "${ing.itemName}" tidak cukup. Dibutuhkan: ${qty}, dialokasikan: ${allocQty}.`,
           },
-          data: { stock: { decrement: ing.qtyNeeded } }
-        });
+          { status: 400 }
+        );
+      }
 
-        if (updated.count === 0) {
-          throw new Error(`Stok ${ing.itemName} tidak cukup untuk memulai produksi.`);
+      // Validasi batch exists
+      for (const a of alloc) {
+        if (!a.batchId) {
+          return NextResponse.json(
+            { message: `Batch ID tidak valid untuk "${ing.itemName}".` },
+            { status: 400 }
+          );
         }
 
-        await tx.history.create({
-          data: {
-            action: "PRODUCTION_OUT",
-            item: ing.itemName,
-            category: ing.category,
-            type: "STOCKS",
-            quantity: -ing.qtyNeeded,
-            unit: ing.unit,
-            user: userName,
-            referenceId: order.noBatch,
-            notes: `PEMAKAIAN BAHAN UNTUK BATCH: ${order.noBatch}`
-          }
+        const batch = await prisma.stockBatch.findUnique({
+          where: { id: a.batchId },
         });
+
+        if (!batch) {
+          return NextResponse.json(
+            { message: `Batch ${a.batchNo} tidak ditemukan.` },
+            { status: 404 }
+          );
+        }
+
+        if (batch.qtyRemaining < a.qty) {
+          return NextResponse.json(
+            {
+              message: `Batch ${a.batchNo} tidak cukup. Tersisa: ${batch.qtyRemaining}, diminta: ${a.qty}.`,
+            },
+            { status: 400 }
+          );
+        }
       }
-      return order;
+    }
+
+    // ─ Generate batch number ──────────────────────────────────────────────────
+    const noBatch = await generateNoBatch();
+
+    // ─ Hitung HPP awal ────────────────────────────────────────────────────────
+    const { totalCost, avgUnitCost } = calcWeightedHPP(ingredients);
+    const totalInput =
+      ingredients.reduce((s, i) => s + (parseFloat(i.qtyNeeded) || 0), 0) || 1;
+    const tQty = parseFloat(targetQty);
+    const rendemen = (tQty / totalInput) * 100;
+    const lossWarning = rendemen < 95;
+
+    // ─ Create production order ────────────────────────────────────────────────
+    const production = await prisma.production.create({
+      data: {
+        noBatch,
+        productName: productName.toUpperCase(),
+        targetQty: tQty,
+        targetUnit: (targetUnit || "UNIT").toUpperCase(),
+        status: "PENDING_QC_PROD",
+        startDate: new Date(date),
+        createdBy: userName,
+        totalCost,
+        unitCost: avgUnitCost,
+        hpp: avgUnitCost,
+        rendemen,
+        lossWarning,
+        components: {
+          create: ingredients.map((ing) => ({
+            itemName: ing.itemName.toUpperCase(),
+            qtyNeeded: parseFloat(ing.qtyNeeded),
+            unit: (ing.unit || "KG").toUpperCase(),
+            batchAllocation: JSON.stringify(
+              Array.isArray(ing.batchAllocation)
+                ? ing.batchAllocation
+                : JSON.parse(ing.batchAllocation || "[]")
+            ),
+            unitPrice: parseFloat(ing.unitPrice) || avgUnitCost,
+            totalPrice: parseFloat(ing.totalPrice) || totalCost,
+            stockAvailable: parseFloat(ing.stockAvailable) || 0,
+            warehouseId: ing.warehouseId || null,
+          })),
+        },
+      },
+      include: { components: true },
     });
 
-    return NextResponse.json(result, { status: 201 });
+    // ─ Catat history ──────────────────────────────────────────────────────────
+    await prisma.history.create({
+      data: {
+        action: "PRODUCTION_CREATED",
+        item: productName.toUpperCase(),
+        category: "Production",
+        type: "STOCKS",
+        quantity: tQty,
+        unit: targetUnit || "UNIT",
+        user: userName,
+        referenceId: production.id,
+        notes: `Batch ${noBatch} dibuat, menunggu approval QC. HPP est: Rp ${avgUnitCost.toLocaleString("id-ID")}/unit`,
+      },
+    });
+
+    return NextResponse.json(production, { status: 201 });
   } catch (error) {
-    console.error("POST_PRODUCTION_ERROR:", error.message);
-    return NextResponse.json({ message: error.message }, { status: 400 });
+    console.error("POST_PRODUCTION_ERROR:", error);
+    return NextResponse.json(
+      { message: error.message || "Internal server error" },
+      { status: 500 }
+    );
   }
 }
 
+// =============================================================================
+// PATCH /api/production
+// =============================================================================
 export async function PATCH(request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    if (!session?.user) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
 
-    const body = await request.json();
-    const { id, status, actualQty, notes } = body; 
+    let body;
+    try {
+      const text = await request.text();
+      body = JSON.parse(text);
+    } catch (parseError) {
+      return NextResponse.json(
+        { message: `Invalid JSON: ${parseError.message}` },
+        { status: 400 }
+      );
+    }
+
+    const { id, status, notes } = body;
     const userName = session.user.name || "System";
 
-    const result = await prisma.$transaction(async (tx) => {
-      const currentOrder = await tx.production.findUnique({
-        where: { id },
-        include: { components: true }
-      });
+    if (status !== "CANCELLED") {
+      return NextResponse.json(
+        {
+          message:
+            "Gunakan endpoint /api/production/[id]/approve untuk proses approval.",
+        },
+        { status: 400 }
+      );
+    }
 
-      if (!currentOrder || currentOrder.status !== "IN_PROGRESS") {
-        throw new Error("Batch tidak ditemukan atau sudah tidak aktif.");
-      }
+    const order = await prisma.production.findUnique({ where: { id } });
+    if (!order) {
+      return NextResponse.json(
+        { message: "Production order tidak ditemukan." },
+        { status: 404 }
+      );
+    }
 
-      if (status === "COMPLETED") {
-        const finalQty = parseFloat(actualQty);
+    if (order.status === "COMPLETED") {
+      return NextResponse.json(
+        {
+          message: "Production yang sudah COMPLETED tidak bisa dibatalkan.",
+        },
+        { status: 400 }
+      );
+    }
 
-        const order = await tx.production.update({
-          where: { id },
-          data: {
-            status: "COMPLETED",
-            actualQty: finalQty,
-            endDate: new Date(),
-            notes: notes || "Produksi selesai"
-          }
-        });
-
-        const updatedStock = await tx.stock.upsert({
-          where: { name: order.productName },
-          update: { 
-            stock: { increment: finalQty }, 
-            status: "READY" 
-          },
-          create: {
-            name: order.productName,
-            category: "FINISHED_GOODS",
-            stock: finalQty,
-            unit: "UNIT",
-            type: "STOCKS",
-            status: "READY"
-          }
-        });
-
-        await tx.history.create({
-          data: {
-            action: "PRODUCTION_IN",
-            item: order.productName,
-            category: "FINISHED_GOODS",
-            type: "STOCKS",
-            quantity: finalQty,
-            unit: "UNIT",
-            user: userName,
-            referenceId: order.noBatch,
-            notes: `HASIL JADI PRODUKSI BATCH: ${order.noBatch}. Total stok: ${updatedStock.stock}`
-          }
-        });
-        return order;
-      }
-
-      if (status === "CANCELLED") {
-        const order = await tx.production.update({
-          where: { id },
-          data: { status: "CANCELLED", notes: notes || "Dibatalkan" }
-        });
-
-        for (const comp of currentOrder.components) {
-          await tx.stock.update({
-            where: { name: comp.itemName },
-            data: { stock: { increment: comp.qtyNeeded } }
-          });
-
-          await tx.history.create({
-            data: {
-              action: "PRODUCTION_REFUND",
-              item: comp.itemName,
-              category: "RAW_MATERIAL",
-              type: "STOCKS",
-              quantity: comp.qtyNeeded,
-              unit: comp.unit,
-              user: userName,
-              referenceId: order.noBatch,
-              notes: `PENGEMBALIAN BAHAN: BATCH ${order.noBatch} DIBATALKAN`
-            }
-          });
-        }
-        return order;
-      }
+    const updated = await prisma.production.update({
+      where: { id },
+      data: {
+        status: "CANCELLED",
+        rejectedBy: userName,
+        rejectedAt: new Date(),
+        rejectedNotes: notes || "Dibatalkan",
+      },
     });
 
-    return NextResponse.json(result);
+    await prisma.history.create({
+      data: {
+        action: "PRODUCTION_CANCELLED",
+        item: order.productName,
+        category: "Production",
+        type: "STOCKS",
+        quantity: order.targetQty,
+        unit: order.targetUnit || "UNIT",
+        user: userName,
+        referenceId: id,
+        notes: `Batch ${order.noBatch} dibatalkan. ${notes || ""}`,
+      },
+    });
+
+    return NextResponse.json(updated);
   } catch (error) {
-    console.error("PATCH_PRODUCTION_ERROR:", error.message);
-    return NextResponse.json({ message: error.message }, { status: 500 });
+    console.error("PATCH_PRODUCTION_ERROR:", error);
+    return NextResponse.json(
+      { message: error.message || "Internal server error" },
+      { status: 500 }
+    );
   }
 }

@@ -256,8 +256,11 @@ export const traceBatchByReference = async (referenceId) => {
 
 // ─── Sync tabel Stock dengan total batch ─────────────────────────────────────
 // Panggil setelah deduction agar tabel Stock tetap konsisten dengan batch
+// ─── Sync tabel Stock dengan total batch ─────────────────────────────────────
 export const syncStockFromBatches = async (tx, itemName, warehouseId) => {
-  const result = await (tx || prisma).stockBatch.aggregate({
+  const db = tx || prisma;
+
+  const result = await db.stockBatch.aggregate({
     where: { itemName, warehouseId, status: "ACTIVE" },
     _sum:  { qtyRemaining: true },
   });
@@ -269,10 +272,28 @@ export const syncStockFromBatches = async (tx, itemName, warehouseId) => {
     return "READY";
   };
 
-  // Update tabel Stock agar tetap sinkron (untuk kompatibilitas UI yang ada)
-  await (tx || prisma).stock.updateMany({
-    where: { name: itemName, warehouseId },
-    data:  { stock: totalFromBatches, status: autoStatus(totalFromBatches), updatedAt: new Date() },
+  // AMAN: Menggunakan upsert agar barang baru otomatis terdaftar di tabel Stock
+  await db.stock.upsert({
+    where: {
+      name_warehouseId: { 
+        name: itemName, 
+        warehouseId: warehouseId 
+      }
+    },
+    update: { 
+      stock: totalFromBatches, 
+      status: autoStatus(totalFromBatches), 
+      updatedAt: new Date() 
+    },
+    create: {
+      name: itemName,
+      warehouseId: warehouseId,
+      stock: totalFromBatches,
+      status: autoStatus(totalFromBatches),
+      unit: "UNIT", // Sesuaikan default unit
+      category: "FINISHED_GOODS", // Tandai sebagai barang jadi
+      type: "STOCKS"
+    }
   });
 
   return totalFromBatches;

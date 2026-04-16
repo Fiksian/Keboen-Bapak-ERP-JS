@@ -129,6 +129,18 @@ async function main() {
       });
 
       await tx.contact.upsert({
+        where: { email: 'test.pakan@email.com' },
+        update: {},
+        create: {
+          name: 'PT Kedua',
+          type: ContactType.SUPPLIER,
+          email: 'test.pakan@email.com',
+          phone: '021-132141',
+          address: 'Jakarta',
+        },
+      });
+
+      await tx.contact.upsert({
         where: { email: 'customer1@email.com' },
         update: {},
         create: {
@@ -161,13 +173,18 @@ async function main() {
         "suenzym"
       ];
 
+      const pakan = [
+        "Pakan A", "Pakan B"
+      ];
+
       const bahanBakuHijauan = ["SILASE"];
 
-      console.log('🌾 Seeding Stocks: Bahan Baku...');
+      console.log('🌾 Seeding Stocks');
       const allBahanBaku = [
         ...bahanBakuMakro.map(n => ({ name: n.toUpperCase(), cat: 'MAKRO' })),
         ...bahanBakuMikro.map(n => ({ name: n.toUpperCase(), cat: 'MIKRO' })),
-        ...bahanBakuHijauan.map(n => ({ name: n.toUpperCase(), cat: 'HIJAUAN' }))
+        ...bahanBakuHijauan.map(n => ({ name: n.toUpperCase(), cat: 'HIJAUAN' })),
+        ...pakan.map(n => ({name: n.toUpperCase(), cat: 'PAKAN' }) )
       ];
 
       for (const item of allBahanBaku) {

@@ -8,22 +8,20 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ─── WAREHOUSE ────────────────────────────────────────────────────────────────
 model Warehouse {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  code      String?  @unique
-  address   String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  batches   StockBatch[]
-  receipts  Receipt[]
-  stocks    Stock[]
-  sttbs     STTB[]
+  id          String       @id @default(cuid())
+  name        String       @unique
+  code        String?      @unique
+  address     String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  productions Production[]
+  receipts    Receipt[]
+  sttbs       STTB[]
+  stocks      Stock[]
+  batches     StockBatch[]
 }
 
-// ─── USER & ROLES ─────────────────────────────────────────────────────────────
 model User {
   id        String          @id @default(cuid())
   username  String          @unique
@@ -32,8 +30,8 @@ model User {
   phone     String?
   role      String          @default("Staff")
   createdAt DateTime        @default(now())
-  staffs    staffs?
   roleData  RolePermission? @relation("UserToRole", fields: [role], references: [roleName])
+  staffs    staffs?
 }
 
 model RolePermission {
@@ -44,168 +42,119 @@ model RolePermission {
   users       User[]   @relation("UserToRole")
 }
 
-// ─── DELIVERY ORDER (DO) ──────────────────────────────────────────────────────
-// DO dibuat PERTAMA sebagai dokumen rencana kebutuhan barang.
-// Tidak terikat ke supplier — supplier ditentukan saat PO dibuat.
-//
-// Status flow: DRAFT → PENDING → APPROVED → PARTIAL → FULFILLED
-//   - PARTIAL   : Sebagian item sudah punya PO, belum semua
-//   - FULFILLED : Semua item sudah ter-cover penuh oleh PO
 model DeliveryOrder {
-  id           String    @id @default(cuid())
-  doNo         String    @unique  // auto-generated: DO-YYYYMM-XXXX
-  title        String?            // judul / deskripsi DO opsional
-  expectedDate DateTime?          // estimasi tanggal butuh barang
-  notes        String?   @default("")
+  id           String              @id @default(cuid())
+  doNo         String              @unique
+  expectedDate DateTime?
+  notes        String?             @default("")
   requestedBy  String
-  status       String    @default("PENDING")
-  // "DRAFT" | "PENDING" | "APPROVED" | "PARTIAL" | "FULFILLED" | "REJECTED"
-
-  approvedBy String?
-  approvedAt DateTime?
-
-  items DeliveryOrderItem[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  status       String              @default("PENDING")
+  approvedBy   String?
+  approvedAt   DateTime?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  title        String?
+  items        DeliveryOrderItem[]
 }
 
-// ─── DELIVERY ORDER ITEM ──────────────────────────────────────────────────────
-// Setiap baris = satu jenis barang yang dibutuhkan.
-// Tidak terikat supplier — bisa dipecah ke banyak PO dari supplier berbeda.
-// Track fulfillment: qtyRequired vs qtyOrdered (total dari semua PO terkait).
 model DeliveryOrderItem {
-  id              String        @id @default(cuid())
-  deliveryOrderId String
-  deliveryOrder   DeliveryOrder @relation(fields: [deliveryOrderId], references: [id], onDelete: Cascade)
-
-  // Nama barang — harus ada di tabel Stock sebagai referensi
-  itemName        String
-  category        String  @default("")
-  type            String  @default("STOCKS")
-  unit            String  @default("Kg")
-
-  // Qty yang dibutuhkan (dari DO)
-  qtyRequired     Float   @default(0)
-
-  // Qty yang sudah dibuatkan PO (dihitung dari semua Purchasing terkait)
-  // Di-update setiap kali PO baru dibuat / dihapus untuk item ini
-  qtyOrdered      Float   @default(0)
-
-  // Estimasi harga per unit (opsional, bisa diisi saat DO dibuat)
-  estimasiHarga   Float   @default(0)
-
-  notes           String? @default("")
-
-  // PO-PO yang dibuat untuk memenuhi item ini
-  // Satu item DO bisa dipecah ke banyak PO (multi-supplier)
+  id               String        @id @default(cuid())
+  deliveryOrderId  String
+  unit             String        @default("Kg")
+  estimasiHarga    Float         @default(0)
+  notes            String?       @default("")
+  createdAt        DateTime      @default(now())
+  qtyRequired      Float         @default(0)
+  category         String        @default("")
+  type             String        @default("STOCKS")
+  qtyOrdered       Float         @default(0)
+  itemName         String
+  updatedAt        DateTime      @updatedAt
+  deliveryOrder    DeliveryOrder @relation(fields: [deliveryOrderId], references: [id], onDelete: Cascade)
   purchasingOrders Purchasing[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Helper computed: apakah item ini sudah terpenuhi penuh?
-  // qtyOrdered >= qtyRequired → fulfilled
 }
 
-// ─── PURCHASING (PO) ──────────────────────────────────────────────────────────
 model Purchasing {
-  id          String         @id @default(cuid())
-  noPO        String
-  item        String         // nama item (sama dengan DOItem.itemName)
-  qty         Float          @default(0)
-  unit        String         @default("KG")
-  price       String?
-  category    String
-  type        String         @default("STOCKS")
-  supplier    String?
-  status      PurchaseStatus @default(PENDING)
-  isReceived  Boolean        @default(false)
-  requestedBy String
-  approvedBy  String?
-  notes       String?
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-
-  // ── Relasi ke DO Item (WAJIB jika PO dibuat dari DO) ─────────────────────
-  // Nullable: PO bisa dibuat langsung tanpa DO (untuk keperluan ad-hoc)
+  id                  String             @id @default(cuid())
+  noPO                String
+  item                String
+  category            String
+  type                String             @default("STOCKS")
+  supplier            String?
+  status              PurchaseStatus     @default(PENDING)
+  isReceived          Boolean            @default(false)
+  requestedBy         String
+  approvedBy          String?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  price               String?
+  unit                String             @default("KG")
+  qty                 Float              @default(0)
+  notes               String?
   deliveryOrderItemId String?
   deliveryOrderItem   DeliveryOrderItem? @relation(fields: [deliveryOrderItemId], references: [id])
-
-  receipts Receipt[]
-  batches  StockBatch[]
-  sttb     STTB?
+  receipts            Receipt[]
+  sttb                STTB?
+  batches             StockBatch[]
 }
 
-// ─── RECEIPT ──────────────────────────────────────────────────────────────────
 model Receipt {
-  id           String    @id @default(cuid())
-  receiptNo    String    @unique
+  id           String      @id @default(cuid())
+  receiptNo    String      @unique
   purchasingId String
   suratJalan   String
-  imageUrl     String?
   vehicleNo    String
   receivedQty  Float
-  grossWeight  Float     @default(0)
-  tareWeight   Float     @default(0)
-  netWeight    Float     @default(0)
-  refraksi     Float     @default(0)
   receivedBy   String
-  condition    String    @default("GOOD")
+  condition    String      @default("GOOD")
   notes        String?
-  receivedAt   DateTime  @default(now())
-
-  purchasing  Purchasing @relation(fields: [purchasingId], references: [id])
-
-  // Gudang diisi saat STTB final approved (nullable dulu)
-  warehouseId String?
-  warehouse   Warehouse? @relation(fields: [warehouseId], references: [id])
-
-  sttb STTB?
-  batch StockBatch?
+  receivedAt   DateTime    @default(now())
+  grossWeight  Float       @default(0)
+  netWeight    Float       @default(0)
+  tareWeight   Float       @default(0)
+  imageUrl     String?
+  warehouseId  String?
+  refraksi     Float       @default(0)
+  purchasing   Purchasing  @relation(fields: [purchasingId], references: [id])
+  warehouse    Warehouse?  @relation(fields: [warehouseId], references: [id])
+  sttb         STTB?
+  batch        StockBatch?
 }
 
-// ─── STTB (Surat Tanda Terima Barang) ─────────────────────────────────────────
 model STTB {
-  id           String   @id @default(cuid())
-  sttbNo       String   @unique
-  receiptId    String   @unique
-  receipt      Receipt  @relation(fields: [receiptId], references: [id])
-  purchasingId String   @unique
-  purchasing   Purchasing @relation(fields: [purchasingId], references: [id])
-
-  status       String   @default("PENDING_QC")
-  
-  qcApprovedBy          String?
-  qcApprovedAt          DateTime?
-  qcNotes               String?
-  adminApprovedBy       String?
-  adminApprovedAt       DateTime?
-  adminNotes            String?
-  supervisorApprovedBy  String?
-  supervisorApprovedAt  DateTime?
-  supervisorNotes       String?
-  managerApprovedBy     String?
-  managerApprovedAt     DateTime?
-  managerNotes          String?
-
-  warehouseId      String?
-  warehouse        Warehouse? @relation(fields: [warehouseId], references: [id])
-  stockCommitted   Boolean    @default(false)
-  stockCommittedAt DateTime?
-  rejectedBy       String?
-  rejectedAt       DateTime?
-  rejectedNotes    String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  batch StockBatch?
+  id                   String      @id @default(cuid())
+  sttbNo               String      @unique
+  receiptId            String      @unique
+  purchasingId         String      @unique
+  status               String      @default("PENDING_QC")
+  qcApprovedBy         String?
+  qcApprovedAt         DateTime?
+  qcNotes              String?
+  supervisorApprovedBy String?
+  supervisorApprovedAt DateTime?
+  supervisorNotes      String?
+  managerApprovedBy    String?
+  managerApprovedAt    DateTime?
+  managerNotes         String?
+  warehouseId          String?
+  stockCommitted       Boolean     @default(false)
+  stockCommittedAt     DateTime?
+  rejectedBy           String?
+  rejectedAt           DateTime?
+  rejectedNotes        String?
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+  adminApprovedAt      DateTime?
+  adminApprovedBy      String?
+  adminNotes           String?
+  purchasing           Purchasing  @relation(fields: [purchasingId], references: [id])
+  receipt              Receipt     @relation(fields: [receiptId], references: [id])
+  warehouse            Warehouse?  @relation(fields: [warehouseId], references: [id])
+  batch                StockBatch?
 }
 
-// ─── STOCK ────────────────────────────────────────────────────────────────────
 model Stock {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
   name            String
   category        String
   stock           Float
@@ -214,119 +163,153 @@ model Stock {
   price           String?
   status          String?
   lastPurchasedId String?
-  updatedAt       DateTime @updatedAt
-
-  warehouseId String
-  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
+  updatedAt       DateTime  @updatedAt
+  warehouseId     String
+  warehouse       Warehouse @relation(fields: [warehouseId], references: [id])
 
   @@unique([name, warehouseId])
 }
 
-// ─── STOCK-BATCH ────────────────────────────────────────────────────────────────────
 model StockBatch {
-  id          String   @id @default(cuid())
-  batchNo     String   @unique               // auto: BATCH/YYYYMMDD/XXXX
-
-  // Referensi ke item stok (nama item + warehouse)
-  itemName    String
-  warehouseId String
-  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
-
-  // Referensi ke sumber barang untuk traceability
-  purchasingId String?
-  purchasing   Purchasing? @relation(fields: [purchasingId], references: [id])
-  receiptId    String?     @unique 
-  receipt      Receipt?    @relation(fields: [receiptId], references: [id])
-  sttbId       String?     @unique
-  sttb         STTB?       @relation(fields: [sttbId], references: [id])
-
-  // Supplier snapshot (denormalized untuk traceability cepat)
-  supplierName String?
-  noPO         String?     // No PO referensi
-  suratJalan   String?     // No SJ referensi
-
-  // Stok quantities
-  qtyInitial  Float        // qty yang masuk pertama kali
-  qtyRemaining Float       // sisa stok di batch ini (dikurangi saat FIFO deduct)
-
-  unit        String       @default("KG")
-  category    String       @default("General")
-  type        String       @default("STOCKS")
-  price       String?      // harga saat masuk (untuk COGS tracking)
-  condition   String?      @default("GOOD") // GOOD / DAMAGED / PARTIAL
-  notes       String?
-
-  // Status batch: ACTIVE (ada sisa) | DEPLETED (habis) | EXPIRED (kadaluarsa)
-  status      String       @default("ACTIVE")
-  receivedAt  DateTime     @default(now())
-  depletedAt  DateTime?    // kapan batch ini habis
-
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-
-  // Relasi ke log deduction
-  deductions  BatchDeduction[]
+  id                        String                      @id @default(cuid())
+  batchNo                   String                      @unique
+  itemName                  String
+  warehouseId               String
+  purchasingId              String?
+  receiptId                 String?                     @unique
+  sttbId                    String?                     @unique
+  supplierName              String?
+  noPO                      String?
+  suratJalan                String?
+  qtyInitial                Float
+  qtyRemaining              Float
+  reservedQty               Float                       @default(0)
+  unit                      String                      @default("KG")
+  category                  String                      @default("General")
+  type                      String                      @default("STOCKS")
+  price                     String?
+  condition                 String?                     @default("GOOD")
+  notes                     String?
+  status                    String                      @default("ACTIVE")
+  receivedAt                DateTime                    @default(now())
+  depletedAt                DateTime?
+  createdAt                 DateTime                    @default(now())
+  updatedAt                 DateTime                    @updatedAt
+  productionId              String?
+  deductions                BatchDeduction[]
+  allocations               ProductionBatchAllocation[]
+  production                Production?                 @relation("ProductionOutputBatch", fields: [productionId], references: [id])
+  purchasing                Purchasing?                 @relation(fields: [purchasingId], references: [id])
+  receipt                   Receipt?                    @relation(fields: [receiptId], references: [id])
+  sttb                      STTB?                       @relation(fields: [sttbId], references: [id])
+  warehouse                 Warehouse                   @relation(fields: [warehouseId], references: [id])
 
   @@index([itemName, warehouseId, status])
   @@index([receivedAt])
   @@index([status])
+  @@index([reservedQty])
 }
 
-// ─── BATCH DEDUCTION ─────────────────────────────────────────────────────────
-// Setiap kali FIFO memotong dari batch, dicatat di sini.
-// Satu transaksi keluar bisa menyentuh beberapa batch (deduction lines).
 model BatchDeduction {
-  id          String      @id @default(cuid())
-  batchId     String
-  batch       StockBatch  @relation(fields: [batchId], references: [id])
-
-  // Referensi transaksi yang memicu deduction
-  referenceId   String?    // ID produksi / penjualan / invoice
-  referenceType String?    // "PRODUCTION" | "SALES" | "MANUAL_OUT" | "ADJUSTMENT"
-  referenceNo   String?    // No batch produksi / invoice
-
-  qtyDeducted Float        // qty yang dipotong dari batch ini
-  unit        String       @default("KG")
-  deductedBy  String?      // user yang trigger
-  notes       String?
-
-  createdAt   DateTime     @default(now())
+  id            String     @id @default(cuid())
+  batchId       String
+  referenceId   String?
+  referenceType String?
+  referenceNo   String?
+  qtyDeducted   Float
+  unit          String     @default("KG")
+  deductedBy    String?
+  notes         String?
+  createdAt     DateTime   @default(now())
+  batch         StockBatch @relation(fields: [batchId], references: [id])
 
   @@index([batchId])
   @@index([referenceId])
   @@index([createdAt])
 }
 
-// ─── PRODUCTION ───────────────────────────────────────────────────────────────
 model Production {
-  id          String                @id @default(cuid())
-  noBatch     String                @unique
-  productName String
-  targetQty   Float
-  actualQty   Float?
-  status      ProductionStatus      @default(SCHEDULLING)
-  totalCost   Float                 @default(0)
-  unitCost    Float                 @default(0)
-  startDate   DateTime              @default(now())
-  endDate     DateTime?
-  createdBy   String
-  notes       String?
-  createdAt   DateTime              @default(now())
-  updatedAt   DateTime              @updatedAt
-  components  ProductionComponent[]
+  id                   String                @id @default(cuid())
+  noBatch              String                @unique
+  productName          String
+  targetQty            Float
+  actualQty            Float?
+  status               ProductionStatus      @default(PENDING_QC_PROD)
+  totalCost            Float                 @default(0)
+  unitCost             Float                 @default(0)
+  startDate            DateTime              @default(now())
+  endDate              DateTime?
+  createdBy            String
+  notes                String?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  adminApprovedAt      DateTime?
+  adminApprovedBy      String?
+  adminNotes           String?
+  hpp                  Float                 @default(0)
+  lossWarning          Boolean               @default(false)
+  managerApprovedAt    DateTime?
+  managerApprovedBy    String?
+  managerNotes         String?
+  qcApprovedAt         DateTime?
+  qcApprovedBy         String?
+  qcNotes              String?
+  rejectedAt           DateTime?
+  rejectedBy           String?
+  rejectedNotes        String?
+  rendemen             Float?
+  supervisorApprovedAt DateTime?
+  supervisorApprovedBy String?
+  supervisorNotes      String?
+  targetUnit           String                @default("UNIT")
+  warehouseId          String?
+  // ─── Soft-reserve fields ─────────────────────────────────────────────────
+  isReserved           Boolean               @default(false)
+  reservedAt           DateTime?
+  reservedBy           String?
+  // ─────────────────────────────────────────────────────────────────────────
+  warehouse            Warehouse?            @relation(fields: [warehouseId], references: [id])
+  components           ProductionComponent[]
+  outputBatches        StockBatch[]          @relation("ProductionOutputBatch")
+
+  @@index([isReserved])
 }
 
 model ProductionComponent {
-  id           String     @id @default(cuid())
-  productionId String
-  itemName     String
-  qtyNeeded    Float
-  unit         String     @default("Unit")
-  createdAt    DateTime   @default(now())
-  production   Production @relation(fields: [productionId], references: [id], onDelete: Cascade)
+  id                        String                      @id @default(cuid())
+  productionId              String
+  itemName                  String
+  qtyNeeded                 Float
+  unit                      String                      @default("KG")
+  createdAt                 DateTime                    @default(now())
+  batchAllocation           String?                     @default("[]")
+  stockAvailable            Float                       @default(0)
+  totalPrice                Float                       @default(0)
+  unitPrice                 Float                       @default(0)
+  warehouseId               String?
+  // ─── Soft-reserve field ──────────────────────────────────────────────────
+  reservedQty               Float                       @default(0)
+  // ─────────────────────────────────────────────────────────────────────────
+  allocations               ProductionBatchAllocation[]
+  production                Production                  @relation(fields: [productionId], references: [id], onDelete: Cascade)
 }
 
-// ─── TASK ─────────────────────────────────────────────────────────────────────
+model ProductionBatchAllocation {
+  id                    String              @id @default(cuid())
+  productionComponentId String
+  batchId               String
+  qtyAllocated          Float               @default(0)
+  isReserved            Boolean             @default(false)
+  isDeducted            Boolean             @default(false)
+  createdAt             DateTime            @default(now())
+  batch                 StockBatch          @relation(fields: [batchId], references: [id], onUpdate: NoAction)
+  productionComponent   ProductionComponent @relation(fields: [productionComponentId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([batchId])
+  @@index([productionComponentId])
+  @@index([isReserved])
+}
+
 model Task {
   id        String   @id @default(cuid())
   title     String
@@ -339,12 +322,10 @@ model Task {
   updatedAt DateTime @updatedAt
 }
 
-// ─── HISTORY ──────────────────────────────────────────────────────────────────
 model History {
   id          String   @id @default(uuid())
   action      String
   item        String
-  batchId     String?
   category    String
   type        String
   quantity    Float
@@ -353,64 +334,54 @@ model History {
   notes       String?
   referenceId String?
   createdAt   DateTime @default(now())
-  
+  batchId     String?
 }
 
-// ─── PENJUALAN ────────────────────────────────────────────────────────────────
 model Penjualan {
   id              String          @id @default(cuid())
   invoiceId       String          @unique
+  totalAmount     Float           @default(0)
+  status          String          @default("PENDING")
   customerId      String?
-  customer        Contact?        @relation(fields: [customerId], references: [id])
-  quotationId     String?
-  quotation       SalesQuotation? @relation("QuotationToSale", fields: [quotationId], references: [id])
-  
-  status          String          @default("PENDING") // PENDING|COMPLETED|CANCELLED
-  paymentMethod   String?         @default("CASH")    // CASH|TRANSFER|CREDIT
-  
-  // Financial Fields
-  subtotal        Float           @default(0)         // Sebelum pajak & diskon
-  discountPct     Float           @default(0)
-  discount        Float           @default(0)         // Nilai diskon (Rp)
-  taxPct          Float           @default(0)         // PPN (0 atau 11)
-  taxAmount       Float           @default(0)         // Nilai PPN (Rp)
-  shippingCost    Float           @default(0)
-  totalAmount     Float           @default(0)         // Grand Total
-  
-  // Dates & Notes
-  paidAt          DateTime?
-  dueDate         DateTime?
-  notes           String?         // Catatan untuk pelanggan
-  salesNotes      String?         // Catatan internal
-  deliveryAddress String?
-  createdBy       String?
-  
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
-  //Relations
+  createdBy       String?
+  deliveryAddress String?
+  discount        Float           @default(0)
+  discountPct     Float           @default(0)
+  dueDate         DateTime?
+  notes           String?
+  paidAt          DateTime?
+  paymentMethod   String?         @default("CASH")
+  quotationId     String?
+  salesNotes      String?
+  shippingCost    Float           @default(0)
+  subtotal        Float           @default(0)
+  taxAmount       Float           @default(0)
+  taxPct          Float           @default(0)
+  customer        Contact?        @relation(fields: [customerId], references: [id])
+  quotation       SalesQuotation? @relation("QuotationToSale", fields: [quotationId], references: [id])
   items           PenjualanItem[]
 }
 
 model PenjualanItem {
   id          String    @id @default(cuid())
-  penjualanId String
-  penjualan   Penjualan @relation(fields: [penjualanId], references: [id], onDelete: Cascade)
   productName String
   quantity    Float
-  price       Float
   unit        String?   @default("Unit")
-  discount    Float     @default(0)         // Diskon per item
-  subtotal    Float     @default(0)         // (qty * price) - discount
+  price       Float
+  penjualanId String
+  discount    Float     @default(0)
   notes       String?
+  subtotal    Float     @default(0)
+  penjualan   Penjualan @relation(fields: [penjualanId], references: [id], onDelete: Cascade)
 }
 
-// ─── SALES QUOTATION (PENAWARAN) ─────────────────────────────────────────────
 model SalesQuotation {
   id          String               @id @default(cuid())
-  quotationNo String               @unique // QUO/YYYYMMDD/XXXX
+  quotationNo String               @unique
   customerId  String?
-  customer    Contact?             @relation(fields: [customerId], references: [id])
-  status      String               @default("DRAFT") // DRAFT|SENT|ACCEPTED|REJECTED|EXPIRED
+  status      String               @default("DRAFT")
   validUntil  DateTime?
   notes       String?
   subtotal    Float                @default(0)
@@ -422,15 +393,14 @@ model SalesQuotation {
   createdBy   String?
   createdAt   DateTime             @default(now())
   updatedAt   DateTime             @updatedAt
-
-  items       SalesQuotationItem[]
   salesOrders Penjualan[]          @relation("QuotationToSale")
+  customer    Contact?             @relation(fields: [customerId], references: [id])
+  items       SalesQuotationItem[]
 }
 
 model SalesQuotationItem {
   id          String         @id @default(cuid())
   quotationId String
-  quotation   SalesQuotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
   productName String
   quantity    Float
   unit        String         @default("Unit")
@@ -438,25 +408,23 @@ model SalesQuotationItem {
   discount    Float          @default(0)
   subtotal    Float          @default(0)
   notes       String?
+  quotation   SalesQuotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
 }
 
-// ─── CONTACT ──────────────────────────────────────────────────────────────────
 model Contact {
-  id          String      @id @default(cuid())
+  id          String           @id @default(cuid())
   name        String
-  nik         String?     @unique
-  companyName String?
-  type        ContactType @default(CUSTOMER)
-  email       String?     @unique
+  type        ContactType      @default(CUSTOMER)
+  email       String?          @unique
   phone       String?
   address     String?
-  createdAt   DateTime    @default(now())
-
+  createdAt   DateTime         @default(now())
+  companyName String?
+  nik         String?          @unique
   penjualan   Penjualan[]
   quotations  SalesQuotation[]
 }
 
-// ─── STAFFS ───────────────────────────────────────────────────────────────────
 model staffs {
   id          String   @id
   email       String   @unique
@@ -473,7 +441,6 @@ model staffs {
   User        User     @relation(fields: [id], references: [id], onDelete: Cascade)
 }
 
-// ─── TRANSACTION ──────────────────────────────────────────────────────────────
 model Transaction {
   id          String   @id @default(cuid())
   trxNo       String
@@ -489,7 +456,6 @@ model Transaction {
   updatedAt   DateTime @updatedAt
 }
 
-// ─── ENUMS ────────────────────────────────────────────────────────────────────
 enum PurchaseStatus {
   PENDING
   APPROVED
@@ -498,8 +464,10 @@ enum PurchaseStatus {
 }
 
 enum ProductionStatus {
-  SCHEDULLING
-  IN_PROGRESS
+  PENDING_QC_PROD
+  PENDING_ADMIN
+  PENDING_SUPERVISOR
+  PENDING_MANAGER
   COMPLETED
   CANCELLED
 }

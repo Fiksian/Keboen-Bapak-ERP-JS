@@ -254,6 +254,20 @@ const StockTable = ({ data = [], onEdit, onRefresh, type = 'stock', warehouses =
 
                       <td className="px-8 py-5 text-right">
                         <div className="flex justify-end gap-2">
+                          {/* Tombol Batch FIFO - untuk single warehouse item */}
+                          {group.items.length === 1 && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openBatchModal(group.items[0]);
+                              }}
+                              className="inline-flex items-center gap-1.5 px-3 py-2 bg-indigo-50 hover:bg-indigo-500 text-indigo-600 hover:text-white border border-indigo-100 hover:border-indigo-500 rounded-xl text-[9px] font-black uppercase transition-all active:scale-95"
+                            >
+                              <Layers size={12} />
+                              <span>Batch</span>
+                            </button>
+                          )}
+                          
                           {canDelete && group.items.length > 0 && (
                             <button 
                               onClick={(e) => {
@@ -398,8 +412,32 @@ const StockTable = ({ data = [], onEdit, onRefresh, type = 'stock', warehouses =
                     </div>
                   </div>
 
-                  {/* Expand button */}
-                  {group.items.length > 1 && (
+                  {/* Action buttons untuk single warehouse */}
+                  {group.items.length === 1 ? (
+                    <div className="flex gap-3">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openBatchModal(group.items[0]);
+                        }}
+                        className="flex-1 py-3 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded-2xl font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-2 active:scale-95 hover:bg-indigo-500 hover:text-white transition-all"
+                      >
+                        <Layers size={14} /> Batch FIFO
+                      </button>
+                      {canDelete && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteItem(group.items[0].id);
+                          }}
+                          className="px-4 py-3 bg-rose-50 text-rose-500 border border-rose-100 rounded-2xl font-black text-[11px] uppercase hover:bg-rose-500 hover:text-white transition-all active:scale-95"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    /* Expand button untuk multiple warehouse */
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -443,12 +481,22 @@ const StockTable = ({ data = [], onEdit, onRefresh, type = 'stock', warehouses =
                               {itemStatus}
                             </span>
                           </div>
-                          <button
-                            onClick={() => openBatchModal(item)}
-                            className="w-full py-2 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded-xl font-black text-[10px] uppercase transition-all active:scale-95 hover:bg-indigo-500 hover:text-white flex items-center justify-center gap-1"
-                          >
-                            <Layers size={12} /> Batch FIFO
-                          </button>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => openBatchModal(item)}
+                              className="flex-1 py-2 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded-xl font-black text-[10px] uppercase transition-all active:scale-95 hover:bg-indigo-500 hover:text-white flex items-center justify-center gap-1"
+                            >
+                              <Layers size={12} /> Batch
+                            </button>
+                            {canDelete && (
+                              <button
+                                onClick={() => deleteItem(item.id)}
+                                className="p-2 bg-rose-50 text-rose-500 border border-rose-100 rounded-xl hover:bg-rose-500 hover:text-white transition-all active:scale-90"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            )}
+                          </div>
                         </div>
                       );
                     })}

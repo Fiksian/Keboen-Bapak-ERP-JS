@@ -27,7 +27,7 @@ export async function PATCH(request, { params }) {
       return NextResponse.json({ message: "Data staff tidak ditemukan" }, { status: 404 });
     }
 
-    const isAdmin = session.user.role === "Admin";
+    const isAdmin = session.user.role === "SuperAdmin";
     const isOwner = session.user.email === oldStaff.email;
 
     if (!isAdmin && !isOwner) {
@@ -84,7 +84,7 @@ export async function DELETE(request, { params }) {
   try {
     const session = await getServerSession(authOptions);
     
-    if (!session || session.user.role !== "Admin") {
+    if (!session || session.user.role !== "SuperAdmin") {
       return NextResponse.json({ message: "Hanya Admin yang diizinkan" }, { status: 403 });
     }
 

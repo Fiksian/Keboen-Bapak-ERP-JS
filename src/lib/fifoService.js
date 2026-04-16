@@ -291,7 +291,6 @@ export const syncStockFromBatches = async (tx, itemName, warehouseId) => {
       stock: totalFromBatches,
       status: autoStatus(totalFromBatches),
       unit: "UNIT", // Sesuaikan default unit
-      category: "FINISHED_GOODS", // Tandai sebagai barang jadi
       type: "STOCKS"
     }
   });

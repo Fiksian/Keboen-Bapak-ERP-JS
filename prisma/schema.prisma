@@ -337,44 +337,87 @@ model History {
   batchId     String?
 }
 
+// ─── PENJUALAN ────────────────────────────────────────────────────────────────
 model Penjualan {
-  id              String          @id @default(cuid())
-  invoiceId       String          @unique
-  totalAmount     Float           @default(0)
-  status          String          @default("PENDING")
-  customerId      String?
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  createdBy       String?
-  deliveryAddress String?
-  discount        Float           @default(0)
-  discountPct     Float           @default(0)
-  dueDate         DateTime?
-  notes           String?
-  paidAt          DateTime?
-  paymentMethod   String?         @default("CASH")
-  quotationId     String?
-  salesNotes      String?
-  shippingCost    Float           @default(0)
-  subtotal        Float           @default(0)
-  taxAmount       Float           @default(0)
-  taxPct          Float           @default(0)
-  customer        Contact?        @relation(fields: [customerId], references: [id])
-  quotation       SalesQuotation? @relation("QuotationToSale", fields: [quotationId], references: [id])
-  items           PenjualanItem[]
+  id                   String          @id @default(cuid())
+  invoiceId            String          @unique
+  totalAmount          Float           @default(0)
+  status               String          @default("PENDING_SALES")
+  customerId           String?
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+  createdBy            String?
+  deliveryAddress      String?
+  discount             Float           @default(0)
+  discountPct          Float           @default(0)
+  dueDate              DateTime?
+  notes                String?
+  paidAt               DateTime?
+  paymentMethod        String?         @default("CASH")
+  quotationId          String?
+  salesNotes           String?
+  shippingCost         Float           @default(0)
+  subtotal             Float           @default(0)
+  taxAmount            Float           @default(0)
+  taxPct               Float           @default(0)
+  saleType             String          @default("REGULAR")
+  
+  // Stage 1 — Sales
+  salesApprovedBy      String?
+  salesApprovedAt      DateTime?
+  salesNotes2          String?         // notes dari Sales approver (beda dari salesNotes input)
+  
+  // Stage 2 — Admin
+  adminApprovedBy      String?
+  adminApprovedAt      DateTime?
+  adminNotes2          String?
+  
+  // Stage 3 — Supervisor
+  supervisorApprovedBy String?
+  supervisorApprovedAt DateTime?
+  supervisorNotes      String?
+  
+  // Stage 4 — Manager (Final)
+  managerApprovedBy    String?
+  managerApprovedAt    DateTime?
+  managerNotes         String?
+  
+  // Reject
+  rejectedBy           String?
+  rejectedAt           DateTime?
+  rejectedNotes        String?
+  
+  // FIFO tracking
+  isStockDeducted      Boolean         @default(false)  // true setelah Manager approve / Direct sale
+  
+  customer             Contact?        @relation(fields: [customerId], references: [id])
+  quotation            SalesQuotation? @relation("QuotationToSale", fields: [quotationId], references: [id])
+  items                PenjualanItem[]
+  
+  @@index([saleType])
+  @@index([status])
+  @@index([isStockDeducted])
 }
 
 model PenjualanItem {
-  id          String    @id @default(cuid())
-  productName String
-  quantity    Float
-  unit        String?   @default("Unit")
-  price       Float
-  penjualanId String
-  discount    Float     @default(0)
-  notes       String?
-  subtotal    Float     @default(0)
-  penjualan   Penjualan @relation(fields: [penjualanId], references: [id], onDelete: Cascade)
+  id               String    @id @default(cuid())
+  productName      String
+  quantity         Float
+  unit             String?   @default("Unit")
+  price            Float
+  penjualanId      String
+  discount         Float     @default(0)
+  notes            String?
+  subtotal         Float     @default(0)
+  
+  // ─── SALES UPGRADE: FIFO & Cost Fields ───────────────────────────────
+  batchAllocation  String?   @default("[]")
+  warehouseId      String?   // gudang sumber bahan
+  unitCost         Float     @default(0)   // HPP per unit (dari batch)
+  totalCost        Float     @default(0)   // HPP total item
+  margin           Float     @default(0)   // margin = price - unitCost (per unit)
+  
+  penjualan        Penjualan @relation(fields: [penjualanId], references: [id], onDelete: Cascade)
 }
 
 model SalesQuotation {
@@ -473,9 +516,13 @@ enum ProductionStatus {
 }
 
 enum PenjualanStatus {
-  PENDING
+  PENDING_SALES
+  PENDING_ADMIN
+  PENDING_SUPERVISOR
+  PENDING_MANAGER
   COMPLETED
   CANCELLED
+  REJECTED
 }
 
 enum ContactType {

@@ -44,13 +44,19 @@ async function main() {
       // --- TAMBAHAN: SEEDING ROLES TERLEBIH DAHULU ---
       console.log('🔐 Seeding Role Permissions...');
       const roles = ['SuperAdmin', 'Admin', 'Supervisor', 'Staff', 'Test'];
+
+      const Permissions = {
+        "SuperAdmin": ["*"],
+        "Admin": ["dashboard", "penjualan","produksi"],
+      }
+
       for (const roleName of roles) {
         await tx.rolePermission.upsert({
           where: { roleName: roleName },
           update: {},
           create: {
             roleName: roleName,
-            permissions: [], // Bisa diisi default permissions jika perlu
+            permissions: Permissions[roleName] || [], // Bisa diisi default permissions jika perlu
           },
         });
       }

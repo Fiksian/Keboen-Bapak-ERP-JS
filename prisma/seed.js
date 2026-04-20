@@ -43,11 +43,13 @@ async function main() {
 
       // --- TAMBAHAN: SEEDING ROLES TERLEBIH DAHULU ---
       console.log('🔐 Seeding Role Permissions...');
-      const roles = ['SuperAdmin', 'Admin', 'Supervisor', 'Staff', 'Test'];
+      const roles = ['SuperAdmin', 'Admin','Manager', 'Supervisor', 'Staff', 'Test'];
 
       const Permissions = {
         "SuperAdmin": ["*"],
         "Admin": ["dashboard", "penjualan","produksi"],
+        "Supervisor": [],
+        "Staff": [],
       }
 
       for (const roleName of roles) {

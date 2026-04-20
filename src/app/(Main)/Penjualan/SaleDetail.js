@@ -1,24 +1,24 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import {
   X, User, Calendar, Package, CheckCircle, AlertCircle,
-  Tag, FileText, ArrowLeft, Truck, CreditCard, Info, Shield,
-  ShieldCheck, ChevronDown, ChevronUp, Layers, DollarSign,
-  TrendingUp, Loader2, Warehouse, RefreshCw
+  Tag, FileText, ArrowLeft, Truck, CreditCard, Info,
+  ShieldCheck, ChevronDown, ChevronUp, Layers, Loader2,
+  Warehouse, TrendingUp, DollarSign
 } from 'lucide-react';
 import PrintSalesNote from '@/app/(Main)/Components/NotaPenjualan/page.js';
 
-// ─── Status config ────────────────────────────────────────────────────────────
+// ─── Status config ─────────────────────────────────────────────────────────────
 const STATUS_CFG = {
-  PENDING_SALES:    { label: 'Menunggu Sales',     cls: 'bg-orange-50 text-orange-600 border-orange-200', step: 0, pulse: true  },
-  PENDING_ADMIN:    { label: 'Menunggu Admin',     cls: 'bg-amber-50 text-amber-700 border-amber-200',   step: 1, pulse: true  },
-  PENDING_SUPERVISOR: { label: 'Menunggu SPV',    cls: 'bg-yellow-50 text-yellow-700 border-yellow-200', step: 2, pulse: true  },
-  PENDING_MANAGER:  { label: 'Menunggu Manager',  cls: 'bg-blue-50 text-blue-700 border-blue-200',       step: 3, pulse: true  },
-  COMPLETED:        { label: 'Selesai',           cls: 'bg-green-50 text-green-700 border-green-200',    step: 4, pulse: false },
-  CANCELLED:        { label: 'Dibatalkan',        cls: 'bg-red-50 text-red-600 border-red-200',          step: -1, pulse: false },
-  PENDING:          { label: 'Pending',           cls: 'bg-amber-50 text-amber-600 border-amber-200',    step: 0, pulse: true  },
+  PENDING_SALES:    { label: 'Menunggu Sales',   cls: 'bg-orange-50 text-orange-600 border-orange-200', step: 0, dot: 'bg-orange-400' },
+  PENDING_ADMIN:    { label: 'Menunggu Admin',   cls: 'bg-amber-50 text-amber-700 border-amber-200',   step: 1, dot: 'bg-amber-400'   },
+  PENDING_SUPERVISOR: { label: 'Menunggu SPV',  cls: 'bg-yellow-50 text-yellow-700 border-yellow-200', step: 2, dot: 'bg-yellow-400'  },
+  PENDING_MANAGER:  { label: 'Menunggu Manager', cls: 'bg-blue-50 text-blue-700 border-blue-200',      step: 3, dot: 'bg-blue-400'    },
+  COMPLETED:        { label: 'Selesai',          cls: 'bg-green-50 text-green-700 border-green-200',   step: 4, dot: 'bg-green-500'   },
+  CANCELLED:        { label: 'Dibatalkan',       cls: 'bg-red-50 text-red-600 border-red-200',         step: -1, dot: 'bg-red-400'   },
+  PENDING:          { label: 'Pending',          cls: 'bg-amber-50 text-amber-600 border-amber-200',   step: 0, dot: 'bg-amber-400'   },
 };
 const STAGE_LABELS = ['Sales', 'Admin', 'Supervisor', 'Manager'];
 
@@ -26,19 +26,20 @@ const fmtRp   = (v) => `Rp ${(parseFloat(v) || 0).toLocaleString('id-ID')}`;
 const fmtQty  = (v) => (parseFloat(v) || 0).toLocaleString('id-ID', { maximumFractionDigits: 2 });
 const fmtDate = (dt) => dt ? new Date(dt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
 
-// ─── Status Badge ─────────────────────────────────────────────────────────────
+// ─── StatusBadge ─────────────────────────────────────────────────────────────
 const StatusBadge = ({ status }) => {
   const cfg = STATUS_CFG[status] || STATUS_CFG.PENDING;
   return (
     <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider border ${cfg.cls}`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${cfg.cls.includes('green') ? 'bg-green-500' : cfg.cls.includes('red') ? 'bg-red-400' : 'bg-amber-400'} ${cfg.pulse ? 'animate-pulse' : ''}`} />
+      <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot} ${!['COMPLETED','CANCELLED'].includes(status) ? 'animate-pulse' : ''}`} />
       {cfg.label}
     </span>
   );
 };
 
-// ─── Approval Stepper ────────────────────────────────────────────────────────
-const ApprovalStepper = ({ status, sale }) => {
+// ─── Approval Stepper ─────────────────────────────────────────────────────────
+const ApprovalStepper = ({ localSale }) => {
+  const { status } = localSale;
   const cfg     = STATUS_CFG[status] || STATUS_CFG.PENDING_SALES;
   const current = cfg.step;
 
@@ -47,17 +48,17 @@ const ApprovalStepper = ({ status, sale }) => {
       <X size={13} className="text-red-500 shrink-0" />
       <div>
         <p className="text-[10px] font-black text-red-600 uppercase">Dibatalkan</p>
-        {sale.rejectedBy     && <p className="text-[9px] text-red-400">Oleh: {sale.rejectedBy}</p>}
-        {sale.rejectedNotes  && <p className="text-[9px] text-red-400 italic">{sale.rejectedNotes}</p>}
+        {localSale.rejectedBy    && <p className="text-[9px] text-red-400">Oleh: {localSale.rejectedBy}</p>}
+        {localSale.rejectedNotes && <p className="text-[9px] text-red-400 italic">{localSale.rejectedNotes}</p>}
       </div>
     </div>
   );
 
   const stamps = [
-    { by: sale.salesApprovedBy,       at: sale.salesApprovedAt,      label: 'Sales'      },
-    { by: sale.adminApprovedBy,       at: sale.adminApprovedAt,      label: 'Admin'      },
-    { by: sale.supervisorApprovedBy,  at: sale.supervisorApprovedAt, label: 'Supervisor' },
-    { by: sale.managerApprovedBy,     at: sale.managerApprovedAt,    label: 'Manager'    },
+    { by: localSale.salesApprovedBy,       at: localSale.salesApprovedAt      },
+    { by: localSale.adminApprovedBy,       at: localSale.adminApprovedAt      },
+    { by: localSale.supervisorApprovedBy,  at: localSale.supervisorApprovedAt },
+    { by: localSale.managerApprovedBy,     at: localSale.managerApprovedAt    },
   ];
 
   return (
@@ -72,7 +73,8 @@ const ApprovalStepper = ({ status, sale }) => {
                 <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[8px] font-black border-2 transition-all ${
                   done   ? 'bg-green-500 border-green-500 text-white' :
                   active ? 'bg-[#8da070] border-[#8da070] text-white animate-pulse' :
-                           'bg-white border-gray-200 text-gray-300'}`}>
+                           'bg-white border-gray-200 text-gray-300'
+                }`}>
                   {done ? '✓' : i + 1}
                 </div>
                 <p className={`text-[7px] font-black uppercase whitespace-nowrap ${done || active ? 'text-green-600' : 'text-gray-300'}`}>{label}</p>
@@ -86,7 +88,7 @@ const ApprovalStepper = ({ status, sale }) => {
         {stamps.filter(s => s.by).map((s, i) => (
           <div key={i} className="flex items-center gap-1.5 text-[8px]">
             <CheckCircle size={9} className="text-green-500 shrink-0" />
-            <span className="font-black text-gray-600">{s.label}: {s.by}</span>
+            <span className="font-black text-gray-600">{STAGE_LABELS[i]}: {s.by}</span>
             {s.at && <span className="text-gray-400">{new Date(s.at).toLocaleDateString('id-ID')}</span>}
           </div>
         ))}
@@ -95,10 +97,13 @@ const ApprovalStepper = ({ status, sale }) => {
   );
 };
 
-// ─── Batch Traceability section ───────────────────────────────────────────────
+// ─── Batch Traceability ────────────────────────────────────────────────────────
 const BatchTrace = ({ items }) => {
   const [open, setOpen] = useState(false);
-  const hasAlloc = items?.some(i => (i.batchAllocation || []).length > 0);
+  const hasAlloc = items?.some(i => {
+    try { const a = JSON.parse(i.batchAllocation || '[]'); return a.length > 0; }
+    catch { return false; }
+  });
   if (!hasAlloc) return null;
 
   return (
@@ -113,7 +118,8 @@ const BatchTrace = ({ items }) => {
       {open && (
         <div className="p-3 space-y-3 bg-white">
           {items?.map((item, idx) => {
-            const alloc = item.batchAllocation || [];
+            let alloc = [];
+            try { alloc = JSON.parse(item.batchAllocation || '[]'); } catch { alloc = []; }
             if (!alloc.length) return null;
             return (
               <div key={idx}>
@@ -125,18 +131,20 @@ const BatchTrace = ({ items }) => {
                       <span className="text-gray-400">|</span>
                       <span className="font-bold text-gray-600">{a.supplier || '-'}</span>
                       <span className="text-gray-400">|</span>
-                      <span className="font-bold text-gray-600">PO: {a.noPO || '-'}</span>
+                      <span className="text-gray-500">PO: {a.noPO || '-'}</span>
                       <span className="text-gray-400 ml-auto">-{fmtQty(a.qty)} {item.unit}</span>
-                      {a.price && a.price !== "0" && (
+                      {a.price && a.price !== '0' && (
                         <span className="text-amber-600 font-black">@{fmtRp(a.price)}</span>
                       )}
                     </div>
                   ))}
                 </div>
-                {item.totalCost > 0 && (
+                {(item.totalCost > 0) && (
                   <div className="mt-1 flex gap-3 text-[9px]">
                     <span className="text-gray-400">HPP: <strong className="text-amber-600">{fmtRp(item.totalCost)}</strong></span>
-                    <span className="text-gray-400">Margin: <strong className={item.margin >= 0 ? 'text-green-600' : 'text-red-500'}>{fmtRp(item.margin)}</strong></span>
+                    {item.margin != null && (
+                      <span className="text-gray-400">Margin: <strong className={item.margin >= 0 ? 'text-green-600' : 'text-red-500'}>{fmtRp(item.margin)}</strong></span>
+                    )}
                   </div>
                 )}
               </div>
@@ -148,23 +156,64 @@ const BatchTrace = ({ items }) => {
   );
 };
 
-// ─── Approval Modal ──────────────────────────────────────────────────────────
-const ApprovalModal = ({ sale, onClose, onDone }) => {
-  const { data: session } = useSession();
-  const [notes,   setNotes]   = useState('');
-  const [loading, setLoading] = useState('');
-  const [rejectMode, setRejectMode] = useState(false);
+// ─── Approval Modal — Optimistic UI ──────────────────────────────────────────
+//
+// PERUBAHAN UTAMA:
+//   1. Tombol disabled saat loading (mencegah double-click)
+//   2. Optimistic update: update localSale di state SEBELUM server response
+//   3. Rollback ke state sebelumnya jika server error
+//   4. onApproved(updatedSale) mengirim sale terupdate ke parent
+//
+const ApprovalModal = ({ sale, localSale, onClose, onApproved }) => {
+  const { data: session }  = useSession();
+  const [notes,       setNotes]      = useState('');
+  const [loadingStage, setLoadingStage] = useState(''); // '' | 'sales' | 'admin' | ...
+  const [rejectMode,  setRejectMode] = useState(false);
+  const [errorMsg,    setErrorMsg]   = useState('');
+  // Ref untuk mencegah double-submit
+  const submittingRef = useRef(false);
+
   const role = session?.user?.role;
 
-  const canSales      = sale.status === 'PENDING_SALES'      && ['Sales','Admin','Supervisor','Manager','SuperAdmin'].includes(role);
-  const canAdmin      = sale.status === 'PENDING_ADMIN'      && ['Admin','SuperAdmin'].includes(role);
-  const canSupervisor = sale.status === 'PENDING_SUPERVISOR' && ['Supervisor','SuperAdmin'].includes(role);
-  const canManager    = sale.status === 'PENDING_MANAGER'    && ['Manager','SuperAdmin'].includes(role);
-  const canReject     = !['COMPLETED','CANCELLED'].includes(sale.status)
+  const canSales      = localSale.status === 'PENDING_SALES'      && ['Sales','Admin','Supervisor','Manager','SuperAdmin'].includes(role);
+  const canAdmin      = localSale.status === 'PENDING_ADMIN'      && ['Admin','SuperAdmin'].includes(role);
+  const canSupervisor = localSale.status === 'PENDING_SUPERVISOR' && ['Supervisor','SuperAdmin'].includes(role);
+  const canManager    = localSale.status === 'PENDING_MANAGER'    && ['Manager','SuperAdmin'].includes(role);
+  const canReject     = !['COMPLETED','CANCELLED'].includes(localSale.status)
                         && ['Admin','Sales','Supervisor','Manager','SuperAdmin'].includes(role);
 
-  const doApprove = async (stage) => {
-    setLoading(stage);
+  // Mapping stage → status berikutnya (untuk optimistic update)
+  const NEXT_STATUS = {
+    sales:      'PENDING_ADMIN',
+    admin:      'PENDING_SUPERVISOR',
+    supervisor: 'PENDING_MANAGER',
+    manager:    'COMPLETED',
+    reject:     'CANCELLED',
+  };
+
+  const doApprove = useCallback(async (stage) => {
+    // Guard: double-click prevention
+    if (submittingRef.current || loadingStage) return;
+    submittingRef.current = true;
+    setLoadingStage(stage);
+    setErrorMsg('');
+
+    // ── Optimistic update: ubah state SEBELUM server response ──────────────
+    const now      = new Date().toISOString();
+    const approver = session?.user?.name || session?.user?.email;
+    const optimistic = {
+      ...localSale,
+      status: NEXT_STATUS[stage] || localSale.status,
+      ...(stage === 'sales'      ? { salesApprovedBy:       approver, salesApprovedAt:      now } : {}),
+      ...(stage === 'admin'      ? { adminApprovedBy:       approver, adminApprovedAt:      now } : {}),
+      ...(stage === 'supervisor' ? { supervisorApprovedBy:  approver, supervisorApprovedAt: now } : {}),
+      ...(stage === 'manager'    ? { managerApprovedBy:     approver, managerApprovedAt:    now, paidAt: now } : {}),
+      ...(stage === 'reject'     ? { rejectedBy: approver, rejectedNotes: notes } : {}),
+    };
+
+    // Kirim optimistic state ke parent segera
+    onApproved(optimistic, false /* belum final */);
+
     try {
       const res  = await fetch(`/api/penjualan/${sale.dbId}/approve`, {
         method:  'PATCH',
@@ -172,105 +221,178 @@ const ApprovalModal = ({ sale, onClose, onDone }) => {
         body:    JSON.stringify({ stage, notes }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message);
-      alert(data.message);
-      onDone();
+
+      if (!res.ok) {
+        // Rollback optimistic: kembalikan ke state sebelumnya
+        onApproved(localSale, false);
+        setErrorMsg(data.message || 'Terjadi kesalahan.');
+        return;
+      }
+
+      // Konfirmasi final dengan data dari server
+      onApproved(data.sale || optimistic, true /* final */);
       onClose();
-    } catch (err) { alert(err.message); }
-    finally { setLoading(''); }
+    } catch (err) {
+      // Rollback jika network error
+      onApproved(localSale, false);
+      setErrorMsg('Kesalahan koneksi. Silakan coba lagi.');
+    } finally {
+      submittingRef.current = false;
+      setLoadingStage('');
+    }
+  }, [loadingStage, localSale, notes, sale.dbId, session, onApproved, onClose]);
+
+  const doReject = () => {
+    if (!notes.trim()) { setErrorMsg('Isi alasan penolakan terlebih dahulu.'); return; }
+    doApprove('reject');
   };
 
-  const doReject = async () => {
-    if (!notes.trim()) { alert('Isi alasan penolakan.'); return; }
-    await doApprove('reject');
-  };
+  const isBusy = !!loadingStage;
 
   return (
     <div className="fixed inset-0 z-[400] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
       <div className="bg-white w-full max-w-md rounded-[32px] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
-        <div className={`p-5 flex justify-between items-start shrink-0 ${sale.status === 'COMPLETED' ? 'bg-green-50' : sale.status === 'CANCELLED' ? 'bg-red-50' : 'bg-amber-50/50'}`}>
+
+        {/* Header */}
+        <div className={`p-5 flex justify-between items-start shrink-0 ${
+          localSale.status === 'COMPLETED' ? 'bg-green-50' :
+          localSale.status === 'CANCELLED' ? 'bg-red-50'   : 'bg-amber-50/50'}`}>
           <div>
             <p className="font-black text-gray-900 uppercase text-sm tracking-tight">{sale.id}</p>
             <p className="text-[9px] font-bold text-gray-500 mt-0.5">{sale.customer}</p>
-            <StatusBadge status={sale.status} />
+            <div className="mt-2"><StatusBadge status={localSale.status} /></div>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-white/70 rounded-full"><X size={18} className="text-gray-400" /></button>
+          <button onClick={onClose} disabled={isBusy} className="p-2 hover:bg-white/70 rounded-full disabled:opacity-50">
+            <X size={18} className="text-gray-400" />
+          </button>
         </div>
+
         <div className="p-5 overflow-y-auto flex-1 space-y-4">
-          <ApprovalStepper status={sale.status} sale={sale} />
+          <ApprovalStepper localSale={localSale} />
+
+          {/* Quick info */}
           <div className="grid grid-cols-2 gap-2 text-[10px]">
             {[
-              { label: 'Total',   value: fmtRp(sale.total)   },
-              { label: 'Channel', value: sale.saleType || 'REGULAR' },
-              { label: 'HPP Est.', value: sale.items?.reduce((s, i) => s + (i.totalCost || 0), 0) > 0
-                ? fmtRp(sale.items?.reduce((s, i) => s + (i.totalCost || 0), 0)) : '-' },
-              { label: 'Pembayaran', value: sale.paymentMethod || 'CASH' },
+              { label: 'Total',    value: fmtRp(sale.total)        },
+              { label: 'Channel',  value: sale.saleType || 'REGULAR' },
+              { label: 'Bayar',    value: sale.paymentMethod || 'CASH' },
+              { label: 'Customer', value: sale.customer            },
             ].map((m, i) => (
               <div key={i} className="p-2.5 bg-gray-50 rounded-xl">
                 <p className="text-[8px] font-black text-gray-400 uppercase">{m.label}</p>
-                <p className="text-[11px] font-black text-gray-800 mt-0.5">{m.value}</p>
+                <p className="text-[11px] font-black text-gray-800 mt-0.5 truncate">{m.value}</p>
               </div>
             ))}
           </div>
+
+          {/* Error message */}
+          {errorMsg && (
+            <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-2xl animate-in slide-in-from-top-2 duration-200">
+              <AlertCircle size={14} className="text-red-500 shrink-0 mt-0.5" />
+              <p className="text-[10px] font-bold text-red-600">{errorMsg}</p>
+            </div>
+          )}
+
+          {/* Notes input */}
           {(canSales || canAdmin || canSupervisor || canManager || (canReject && rejectMode)) && (
             <div>
               <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1.5">
-                {rejectMode ? 'Alasan Penolakan *' : 'Catatan Approval (Opsional)'}
+                {rejectMode ? 'Alasan Penolakan *' : 'Catatan (Opsional)'}
               </label>
-              <textarea rows={2}
-                className={`w-full bg-gray-50 border rounded-2xl px-4 py-3 text-[11px] font-medium text-gray-800 outline-none resize-none focus:ring-2 ${rejectMode ? 'border-red-200 focus:ring-red-100' : 'border-gray-100 focus:ring-[#8da070]/20'}`}
+              <textarea rows={2} disabled={isBusy}
+                className={`w-full bg-gray-50 border rounded-2xl px-4 py-3 text-[11px] font-medium text-gray-800 outline-none resize-none focus:ring-2 disabled:opacity-60 ${
+                  rejectMode ? 'border-red-200 focus:ring-red-100' : 'border-gray-100 focus:ring-[#8da070]/20'}`}
                 placeholder={rejectMode ? 'Tulis alasan...' : 'Catatan tambahan...'}
-                value={notes} onChange={e => setNotes(e.target.value)}
+                value={notes} onChange={e => { setNotes(e.target.value); setErrorMsg(''); }}
               />
             </div>
           )}
         </div>
+
+        {/* Action footer */}
         {(canSales || canAdmin || canSupervisor || canManager || canReject) && (
           <div className="p-5 border-t bg-gray-50 space-y-2 shrink-0">
             {!rejectMode ? (
               <div className="flex gap-2">
                 {canSales && (
-                  <button onClick={() => doApprove('sales')} disabled={!!loading}
-                    className="flex-1 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-2xl text-[10px] font-black uppercase flex items-center justify-center gap-1.5 transition-all active:scale-95 disabled:opacity-50">
-                    {loading === 'sales' ? <Loader2 className="animate-spin" size={14} /> : <ShieldCheck size={14} />} Sales
+                  <button
+                    onClick={() => doApprove('sales')}
+                    disabled={isBusy}
+                    className="flex-1 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-2xl text-[10px] font-black uppercase flex items-center justify-center gap-1.5 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
+                  >
+                    {loadingStage === 'sales'
+                      ? <><Loader2 className="animate-spin" size={14} /> Memproses...</>
+                      : <><ShieldCheck size={14} /> Sales</>}
                   </button>
                 )}
                 {canAdmin && (
-                  <button onClick={() => doApprove('admin')} disabled={!!loading}
-                    className="flex-1 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl text-[10px] font-black uppercase flex items-center justify-center gap-1.5 transition-all active:scale-95 disabled:opacity-50">
-                    {loading === 'admin' ? <Loader2 className="animate-spin" size={14} /> : <ShieldCheck size={14} />} Admin
+                  <button
+                    onClick={() => doApprove('admin')}
+                    disabled={isBusy}
+                    className="flex-1 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl text-[10px] font-black uppercase flex items-center justify-center gap-1.5 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
+                  >
+                    {loadingStage === 'admin'
+                      ? <><Loader2 className="animate-spin" size={14} /> Memproses...</>
+                      : <><ShieldCheck size={14} /> Admin</>}
                   </button>
                 )}
                 {canSupervisor && (
-                  <button onClick={() => doApprove('supervisor')} disabled={!!loading}
-                    className="flex-1 py-3 bg-yellow-500 hover:bg-yellow-600 text-white rounded-2xl text-[10px] font-black uppercase flex items-center justify-center gap-1.5 transition-all active:scale-95 disabled:opacity-50">
-                    {loading === 'supervisor' ? <Loader2 className="animate-spin" size={14} /> : <ShieldCheck size={14} />} SPV
+                  <button
+                    onClick={() => doApprove('supervisor')}
+                    disabled={isBusy}
+                    className="flex-1 py-3 bg-yellow-500 hover:bg-yellow-600 text-white rounded-2xl text-[10px] font-black uppercase flex items-center justify-center gap-1.5 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
+                  >
+                    {loadingStage === 'supervisor'
+                      ? <><Loader2 className="animate-spin" size={14} /> Memproses...</>
+                      : <><ShieldCheck size={14} /> SPV</>}
                   </button>
                 )}
                 {canManager && (
-                  <button onClick={() => doApprove('manager')} disabled={!!loading}
-                    className="flex-1 py-3 bg-green-600 hover:bg-green-700 text-white rounded-2xl text-[10px] font-black uppercase flex items-center justify-center gap-1.5 transition-all active:scale-95 disabled:opacity-50">
-                    {loading === 'manager' ? <Loader2 className="animate-spin" size={14} /> : <CheckCircle size={14} />} Final
+                  <button
+                    onClick={() => doApprove('manager')}
+                    disabled={isBusy}
+                    className="flex-1 py-3 bg-green-600 hover:bg-green-700 text-white rounded-2xl text-[10px] font-black uppercase flex items-center justify-center gap-1.5 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
+                  >
+                    {loadingStage === 'manager'
+                      ? <><Loader2 className="animate-spin" size={14} /> Memproses...</>
+                      : <><CheckCircle size={14} /> Final</>}
                   </button>
                 )}
                 {canReject && (
-                  <button onClick={() => setRejectMode(true)}
-                    className="px-3 py-3 bg-red-50 text-red-500 border border-red-200 rounded-2xl font-black hover:bg-red-100 transition-all">
+                  <button
+                    onClick={() => setRejectMode(true)}
+                    disabled={isBusy}
+                    className="px-3 py-3 bg-red-50 text-red-500 border border-red-200 rounded-2xl font-black hover:bg-red-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
                     <X size={14} />
                   </button>
                 )}
               </div>
             ) : (
               <div className="flex gap-2">
-                <button onClick={doReject} disabled={!!loading || !notes.trim()}
-                  className="flex-1 py-3 bg-red-600 text-white rounded-2xl text-[10px] font-black uppercase flex items-center justify-center gap-1.5 transition-all active:scale-95 disabled:opacity-50">
-                  {loading === 'reject' ? <Loader2 className="animate-spin" size={14} /> : <X size={14} />} Tolak
+                <button
+                  onClick={doReject}
+                  disabled={isBusy || !notes.trim()}
+                  className="flex-1 py-3 bg-red-600 text-white rounded-2xl text-[10px] font-black uppercase flex items-center justify-center gap-1.5 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
+                >
+                  {loadingStage === 'reject'
+                    ? <><Loader2 className="animate-spin" size={14} /> Memproses...</>
+                    : <><X size={14} /> Tolak</>}
                 </button>
-                <button onClick={() => { setRejectMode(false); setNotes(''); }}
-                  className="px-5 py-3 bg-gray-100 text-gray-600 rounded-2xl text-[10px] font-black uppercase hover:bg-gray-200">
+                <button
+                  onClick={() => { setRejectMode(false); setNotes(''); setErrorMsg(''); }}
+                  disabled={isBusy}
+                  className="px-5 py-3 bg-gray-100 text-gray-600 rounded-2xl text-[10px] font-black uppercase hover:bg-gray-200 disabled:opacity-50"
+                >
                   Batal
                 </button>
               </div>
+            )}
+            {/* Global loading indicator */}
+            {isBusy && (
+              <p className="text-center text-[9px] font-bold text-gray-400 uppercase tracking-widest">
+                Mohon tunggu, sedang memproses...
+              </p>
             )}
           </div>
         )}
@@ -280,15 +402,34 @@ const ApprovalModal = ({ sale, onClose, onDone }) => {
 };
 
 // ─── Main SaleDetail ──────────────────────────────────────────────────────────
-const SaleDetail = ({ isOpen, sale, onClose, onRefresh }) => {
-  const { data: session }  = useSession();
-  const [showInvoice, setShowInvoice] = useState(false);
+//
+// PERUBAHAN:
+//   1. localSale: state lokal salinan sale prop — diedit oleh optimistic update
+//      tanpa harus menunggu fetchSales() selesai di parent
+//   2. onApproved(updatedSale, isFinal): parent bisa memperbarui salesData secara
+//      in-place tanpa re-fetch penuh
+//
+const SaleDetail = ({ isOpen, sale, onClose, onSaleUpdated }) => {
+  const { data: session } = useSession();
+  const [showInvoice,  setShowInvoice]  = useState(false);
   const [showApproval, setShowApproval] = useState(false);
+  // ── Local sale state untuk optimistic update ──────────────────────────────
+  const [localSale, setLocalSale] = useState(sale || {});
+
+  // Sync localSale ketika prop sale berubah (misalnya setelah parent re-fetch)
+  React.useEffect(() => { if (sale) setLocalSale(sale); }, [sale]);
 
   const canManage = ['Admin', 'Sales', 'Supervisor', 'Manager', 'SuperAdmin'].includes(session?.user?.role);
   const isAdmin   = ['Admin', 'SuperAdmin'].includes(session?.user?.role);
-  const isRegular = (sale?.saleType || 'REGULAR') === 'REGULAR';
-  const isPending = !['COMPLETED', 'CANCELLED'].includes(sale?.status);
+  const isRegular = (localSale.saleType || 'REGULAR') === 'REGULAR';
+  const isPending = !['COMPLETED', 'CANCELLED'].includes(localSale.status);
+
+  // ── Callback dari ApprovalModal ───────────────────────────────────────────
+  const handleApproved = useCallback((updatedSale, isFinal) => {
+    setLocalSale(prev => ({ ...prev, ...updatedSale }));
+    // Notifikasi parent (page.js) untuk update salesData in-place
+    onSaleUpdated?.(updatedSale, isFinal);
+  }, [onSaleUpdated]);
 
   if (!isOpen || !sale) return null;
 
@@ -305,14 +446,13 @@ const SaleDetail = ({ isOpen, sale, onClose, onRefresh }) => {
         </div>
         <div className="flex-1 w-full bg-slate-100">
           <PrintSalesNote data={{
-            invoiceId:    sale.id, createdAt: sale.createdAt, dueDate: sale.dueDate,
-            customer:     { name: sale.customer, address: sale.customerAddress, phone: sale.customerPhone },
-            deliveryAddress: sale.deliveryAddress,
-            items:        sale.items, subtotal: sale.subtotal,
-            discount:     sale.discount, discountPct: sale.discountPct,
-            taxPct:       sale.taxPct, taxAmount: sale.taxAmount,
-            shippingCost: sale.shippingCost, totalAmount: sale.total,
-            paymentMethod: sale.paymentMethod, status: sale.status, notes: sale.notes,
+            invoiceId: sale.id, createdAt: sale.createdAt, dueDate: sale.dueDate,
+            customer: { name: sale.customer, address: sale.customerAddress, phone: sale.customerPhone },
+            deliveryAddress: sale.deliveryAddress, items: sale.items,
+            subtotal: sale.subtotal, discount: sale.discount, discountPct: sale.discountPct,
+            taxPct: sale.taxPct, taxAmount: sale.taxAmount, shippingCost: sale.shippingCost,
+            totalAmount: sale.total, paymentMethod: sale.paymentMethod,
+            status: localSale.status, notes: sale.notes,
           }} />
         </div>
       </div>
@@ -322,27 +462,34 @@ const SaleDetail = ({ isOpen, sale, onClose, onRefresh }) => {
   return (
     <>
       {showApproval && (
-        <ApprovalModal sale={sale} onClose={() => setShowApproval(false)} onDone={() => { setShowApproval(false); onRefresh?.(); }} />
+        <ApprovalModal
+          sale={sale}
+          localSale={localSale}
+          onClose={() => setShowApproval(false)}
+          onApproved={handleApproved}
+        />
       )}
 
       <div className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
         <div className="bg-white w-full max-w-2xl rounded-t-[32px] sm:rounded-[40px] shadow-2xl overflow-hidden flex flex-col max-h-[94vh] sm:max-h-[92vh] animate-in slide-in-from-bottom sm:zoom-in duration-300">
 
           {/* Header */}
-          <div className={`p-5 md:p-6 border-b border-gray-100 flex justify-between items-center shrink-0 ${
-            sale.status === 'COMPLETED' ? 'bg-green-50/50' : sale.status === 'CANCELLED' ? 'bg-red-50/30' : 'bg-amber-50/30'}`}>
+          <div className={`p-5 md:p-6 border-b border-gray-100 flex justify-between items-start shrink-0 ${
+            localSale.status === 'COMPLETED' ? 'bg-green-50/50' :
+            localSale.status === 'CANCELLED' ? 'bg-red-50/30'   : 'bg-amber-50/30'}`}>
             <div>
               <div className="flex items-center gap-3 mb-1">
                 <h2 className="text-lg font-black text-gray-900 uppercase italic tracking-tight">Detail Transaksi</h2>
-                <StatusBadge status={sale.status} />
-                {(sale.saleType || 'REGULAR') === 'DIRECT' && (
-                  <span className="text-[8px] font-black text-white bg-blue-500 px-2 py-0.5 rounded-lg uppercase">Direct</span>
+                {/* Status badge mencerminkan localSale — update optimis langsung kelihatan */}
+                <StatusBadge status={localSale.status} />
+                {(localSale.saleType || 'REGULAR') === 'DIRECT' && (
+                  <span className="text-[8px] font-black text-white bg-blue-500 px-2 py-0.5 rounded-lg">Direct</span>
                 )}
               </div>
               <p className="text-[10px] font-bold text-[#8da070] tracking-[0.15em] uppercase">{sale.id}</p>
             </div>
             <div className="flex items-center gap-2">
-              {sale.status === 'COMPLETED' && (
+              {localSale.status === 'COMPLETED' && (
                 <button onClick={() => setShowInvoice(true)}
                   className="flex items-center gap-2 px-4 py-2.5 bg-[#8da070]/10 text-[#8da070] border border-[#8da070]/20 rounded-xl font-black text-[10px] uppercase tracking-wider hover:bg-[#8da070] hover:text-white transition-all">
                   <FileText size={16} /> <span className="hidden sm:inline">Cetak Nota</span>
@@ -362,11 +509,10 @@ const SaleDetail = ({ isOpen, sale, onClose, onRefresh }) => {
           </div>
 
           <div className="flex-1 overflow-y-auto custom-scrollbar">
-
-            {/* Approval stepper (hanya untuk REGULAR) */}
+            {/* Stepper — menampilkan localSale.status secara real-time */}
             {isRegular && (
               <div className="px-5 md:px-6 pt-5">
-                <ApprovalStepper status={sale.status} sale={sale} />
+                <ApprovalStepper localSale={localSale} />
               </div>
             )}
 
@@ -410,11 +556,11 @@ const SaleDetail = ({ isOpen, sale, onClose, onRefresh }) => {
                       return (
                         <tr key={idx} className="hover:bg-gray-50/30">
                           <td className="px-4 py-3.5 text-sm font-bold text-gray-700 max-w-[160px] truncate">{item.productName}</td>
-                          <td className="px-4 py-3.5 text-sm font-black text-gray-900 text-center">{fmtQty(item.quantity)} {item.unit}</td>
-                          <td className="px-4 py-3.5 text-sm font-black text-gray-900">{fmtRp(item.price)}</td>
+                          <td className="px-4 py-3.5 text-sm font-black text-gray-900 text-center">{fmtQty(item.quantity)} <span className="text-[9px] text-gray-400">{item.unit}</span></td>
+                          <td className="px-4 py-3.5 text-sm font-black text-gray-800">{fmtRp(item.price)}</td>
                           <td className="px-4 py-3.5 text-sm font-black text-[#8da070] italic">{fmtRp(sub)}</td>
                           <td className="px-4 py-3.5 text-[10px] font-bold text-amber-600">{item.totalCost > 0 ? fmtRp(item.totalCost) : '-'}</td>
-                          <td className={`px-4 py-3.5 text-[10px] font-black ${margin >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                          <td className={`px-4 py-3.5 text-[10px] font-black ${item.totalCost > 0 ? (margin >= 0 ? 'text-green-600' : 'text-red-500') : 'text-gray-300'}`}>
                             {item.totalCost > 0 ? fmtRp(margin) : '-'}
                           </td>
                         </tr>
@@ -422,7 +568,6 @@ const SaleDetail = ({ isOpen, sale, onClose, onRefresh }) => {
                     })}
                   </tbody>
                 </table>
-                {/* Mobile */}
                 <div className="sm:hidden divide-y divide-gray-50">
                   {sale.items?.map((item, idx) => (
                     <div key={idx} className="p-4">
@@ -446,13 +591,13 @@ const SaleDetail = ({ isOpen, sale, onClose, onRefresh }) => {
             <div className="px-5 md:px-6 mb-4">
               <div className="bg-gray-900 rounded-[28px] p-6 space-y-2">
                 {[
-                  ...(sale.discountPct > 0 ? [{ label: `Diskon (${sale.discountPct}%)`, value: `-${fmtRp(sale.discount)}`, color: 'text-orange-400' }] : []),
-                  ...(sale.taxPct > 0 ? [{ label: `PPN (${sale.taxPct}%)`, value: fmtRp(sale.taxAmount), color: 'text-blue-400' }] : []),
-                  ...(sale.shippingCost > 0 ? [{ label: 'Biaya Kirim', value: fmtRp(sale.shippingCost), color: 'text-purple-400' }] : []),
+                  ...(sale.discountPct > 0 ? [{ label: `Diskon (${sale.discountPct}%)`, value: `-${fmtRp(sale.discount)}`, cls: 'text-orange-400' }] : []),
+                  ...(sale.taxPct > 0       ? [{ label: `PPN (${sale.taxPct}%)`,          value: fmtRp(sale.taxAmount),        cls: 'text-blue-400'   }] : []),
+                  ...(sale.shippingCost > 0 ? [{ label: 'Biaya Kirim',                    value: fmtRp(sale.shippingCost),     cls: 'text-purple-400' }] : []),
                 ].map((r, i) => (
                   <div key={i} className="flex justify-between text-[11px]">
                     <span className="font-bold text-gray-500 uppercase tracking-wider">{r.label}</span>
-                    <span className={`font-black italic ${r.color}`}>{r.value}</span>
+                    <span className={`font-black italic ${r.cls}`}>{r.value}</span>
                   </div>
                 ))}
                 <div className="border-t border-gray-700 pt-3 flex justify-between items-center">
@@ -478,7 +623,7 @@ const SaleDetail = ({ isOpen, sale, onClose, onRefresh }) => {
               <div className="px-5 md:px-6 mb-6">
                 <div className="p-4 bg-amber-50 border border-amber-100 rounded-2xl">
                   <p className="text-[9px] font-black text-amber-500 uppercase tracking-widest mb-1 flex items-center gap-1">
-                    <Info size={10} /> Catatan Internal (Admin)
+                    <Info size={10} /> Catatan Internal
                   </p>
                   <p className="text-sm font-medium text-gray-600 italic">{sale.salesNotes}</p>
                 </div>

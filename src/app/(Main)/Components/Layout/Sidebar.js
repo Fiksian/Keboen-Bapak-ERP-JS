@@ -10,13 +10,6 @@ import {
   Truck, FileCheck, ClipboardList, ChevronDown
 } from 'lucide-react';
 
-// ─── Tipe menu ─────────────────────────────────────────────────────────────────
-// "link"  : item langsung (existing behavior)
-// "group" : accordion / collapsible parent dengan children
-//
-// Setiap group punya:
-//   id       : dipakai untuk canAccess check (via '*' atau explicit list)
-//   children : array item, masing-masing punya id, name, icon, path
 
 const menuConfig = [
   { type: 'link', id: 'dashboard', name: 'Dashboard', icon: LayoutDashboard, path: '/Dashboard' },
@@ -28,14 +21,13 @@ const menuConfig = [
   { type: 'link', id: 'kandang',   name: 'Kandang',   icon: Warehouse,       path: '/Kandang'   },
   { type: 'link', id: 'produksi',  name: 'Produksi',  icon: Settings,        path: '/Produksi'  },
   { type: 'link', id: 'feedmill',  name: 'Feedmill',  icon: Settings,        path: '/Feedmill'  },
+  { type: 'link', id: 'feedlot',   name: 'Feedlot',   icon: Settings,        path: '/Feedlot'  },
 
-  // ── Grup Pengadaan ──────────────────────────────────────────────────────────
   {
     type:  'group',
-    id:    'pengadaan',        // parent permission id
+    id:    'pengadaan',       
     name:  'Pengadaan',
-    icon:  ClipboardList,      // ikon parent accordion
-    // Group dianggap aktif jika pathname cocok dengan salah satu child
+    icon:  ClipboardList,
     children: [
       { id: 'purchasing', name: 'Purchase Order', icon: ShoppingCart,  path: '/Purchasing' },
       { id: 'arrival',    name: 'Arrival',         icon: Truck,         path: '/Arrival'    },

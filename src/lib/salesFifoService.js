@@ -1,11 +1,3 @@
-// lib/salesFifoService.js  — OPTIMIZED
-//
-// Perubahan utama dari versi lama:
-//   1. deductSalesBatches: ambil SEMUA batch sekaligus dengan findMany di awal
-//      (eliminasi N+1 — tidak ada lagi findUnique di dalam loop)
-//   2. Validasi stok sebelum mulai deduction (fail-fast, hindari partial state)
-//   3. Response lean: kembalikan hanya data yang diperlukan
-
 import prisma from "@/lib/prisma";
 import { syncStockFromBatches } from "@/lib/fifoService";
 

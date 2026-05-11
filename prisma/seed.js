@@ -1,4 +1,5 @@
-const { PrismaClient, PurchaseStatus, ContactType, ProductionStatus } = require('@prisma/client');
+// prisma/seed.js
+const { PrismaClient, PurchaseStatus, ContactType, ProductionStatus, CattleDOStatus, CattlePOStatus } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
 
 const prisma = new PrismaClient();
@@ -27,10 +28,16 @@ async function main() {
   try {
     await prisma.$transaction(async (tx) => {
 
-      console.log('📦 Seeding Warehouses...');
+      // ──────────────────────────────────────────────────────────────────────
+      // 1. SEED WAREHOUSES (Kandang untuk sapi + gudang barang)
+      // ──────────────────────────────────────────────────────────────────────
+      console.log('📦 Seeding Warehouses / Kandang...');
       const warehouses = [
-        { id: 'wh-a', name: 'Warehouse A', code: 'WH-A', address: 'Ciparay, Bandung' },
-        { id: 'wh-b', name: 'Warehouse B', code: 'WH-B', address: 'Baleendah, Bandung' }
+        { id: 'wh-a', name: 'Gudang A', code: 'WH-A', address: 'Ciparay, Bandung' },
+        { id: 'wh-b', name: 'Gudang B', code: 'WH-B', address: 'Baleendah, Bandung' },
+        { id: 'kandang-1', name: 'Kandang Utama 1', code: 'KD-1', address: 'Blok A, Area Utara' },
+        { id: 'kandang-2', name: 'Kandang Utama 2', code: 'KD-2', address: 'Blok B, Area Timur' },
+        { id: 'kandang-karantina', name: 'Kandang Karantina', code: 'KDK', address: 'Area Karantina Khusus' },
       ];
 
       for (const wh of warehouses) {
@@ -41,16 +48,20 @@ async function main() {
         });
       }
 
-      // --- TAMBAHAN: SEEDING ROLES TERLEBIH DAHULU ---
+      // ──────────────────────────────────────────────────────────────────────
+      // 2. SEED ROLE PERMISSIONS
+      // ──────────────────────────────────────────────────────────────────────
       console.log('🔐 Seeding Role Permissions...');
-      const roles = ['SuperAdmin', 'Admin','Manager', 'Supervisor', 'Staff', 'Test'];
+      const roles = ['SuperAdmin', 'Admin', 'Manager', 'Supervisor', 'Staff', 'Test'];
 
       const Permissions = {
         "SuperAdmin": ["*"],
-        "Admin": ["dashboard","penjualan","produksi"],
-        "Supervisor": [],
-        "Staff": [],
-      }
+        "Admin": ["dashboard", "penjualan", "produksi", "purchasing", "cattle"],
+        "Manager": ["dashboard", "reports", "approval"],
+        "Supervisor": ["dashboard", "production", "cattle_monitor"],
+        "Staff": ["dashboard", "input_data"],
+        "Test": ["dashboard"],
+      };
 
       for (const roleName of roles) {
         await tx.rolePermission.upsert({
@@ -58,11 +69,14 @@ async function main() {
           update: {},
           create: {
             roleName: roleName,
-            permissions: Permissions[roleName] || [], // Bisa diisi default permissions jika perlu
+            permissions: Permissions[roleName] || [],
           },
         });
       }
 
+      // ──────────────────────────────────────────────────────────────────────
+      // 3. SEED USERS & STAFFS
+      // ──────────────────────────────────────────────────────────────────────
       console.log('👤 Seeding Admin...');
       const adminUser = await tx.user.upsert({
         where: { email: adminEmail },
@@ -87,6 +101,7 @@ async function main() {
           staffId: "ADM-001",
           role: "SuperAdmin",
           designation: "System Administrator",
+          image: null,
           updatedAt: new Date(),
         },
       });
@@ -118,48 +133,60 @@ async function main() {
             staffId: testData.staffId,
             role: testData.role,
             designation: "Testing Account",
+            image: null,
             updatedAt: new Date(),
           },
         });
       }
 
-      // 3. SEED CONTACTS
-      await tx.contact.upsert({
-        where: { email: 'supplier.pakan@email.com' },
-        update: {},
-        create: {
-          name: 'PT Pakan Jaya',
-          type: ContactType.SUPPLIER,
-          email: 'supplier.pakan@email.com',
-          phone: '021-555666',
-          address: 'Kawasan Industri Jakarta',
-        },
-      });
+      // ──────────────────────────────────────────────────────────────────────
+      // 4. SEED CONTACTS (Supplier & Customer)
+      // ──────────────────────────────────────────────────────────────────────
+      console.log('📞 Seeding Contacts...');
+      
+      const contacts = [
+        { name: 'PT Pakan Jaya', type: ContactType.SUPPLIER, email: 'supplier.pakan@email.com', phone: '021-555666', address: 'Kawasan Industri Jakarta' },
+        { name: 'PT Kedua', type: ContactType.SUPPLIER, email: 'test.pakan@email.com', phone: '021-132141', address: 'Jakarta' },
+        { name: 'PT Sapi Unggul', type: ContactType.SUPPLIER, email: 'sapi@unggul.com', phone: '021-777888', address: 'Australia' },
+        { name: 'Toko Berkah Telur', type: ContactType.CUSTOMER, email: 'customer1@email.com', phone: '0812999000', address: 'Pasar Minggu, Jakarta' },
+      ];
 
-      await tx.contact.upsert({
-        where: { email: 'test.pakan@email.com' },
-        update: {},
-        create: {
-          name: 'PT Kedua',
-          type: ContactType.SUPPLIER,
-          email: 'test.pakan@email.com',
-          phone: '021-132141',
-          address: 'Jakarta',
-        },
-      });
+      for (const contact of contacts) {
+        await tx.contact.upsert({
+          where: { email: contact.email },
+          update: {},
+          create: contact,
+        });
+      }
 
-      await tx.contact.upsert({
-        where: { email: 'customer1@email.com' },
-        update: {},
-        create: {
-          name: 'Toko Berkah Telur',
-          type: ContactType.CUSTOMER,
-          email: 'customer1@email.com',
-          phone: '0812999000',
-          address: 'Pasar Minggu, Jakarta',
-        },
-      });
+      // ──────────────────────────────────────────────────────────────────────
+      // 5. SEED CATTLE BREEDS (Jenis Sapi)
+      // ──────────────────────────────────────────────────────────────────────
+      console.log('🐄 Seeding Cattle Breeds...');
+      const breeds = [
+        { id: 'lim', name: 'LIMOUSIN', description: 'Sapi potong asal Prancis, kualitas daging premium' },
+        { id: 'sim', name: 'SIMENTAL', description: 'Sapi asal Swiss, pertumbuhan cepat' },
+        { id: 'bra', name: 'BRAHMAN', description: 'Sapi impor asal Amerika, tahan panas' },
+        { id: 'ang', name: 'ANGUS', description: 'Sapi premium asal Skotlandia' },
+        { id: 'bx', name: 'BX', description: 'Brahman Cross Australia, persilangan unggul' },
+        { id: 'wag', name: 'WAGYU', description: 'Sapi premium Jepang, marbling tinggi' },
+        { id: 'ong', name: 'ONGOLE', description: 'Sapi PO lokal' },
+        { id: 'cam', name: 'CAMPURAN', description: 'Campuran berbagai jenis' },
+      ];
 
+      for (const breed of breeds) {
+        await tx.cattleBreed.upsert({
+          where: { id: breed.id },
+          update: { name: breed.name, description: breed.description },
+          create: breed,
+        });
+      }
+
+      // ──────────────────────────────────────────────────────────────────────
+      // 6. SEED STOCKS (Barang)
+      // ──────────────────────────────────────────────────────────────────────
+      console.log('🌾 Seeding Stocks...');
+      
       const bahanBakuMakro = [
         "Dedak", "Polard", "Bungkil Kedelai", "Bungkil Kelapa", "Bungkil Sawit", 
         "Onggok", "Gaplek", "Menir Jagung", "Kulit Kopi", "Molases", "Kulit Coklat", 
@@ -181,18 +208,14 @@ async function main() {
         "suenzym"
       ];
 
-      const pakan = [
-        "Pakan A", "Pakan B"
-      ];
-
+      const pakan = ["Pakan A", "Pakan B"];
       const bahanBakuHijauan = ["SILASE"];
 
-      console.log('🌾 Seeding Stocks');
       const allBahanBaku = [
         ...bahanBakuMakro.map(n => ({ name: n.toUpperCase(), cat: 'MAKRO' })),
         ...bahanBakuMikro.map(n => ({ name: n.toUpperCase(), cat: 'MIKRO' })),
         ...bahanBakuHijauan.map(n => ({ name: n.toUpperCase(), cat: 'HIJAUAN' })),
-        ...pakan.map(n => ({name: n.toUpperCase(), cat: 'PAKAN' }) )
+        ...pakan.map(n => ({ name: n.toUpperCase(), cat: 'PAKAN' }))
       ];
 
       for (const item of allBahanBaku) {
@@ -216,6 +239,9 @@ async function main() {
         });
       }
 
+      // ──────────────────────────────────────────────────────────────────────
+      // 7. SEED TASKS
+      // ──────────────────────────────────────────────────────────────────────
       console.log('📝 Seeding Tasks...');
       const existingTask = await tx.task.findFirst({
         where: { title: 'Cek kesehatan ayam kandang A' },
@@ -233,6 +259,9 @@ async function main() {
         });
       }
 
+      // ──────────────────────────────────────────────────────────────────────
+      // 8. SEED TRANSACTIONS
+      // ──────────────────────────────────────────────────────────────────────
       console.log('💰 Seeding Transactions...');
       const existingTrx = await tx.transaction.findFirst({
         where: { trxNo: 'TRX-INIT-2026' },

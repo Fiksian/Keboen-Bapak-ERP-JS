@@ -18,20 +18,30 @@ const menuConfig = [
   { type: 'link', id: 'staff',     name: 'Staff',     icon: User,            path: '/Staff'     },
   { type: 'link', id: 'contacts',  name: 'Contacts',  icon: User2,           path: '/Contacts'  },
   { type: 'link', id: 'tasks',     name: 'Tasks',     icon: CheckSquare,     path: '/Tasks'     },
-  { type: 'link', id: 'kandang',   name: 'Kandang',   icon: Warehouse,       path: '/Kandang'   },
   { type: 'link', id: 'produksi',  name: 'Produksi',  icon: Settings,        path: '/Produksi'  },
-  { type: 'link', id: 'feedmill',  name: 'Feedmill',  icon: Settings,        path: '/Feedmill'  },
-  { type: 'link', id: 'feedlot',   name: 'Feedlot',   icon: Settings,        path: '/Feedlot'  },
 
   {
     type:  'group',
-    id:    'pengadaan',       
-    name:  'Pengadaan',
+    id:    'pengadaanSapi',       
+    name:  'Pengadaan Sapi',
     icon:  ClipboardList,
     children: [
-      { id: 'purchasing', name: 'Purchase Order', icon: ShoppingCart,  path: '/Purchasing' },
-      { id: 'arrival',    name: 'Arrival',         icon: Truck,         path: '/Arrival'    },
-      { id: 'sttb',       name: 'STTB',            icon: FileCheck,     path: '/STTB'       },
+      { id: 'kandang',           name: 'Kandang',                   icon: Warehouse,     path: '/PengadaanSapi/Kandang' },
+      { id: 'cattle_purchasing', name: 'Cattle Purchase Order',     icon: ShoppingCart,  path: '/PengadaanSapi/CattlePurchasing' },
+      { id: 'cattle_arrival',    name: 'Cattle Arrival',            icon: Truck,         path: '/PengadaanSapi/CattleArrival'    },
+      { id: 'cattle_sttb',       name: 'Cattle STTB',               icon: FileCheck,     path: '/PengadaanSapi/CattleSTTB'      },
+    ],
+  },
+  
+  {
+    type:  'group',
+    id:    'pengadaan',       
+    name:  'Pengadaan Barang',
+    icon:  ClipboardList,
+    children: [
+      { id: 'purchasing', name: 'Purchase Order',  icon: ShoppingCart,  path: '/PengadaanBarang/Purchasing' },
+      { id: 'arrival',    name: 'Arrival',         icon: Truck,         path: '/PengadaanBarang/Arrival'    },
+      { id: 'sttb',       name: 'STTB',            icon: FileCheck,     path: '/PengadaanBarang/STTB'       },
     ],
   },
 

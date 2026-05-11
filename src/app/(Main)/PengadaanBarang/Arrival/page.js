@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { History, Package, Clock, CheckCircle2, Loader2, Truck, RefreshCw } from 'lucide-react';
-import ArrivalMonitor from '@/app/(Main)/Arrival/ArrivalMonitor';
-import ArrivalHistory from '@/app/(Main)/Arrival/ArrivalHistory';
+import ArrivalMonitor from '@/app/(Main)/PengadaanBarang/Arrival/ArrivalMonitor';
+import ArrivalHistory from '@/app/(Main)/PengadaanBarang/Arrival/ArrivalHistory';
 
 const ItemArrival = () => {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);

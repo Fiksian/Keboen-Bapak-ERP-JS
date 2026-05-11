@@ -7,7 +7,8 @@ import {
   LayoutDashboard, CloudSun, BarChart3, User, User2, CheckSquare, 
   Warehouse, Settings, Clock, Package, ShoppingCart, Store, 
   CircleDollarSign, Calendar, ArrowLeft,
-  Book
+  Book,
+  Sun
 } from 'lucide-react';
 
 const MENU_ICONS = {
@@ -18,13 +19,14 @@ const MENU_ICONS = {
   contacts: <User2 size={20} />,
   tasks: <CheckSquare size={20} />,
   kandang: <Warehouse size={20} />,
-  feedmill: <Warehouse size={20} />,
-  feedlot: <Warehouse size={20} />,
+  cattle_purchasing: <Sun size={20} />,
+  cattle_arrival: <Clock size={20} />,
+  cattle_sttb: <Book size={20} />,
   produksi: <Settings size={20} />,
+  purchasing: <ShoppingCart size={20} />,
   arrival: <Clock size={20} />,
   sttb: <Book size={20} />,
   warehouse: <Package size={20} />,
-  purchasing: <ShoppingCart size={20} />,
   penjualan: <Store size={20} />,
   finance: <CircleDollarSign size={20} />,
   history: <Calendar size={20} />,

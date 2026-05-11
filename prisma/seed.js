@@ -47,7 +47,7 @@ async function main() {
 
       const Permissions = {
         "SuperAdmin": ["*"],
-        "Admin": ["dashboard", "penjualan","produksi"],
+        "Admin": ["dashboard","penjualan","produksi"],
         "Supervisor": [],
         "Staff": [],
       }

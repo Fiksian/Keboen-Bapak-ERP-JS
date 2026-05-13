@@ -13,24 +13,33 @@ datasource db {
 // ═══════════════════════════════════════════════════════════════════════════
 
 model Warehouse {
-  id                String             @id @default(cuid())
-  name              String             @unique
-  code              String?            @unique
-  address           String?
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
+  id        String   @id @default(cuid())
+  name      String   @unique
+  code      String?  @unique
+  address   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  productions       Production[]
-  receipts          Receipt[]
-  sttbs             STTB[]
-  stocks            Stock[]
-  batches           StockBatch[]
+  productions Production[]
+  receipts    Receipt[]
+  sttbs       STTB[]
+  stocks      Stock[]
+  batches     StockBatch[]
 
   // Cattle relations
-  cattlePurchasings  CattlePurchasing[]
-  cattleArrivals     CattleArrival[]
-  cattleBatches      CattleBatch[]
-  cattleInventory    CattleInventory[]
+  cattlePurchasings CattlePurchasing[]
+  cattleArrivals    CattleArrival[]
+  cattleBatches     CattleBatch[]
+  cattleInventory   CattleInventory[]
+
+  // Cattle Tracking (RFID)
+  cattle Cattle[] @relation("CattleWarehouse")
+
+  // Transfer relations
+  transfersFrom CattleTransfer[] @relation("TransferFrom")
+  transfersTo   CattleTransfer[] @relation("TransferTo")
+
+  @@index([name])
 }
 
 model User {
@@ -118,61 +127,54 @@ model Purchasing {
 }
 
 model Receipt {
-  id           String     @id @default(cuid())
-  receiptNo    String     @unique
+  id           String      @id @default(cuid())
+  receiptNo    String      @unique
   purchasingId String
   suratJalan   String
   vehicleNo    String
   receivedQty  Float
   receivedBy   String
-  condition    String     @default("GOOD")
+  condition    String      @default("GOOD")
   notes        String?
-  receivedAt   DateTime   @default(now())
-  grossWeight  Float      @default(0)
-  netWeight    Float      @default(0)
-  tareWeight   Float      @default(0)
+  receivedAt   DateTime    @default(now())
+  grossWeight  Float       @default(0)
+  netWeight    Float       @default(0)
+  tareWeight   Float       @default(0)
   imageUrl     String?
   warehouseId  String?
-  refraksi     Float      @default(0)
-  purchasing   Purchasing @relation(fields: [purchasingId], references: [id])
-  warehouse    Warehouse? @relation(fields: [warehouseId], references: [id])
+  refraksi     Float       @default(0)
+  purchasing   Purchasing  @relation(fields: [purchasingId], references: [id])
+  warehouse    Warehouse?  @relation(fields: [warehouseId], references: [id])
   sttb         STTB?
   batch        StockBatch?
 }
 
-// ─── STTB (diperbarui: mendukung barang umum DAN sapi) ─────────────────────
-//
-// Perubahan dari versi sebelumnya:
-//   - receiptId dan purchasingId dibuat OPSIONAL (nullable) agar STTB sapi
-//     bisa dibuat tanpa Receipt/Purchasing barang
-//   - Tambah field isCattle, cattlePOId, dan data timbang sapi
-//   - Tambah relasi ke CattlePurchasing
-
+// ─── STTB (mendukung barang umum DAN sapi) ─────────────────────────────────
 model STTB {
-  id                   String            @id @default(cuid())
-  sttbNo               String            @unique
-  status               String            @default("PENDING_QC")
+  id     String @id @default(cuid())
+  sttbNo String @unique
+  status String @default("PENDING_QC")
 
   // ── Barang umum (nullable saat isCattle = true) ──────────────────────────
-  receiptId            String?           @unique
-  purchasingId         String?           @unique
-  receipt              Receipt?          @relation(fields: [receiptId], references: [id])
-  purchasing           Purchasing?       @relation(fields: [purchasingId], references: [id])
+  receiptId    String?     @unique
+  purchasingId String?     @unique
+  receipt      Receipt?    @relation(fields: [receiptId], references: [id])
+  purchasing   Purchasing? @relation(fields: [purchasingId], references: [id])
 
   // ── Cattle mode ──────────────────────────────────────────────────────────
-  isCattle             Boolean           @default(false)
-  cattlePOId           String?
-  cattleArrivalId      String?
-  cattlePO             CattlePurchasing? @relation("CattlePOSTTB", fields: [cattlePOId], references: [id])
+  isCattle        Boolean           @default(false)
+  cattlePOId      String?
+  cattleArrivalId String?
+  cattlePO        CattlePurchasing? @relation("CattlePOSTTB", fields: [cattlePOId], references: [id])
 
   // Data timbang sapi (nullable untuk STTB barang)
-  jumlahEkor           Int?
-  beratHidupTotal      Float?            // Total berat hidup tiba (kg)
-  beratHidupRata       Float?            // Rata-rata berat per ekor (kg)
-  beratBeli            Float?            // Berat rata-rata saat beli dari PO (kg/ekor)
-  susutKg              Float?            // beratBeli - beratHidupRata
-  susutPct             Float?            // (susutKg / beratBeli) × 100
-  susutAlert           Boolean           @default(false) // true jika susut > 8.5%
+  jumlahEkor      Int?
+  beratHidupTotal Float?
+  beratHidupRata  Float?
+  beratBeli       Float?
+  susutKg         Float?
+  susutPct        Float?
+  susutAlert      Boolean @default(false)
 
   // ── Approval stamps ───────────────────────────────────────────────────────
   qcApprovedBy         String?
@@ -189,20 +191,20 @@ model STTB {
   managerNotes         String?
 
   // ── Reject ────────────────────────────────────────────────────────────────
-  rejectedBy           String?
-  rejectedAt           DateTime?
-  rejectedNotes        String?
+  rejectedBy    String?
+  rejectedAt    DateTime?
+  rejectedNotes String?
 
   // ── Gudang ───────────────────────────────────────────────────────────────
-  warehouseId          String?
-  warehouse            Warehouse?        @relation(fields: [warehouseId], references: [id])
-  stockCommitted       Boolean           @default(false)
-  stockCommittedAt     DateTime?
+  warehouseId      String?
+  warehouse        Warehouse? @relation(fields: [warehouseId], references: [id])
+  stockCommitted   Boolean    @default(false)
+  stockCommittedAt DateTime?
 
-  createdAt            DateTime          @default(now())
-  updatedAt            DateTime          @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  batch                StockBatch?
+  batch StockBatch?
 
   @@index([isCattle])
   @@index([cattlePOId])
@@ -227,38 +229,38 @@ model Stock {
 }
 
 model StockBatch {
-  id                        String                      @id @default(cuid())
-  batchNo                   String                      @unique
-  itemName                  String
-  warehouseId               String
-  purchasingId              String?
-  receiptId                 String?                     @unique
-  sttbId                    String?                     @unique
-  supplierName              String?
-  noPO                      String?
-  suratJalan                String?
-  qtyInitial                Float
-  qtyRemaining              Float
-  reservedQty               Float                       @default(0)
-  unit                      String                      @default("KG")
-  category                  String                      @default("General")
-  type                      String                      @default("STOCKS")
-  price                     String?
-  condition                 String?                     @default("GOOD")
-  notes                     String?
-  status                    String                      @default("ACTIVE")
-  receivedAt                DateTime                    @default(now())
-  depletedAt                DateTime?
-  createdAt                 DateTime                    @default(now())
-  updatedAt                 DateTime                    @updatedAt
-  productionId              String?
-  deductions                BatchDeduction[]
-  allocations               ProductionBatchAllocation[]
-  production                Production?                 @relation("ProductionOutputBatch", fields: [productionId], references: [id])
-  purchasing                Purchasing?                 @relation(fields: [purchasingId], references: [id])
-  receipt                   Receipt?                    @relation(fields: [receiptId], references: [id])
-  sttb                      STTB?                       @relation(fields: [sttbId], references: [id])
-  warehouse                 Warehouse                   @relation(fields: [warehouseId], references: [id])
+  id           String                      @id @default(cuid())
+  batchNo      String                      @unique
+  itemName     String
+  warehouseId  String
+  purchasingId String?
+  receiptId    String?                     @unique
+  sttbId       String?                     @unique
+  supplierName String?
+  noPO         String?
+  suratJalan   String?
+  qtyInitial   Float
+  qtyRemaining Float
+  reservedQty  Float                       @default(0)
+  unit         String                      @default("KG")
+  category     String                      @default("General")
+  type         String                      @default("STOCKS")
+  price        String?
+  condition    String?                     @default("GOOD")
+  notes        String?
+  status       String                      @default("ACTIVE")
+  receivedAt   DateTime                    @default(now())
+  depletedAt   DateTime?
+  createdAt    DateTime                    @default(now())
+  updatedAt    DateTime                    @updatedAt
+  productionId String?
+  deductions   BatchDeduction[]
+  allocations  ProductionBatchAllocation[]
+  production   Production?                 @relation("ProductionOutputBatch", fields: [productionId], references: [id])
+  purchasing   Purchasing?                 @relation(fields: [purchasingId], references: [id])
+  receipt      Receipt?                    @relation(fields: [receiptId], references: [id])
+  sttb         STTB?                       @relation(fields: [sttbId], references: [id])
+  warehouse    Warehouse                   @relation(fields: [warehouseId], references: [id])
 
   @@index([itemName, warehouseId, status])
   @@index([receivedAt])
@@ -334,20 +336,20 @@ model Production {
 }
 
 model ProductionComponent {
-  id                        String                      @id @default(cuid())
-  productionId              String
-  itemName                  String
-  qtyNeeded                 Float
-  unit                      String                      @default("KG")
-  createdAt                 DateTime                    @default(now())
-  batchAllocation           String?                     @default("[]")
-  stockAvailable            Float                       @default(0)
-  totalPrice                Float                       @default(0)
-  unitPrice                 Float                       @default(0)
-  warehouseId               String?
-  reservedQty               Float                       @default(0)
-  allocations               ProductionBatchAllocation[]
-  production                Production                  @relation(fields: [productionId], references: [id], onDelete: Cascade)
+  id              String                      @id @default(cuid())
+  productionId    String
+  itemName        String
+  qtyNeeded       Float
+  unit            String                      @default("KG")
+  createdAt       DateTime                    @default(now())
+  batchAllocation String?                     @default("[]")
+  stockAvailable  Float                       @default(0)
+  totalPrice      Float                       @default(0)
+  unitPrice       Float                       @default(0)
+  warehouseId     String?
+  reservedQty     Float                       @default(0)
+  allocations     ProductionBatchAllocation[]
+  production      Production                  @relation(fields: [productionId], references: [id], onDelete: Cascade)
 }
 
 model ProductionBatchAllocation {
@@ -502,8 +504,8 @@ model CattleBreed {
 // ─── Delivery Order Sapi ──────────────────────────────────────────────────────
 
 model CattleDeliveryOrder {
-  id            String          @id @default(cuid())
-  doNo          String          @unique
+  id            String         @id @default(cuid())
+  doNo          String         @unique
   title         String?
   expectedDate  DateTime?
   notes         String?
@@ -513,9 +515,9 @@ model CattleDeliveryOrder {
   rejectedBy    String?
   rejectedAt    DateTime?
   rejectedNotes String?
-  status        CattleDOStatus  @default(DRAFT)
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  status        CattleDOStatus @default(DRAFT)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
   items         CattleDOItem[]
 
   @@index([status])
@@ -549,39 +551,39 @@ model CattleDOItem {
 // ─── Purchase Order Sapi ──────────────────────────────────────────────────────
 
 model CattlePurchasing {
-  id               String          @id @default(cuid())
+  id               String         @id @default(cuid())
   noPO             String
   vendorName       String
-  vendorCountry    String          @default("Australia")
+  vendorCountry    String         @default("Australia")
   vendorEksportir  String?
-  totalHeadOrdered Int             @default(0)
-  totalWeightKg    Float           @default(0)
-  pricePerKgIDR    Float           @default(0)
-  pricePerHeadUSD  Float           @default(0)
-  exchangeRate     Float           @default(0)
-  biayaBongkar     Float           @default(0)
-  biayaTracking    Float           @default(0)
-  biayaKarantina   Float           @default(0)
-  biayaLainLain    Float           @default(0)
-  hppPerKg         Float           @default(0)
-  hppPerEkor       Float           @default(0)
-  hppTotal         Float           @default(0)
-  totalEstimasi    Float           @default(0)
+  totalHeadOrdered Int            @default(0)
+  totalWeightKg    Float          @default(0)
+  pricePerKgIDR    Float          @default(0)
+  pricePerHeadUSD  Float          @default(0)
+  exchangeRate     Float          @default(0)
+  biayaBongkar     Float          @default(0)
+  biayaTracking    Float          @default(0)
+  biayaKarantina   Float          @default(0)
+  biayaLainLain    Float          @default(0)
+  hppPerKg         Float          @default(0)
+  hppPerEkor       Float          @default(0)
+  hppTotal         Float          @default(0)
+  totalEstimasi    Float          @default(0)
   requestedBy      String
   approvedBy       String?
   approvedAt       DateTime?
   notes            String?
-  status           CattlePOStatus  @default(DRAFT)
-  isReceived       Boolean         @default(false)
+  status           CattlePOStatus @default(DRAFT)
+  isReceived       Boolean        @default(false)
   warehouseId      String?
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
 
-  warehouse  Warehouse?       @relation(fields: [warehouseId], references: [id])
-  items      CattlePOItem[]
-  arrivals   CattleArrival[]  @relation("POArrivals")
-  batches    CattleBatch[]
-  sttbs      STTB[]           @relation("CattlePOSTTB")
+  warehouse Warehouse?      @relation(fields: [warehouseId], references: [id])
+  items     CattlePOItem[]
+  arrivals  CattleArrival[] @relation("POArrivals")
+  batches   CattleBatch[]
+  sttbs     STTB[]          @relation("CattlePOSTTB")
 
   @@index([status])
   @@index([isReceived])
@@ -617,52 +619,53 @@ model CattlePOItem {
 // ─── Cattle Arrival (Penerimaan Sapi) ────────────────────────────────────────
 
 model CattleArrival {
-  id                 String           @id @default(cuid())
-  arrivalNo          String           @unique
-  purchasingId       String
-  purchasing         CattlePurchasing @relation("POArrivals", fields: [purchasingId], references: [id])
+  id           String           @id @default(cuid())
+  arrivalNo    String           @unique
+  purchasingId String
+  purchasing   CattlePurchasing @relation("POArrivals", fields: [purchasingId], references: [id])
 
-  warehouseId        String?
-  warehouse          Warehouse?       @relation(fields: [warehouseId], references: [id])
+  warehouseId String?
+  warehouse   Warehouse? @relation(fields: [warehouseId], references: [id])
 
   // Logistik
-  namaKapal          String?
-  noBl               String?
-  namaPBM            String?
-  namaMKL            String?
-  noSuratJalan       String?
-  vehicleNo          String?
+  namaKapal    String?
+  noBl         String?
+  namaPBM      String?
+  namaMKL      String?
+  noSuratJalan String?
+  vehicleNo    String?
 
   // Dokumen
-  imageUrl           String?
-  rfidFileUrl        String?
-  rfidImported       Boolean          @default(false)
-  rfidCount          Int              @default(0)
+  imageUrl     String?
+  rfidFileUrl  String?
+  rfidImported Boolean @default(false)
+  rfidCount    Int     @default(0)
 
   // Data timbang agregat
-  totalHeadArrived   Int              @default(0)
-  grossWeightTotal   Float            @default(0)
-  tareWeightTotal    Float            @default(0)
-  netWeightTotal     Float            @default(0)
-  avgWeightReceived  Float            @default(0)
+  totalHeadArrived  Int   @default(0)
+  grossWeightTotal  Float @default(0)
+  tareWeightTotal   Float @default(0)
+  netWeightTotal    Float @default(0)
+  avgWeightReceived Float @default(0)
 
   // Susut transit
-  avgWeightPurchase  Float            @default(0)
-  susutKg            Float            @default(0)
-  susutPct           Float            @default(0)
-  susutAlert         Boolean          @default(false)
+  avgWeightPurchase Float   @default(0)
+  susutKg           Float   @default(0)
+  susutPct          Float   @default(0)
+  susutAlert        Boolean @default(false)
 
-  condition          String           @default("GOOD")
-  receivedBy         String
-  notes              String?
-  status             String           @default("PENDING_GRADING")
+  condition  String  @default("GOOD")
+  receivedBy String
+  notes      String?
+  status     String  @default("PENDING_GRADING")
 
-  createdAt          DateTime         @default(now())
-  updatedAt          DateTime         @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  trucks             CattleTruck[]
-  rfidTags           RfidTag[]
-  cattle             CattleInventory[]
+  trucks   CattleTruck[]
+  rfidTags RfidTag[]
+  cattle   CattleInventory[] @relation("ArrivalCattle")
+  Cattle   Cattle[]
 
   @@index([purchasingId])
   @@index([status])
@@ -691,17 +694,17 @@ model CattleTruck {
 // ─── RFID / Eartag ────────────────────────────────────────────────────────────
 
 model RfidTag {
-  id         String         @id @default(cuid())
-  rfidNo     String         @unique
+  id         String           @id @default(cuid())
+  rfidNo     String           @unique
   eartagNo   String?
   arrivalId  String?
-  arrival    CattleArrival? @relation(fields: [arrivalId], references: [id])
-  cattleId   String?        @unique
+  arrival    CattleArrival?   @relation(fields: [arrivalId], references: [id])
+  cattleId   String?          @unique
   cattle     CattleInventory? @relation(fields: [cattleId], references: [id])
-  scannedAt  DateTime       @default(now())
-  importedAt DateTime       @default(now())
+  scannedAt  DateTime         @default(now())
+  importedAt DateTime         @default(now())
   importedBy String?
-  status     String         @default("ACTIVE")
+  status     String           @default("ACTIVE")
   notes      String?
 
   @@index([rfidNo])
@@ -710,55 +713,47 @@ model RfidTag {
 }
 
 // ─── Cattle Batch (FIFO Stok Sapi) ───────────────────────────────────────────
-//
-// Diperbarui dari versi lama:
-//   - Ganti poId → purchasingId (konsisten dengan CattlePurchasing)
-//   - Tambah field: vendorName, noPO, headReserved, headSold, headDead,
-//     avgWeightReceived, avgWeightCurrent, totalWeightCurrent,
-//     hppAwalPerEkor, hppKumulatifPerEkor, totalHppKumulatif,
-//     priceUSD, exchangeRate, arrivedAt, depletedAt
-//   - Hapus: jenisSapi, gender (dipindah ke CattleInventory per ekor)
 
 model CattleBatch {
-  id                   String           @id @default(cuid())
-  batchNo              String           @unique
-  purchasingId         String
-  purchasing           CattlePurchasing @relation(fields: [purchasingId], references: [id])
-  warehouseId          String
-  warehouse            Warehouse        @relation(fields: [warehouseId], references: [id])
+  id           String           @id @default(cuid())
+  batchNo      String           @unique
+  purchasingId String
+  purchasing   CattlePurchasing @relation(fields: [purchasingId], references: [id])
+  warehouseId  String
+  warehouse    Warehouse        @relation(fields: [warehouseId], references: [id])
 
-  vendorName           String
-  noPO                 String
+  vendorName String
+  noPO       String
 
   // Kuantitas ekor
-  headInitial          Int              @default(0)
-  headRemaining        Int              @default(0)
-  headReserved         Int              @default(0)
-  headSold             Int              @default(0)
-  headDead             Int              @default(0)
+  headInitial   Int @default(0)
+  headRemaining Int @default(0)
+  headReserved  Int @default(0)
+  headSold      Int @default(0)
+  headDead      Int @default(0)
 
   // Bobot agregat
-  avgWeightReceived    Float            @default(0)
-  avgWeightCurrent     Float            @default(0)
-  totalWeightCurrent   Float            @default(0)
+  avgWeightReceived  Float @default(0)
+  avgWeightCurrent   Float @default(0)
+  totalWeightCurrent Float @default(0)
 
   // Finansial & HPP
-  hppAwalPerEkor       Float            @default(0)
-  hppKumulatifPerEkor  Float            @default(0)
-  totalHppKumulatif    Float            @default(0)
-  priceUSD             Float            @default(0)
-  exchangeRate         Float            @default(0)
+  hppAwalPerEkor      Float @default(0)
+  hppKumulatifPerEkor Float @default(0)
+  totalHppKumulatif   Float @default(0)
+  priceUSD            Float @default(0)
+  exchangeRate        Float @default(0)
 
-  status               String           @default("ACTIVE")
+  status String @default("ACTIVE")
 
-  arrivedAt            DateTime         @default(now())
-  depletedAt           DateTime?
-  createdAt            DateTime         @default(now())
-  updatedAt            DateTime         @updatedAt
+  arrivedAt  DateTime  @default(now())
+  depletedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
-  cattle               CattleInventory[]
-  overheads            CattleOverhead[]
-  deductions           CattleBatchDeduction[]
+  cattle     CattleInventory[]
+  overheads  CattleOverhead[]
+  deductions CattleBatchDeduction[]
 
   @@index([status])
   @@index([arrivedAt])
@@ -769,57 +764,57 @@ model CattleBatch {
 // ─── Cattle Inventory (Data per Ekor) ────────────────────────────────────────
 
 model CattleInventory {
-  id            String         @id @default(cuid())
+  id           String  @id @default(cuid())
+  rfidNo       String?
+  eartagNo     String? @unique
+  internalCode String?
 
-  // Identifikasi
-  rfidNo        String?
-  eartagNo      String?        @unique
-  internalCode  String?
+  arrivalId String
+  arrival   CattleArrival @relation("ArrivalCattle", fields: [arrivalId], references: [id])
 
-  arrivalId     String
-  arrival       CattleArrival  @relation(fields: [arrivalId], references: [id])
+  batchId String?
+  batch   CattleBatch? @relation(fields: [batchId], references: [id])
 
-  batchId       String?
-  batch         CattleBatch?   @relation(fields: [batchId], references: [id])
-
-  warehouseId   String?
-  warehouse     Warehouse?     @relation(fields: [warehouseId], references: [id])
+  warehouseId String?
+  warehouse   Warehouse? @relation(fields: [warehouseId], references: [id])
 
   // Info sapi
-  jenisKelamin  String         @default("JANTAN")
-  breed         String?
-  ageMonths     Int?
+  jenisKelamin String  @default("JANTAN")
+  breed        String?
+  ageMonths    Int?
 
-  // 4 Jenis Bobot
-  weightPurchase Float         @default(0)  // Bobot saat beli (kg)
-  weightReceived Float         @default(0)  // Bobot saat tiba di kandang (kg)
-  weightGrading  Float         @default(0)  // Bobot setelah grading (kg)
-  weightHarvest  Float         @default(0)  // Bobot saat panen/jual (kg)
-  weightCurrent  Float         @default(0)  // Bobot terkini (kg)
+  // Bobot
+  weightPurchase Float @default(0)
+  weightReceived Float @default(0)
+  weightGrading  Float @default(0)
+  weightHarvest  Float @default(0)
+  weightCurrent  Float @default(0)
 
-  // Susut per ekor
-  susutKg       Float          @default(0)
-  susutPct      Float          @default(0)
+  susutKg  Float @default(0)
+  susutPct Float @default(0)
 
-  // HPP per ekor
-  hppAwal       Float          @default(0)
-  hppKumulatif  Float          @default(0)
+  // HPP
+  hppAwal      Float @default(0)
+  hppKumulatif Float @default(0)
 
-  status        String         @default("QUARANTINE")
+  status         String       @default("QUARANTINE")
+  locationStatus CattleStatus @default(ARRIVAL) // ARRIVAL, IN_KANDANG, SOLD
 
-  masukKandangAt  DateTime     @default(now())
+  masukKandangAt  DateTime  @default(now())
   keluarKandangAt DateTime?
+  lastWeightDate  DateTime?
+  lastScanAt      DateTime?
 
-  notes         String?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  rfidTag       RfidTag?
-  overheads     CattleOverhead[]
+  rfidTag   RfidTag?
+  overheads CattleOverhead[]
 
   @@index([arrivalId])
   @@index([batchId])
-  @@index([status])
+  @@index([locationStatus])
   @@index([rfidNo])
 }
 
@@ -833,18 +828,17 @@ model CattleOverhead {
   cattle      CattleInventory? @relation(fields: [cattleId], references: [id])
   warehouseId String?
 
-  // Jenis: PAKAN | TENAGAKERJA | LISTRIK | AIR | KESEHATAN | LAINNYA
-  kategori    String
-  deskripsi   String
+  kategori  String
+  deskripsi String
 
-  biayaTotal  Float            @default(0)
-  headCount   Int              @default(1)
-  biayaPerEkor Float           @default(0)
+  biayaTotal   Float @default(0)
+  headCount    Int   @default(1)
+  biayaPerEkor Float @default(0)
 
-  periode     DateTime         @default(now())
+  periode     DateTime @default(now())
   dicatatOleh String
 
-  createdAt   DateTime         @default(now())
+  createdAt DateTime @default(now())
 
   @@index([batchId])
   @@index([periode])
@@ -858,7 +852,7 @@ model CattleBatchDeduction {
   batchId       String
   batch         CattleBatch @relation(fields: [batchId], references: [id])
   referenceId   String?
-  referenceType String?     // "SALES" | "TRANSFER" | "DEAD"
+  referenceType String? // "SALES" | "TRANSFER" | "DEAD"
   referenceNo   String?
   headDeducted  Int         @default(0)
   avgWeightKg   Float       @default(0)
@@ -870,6 +864,181 @@ model CattleBatchDeduction {
 
   @@index([batchId])
   @@index([referenceId])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CATTLE TRACKING (RFID Module - Extended)
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ─── Model Utama Sapi (Extended RFID Tracking) ─────────────────────────────
+model Cattle {
+  id             String       @id @default(cuid())
+  rfidNo         String       @unique
+  name           String?
+  weight         Float        @default(0)
+  status         CattleStatus @default(ARRIVAL)
+  lastWeightDate DateTime?
+  lastScanAt     DateTime?
+
+  // Bobot per tahap
+  weightBeli      Float?     // kg — bobot beli di Priok
+  weightTerima    Float?     // kg — bobot terima di lokasi
+  weightGrading   Float?     // kg — bobot grading
+  weightPanen     Float?     // kg — bobot panen
+  susutPct        Float?     // % susut (auto-kalkulasi TERIMA vs BELI)
+
+  // Harga beli
+  hargaBeliPerKg  Float?     // IDR per kg bobot beli
+  hargaBeliTotal  Float?     // IDR total = weightBeli × hargaBeliPerKg
+
+  // HPP (auto-kalkulasi dari CattleHPPComponent)
+  hppPerEkor      Float?     // IDR total HPP per ekor
+  hppPerKg        Float?     // IDR HPP per kg (basis weightTerima)
+
+  // Kesehatan & Vaksin
+  healthStatus    HealthStatus @default(SEHAT)
+  vaccinated      Boolean      @default(false)
+  lastVaccineDate DateTime?
+
+  // Catatan bebas
+  notes           String?
+
+  // Lokasi kandang
+  warehouseId String?
+  warehouse   Warehouse? @relation("CattleWarehouse", fields: [warehouseId], references: [id])
+
+  // Relasi ke arrival
+  arrivalId String?
+  arrival   CattleArrival? @relation(fields: [arrivalId], references: [id])
+
+  // Riwayat berat badan (legacy)
+  weightHistory CattleWeightHistory[]
+
+  // Relasi baru
+  weightRecords   CattleWeightRecord[]
+  vaccines        CattleVaccine[]
+  healthRecords   CattleHealthRecord[]
+  transfers       CattleTransfer[]
+  hppComponents   CattleHPPComponent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([rfidNo])
+  @@index([warehouseId])
+  @@index([status])
+  @@index([arrivalId])
+}
+
+// ─── Riwayat Berat Badan (Legacy) ──────────────────────────────────────────
+model CattleWeightHistory {
+  id         Int      @id @default(autoincrement())
+  cattleId   String
+  cattle     Cattle   @relation(fields: [cattleId], references: [id], onDelete: Cascade)
+  weight     Float
+  recordedAt DateTime @default(now())
+  recordedBy String?
+  note       String?
+  sourceFile String? // Nama file xlsx/csv asal
+
+  @@index([cattleId])
+  @@index([recordedAt])
+}
+
+// ─── Model: Bobot per Tahap ────────────────────────────────────────────────
+model CattleWeightRecord {
+  id          String     @id @default(cuid())
+  weightType  WeightType
+  weight      Float                          // kg
+  location    String?                        // mis: "Priok", "Kandang A"
+  recordedAt  DateTime   @default(now())
+  recordedBy  String?
+  note        String?
+
+  cattleId    String
+  cattle      Cattle     @relation(fields: [cattleId], references: [id], onDelete: Cascade)
+
+  @@index([cattleId])
+  @@index([cattleId, weightType])
+}
+
+// ─── Model: Vaksinasi ──────────────────────────────────────────────────────
+model CattleVaccine {
+  id             String    @id @default(cuid())
+  vaccineType    String                      // "ANTHRAX", "JEMBRANA", "SE", dll.
+  vaccineDate    DateTime
+  doseNumber     Int       @default(1)
+  nextDueDate    DateTime?
+  administeredBy String?
+  batchNo        String?                     // nomor batch vaksin
+  note           String?
+
+  cattleId       String
+  cattle         Cattle    @relation(fields: [cattleId], references: [id], onDelete: Cascade)
+
+  @@index([cattleId])
+}
+
+// ─── Model: Catatan Kesehatan ──────────────────────────────────────────────
+model CattleHealthRecord {
+  id           String       @id @default(cuid())
+  healthStatus HealthStatus
+  diagnosis    String?
+  treatment    String?
+  treatedBy    String?
+  recordedAt   DateTime     @default(now())
+  recoveredAt  DateTime?
+  note         String?
+
+  cattleId     String
+  cattle       Cattle       @relation(fields: [cattleId], references: [id], onDelete: Cascade)
+
+  @@index([cattleId])
+}
+
+// ─── Model: Riwayat Transfer Kandang ───────────────────────────────────────
+model CattleTransfer {
+  id              String     @id @default(cuid())
+  fromWarehouseId String?
+  toWarehouseId   String
+  transferredAt   DateTime   @default(now())
+  transferredBy   String?
+  reason          String?    // "Grading", "Penggemukan", "Karantina", dll.
+  note            String?
+
+  fromWarehouse   Warehouse? @relation("TransferFrom", fields: [fromWarehouseId], references: [id])
+  toWarehouse     Warehouse  @relation("TransferTo",   fields: [toWarehouseId],   references: [id])
+
+  cattleId        String
+  cattle          Cattle     @relation(fields: [cattleId], references: [id], onDelete: Cascade)
+
+  @@index([cattleId])
+  @@index([fromWarehouseId])
+  @@index([toWarehouseId])
+}
+
+// ─── Model: Komponen Biaya HPP ─────────────────────────────────────────────
+// Bisa per-ekor (cattleId diisi) atau per-batch (cattleId null, arrivalId diisi)
+model CattleHPPComponent {
+  id          String      @id @default(cuid())
+  category    HPPCategory
+  description String                         // mis: "Bongkar muat Priok"
+  amount      Float                          // total biaya (IDR)
+  isPerHead   Boolean     @default(false)    // true = amount sudah per ekor
+  headCount   Int?                           // jika batch, jumlah ekor
+  date        DateTime    @default(now())
+  recordedBy  String?
+  note        String?
+
+  // Per-ekor
+  cattleId    String?
+  cattle      Cattle?     @relation(fields: [cattleId], references: [id])
+
+  // Per-batch (linked ke CattleArrival)
+  arrivalId   String?
+
+  @@index([cattleId])
+  @@index([arrivalId])
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -887,7 +1056,7 @@ model staffs {
   phone       String?
   role        String
   designation String
-  image       String?  // URL foto profil staff
+  image       String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   User        User     @relation(fields: [id], references: [id], onDelete: Cascade)
@@ -934,6 +1103,7 @@ model Transaction {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
+
 
 // ═══════════════════════════════════════════════════════════════════════════
 // ENUMS
@@ -985,4 +1155,37 @@ enum CattlePOStatus {
   APPROVED
   RECEIVED
   CANCELLED
+}
+
+enum WeightType {
+  BELI      // Bobot beli di Priok (gross/nett per dokumen)
+  TERIMA    // Bobot terima di lokasi kandang (setelah perjalanan)
+  GRADING   // Bobot grading / seleksi
+  PANEN     // Bobot saat panen / siap jual
+}
+
+enum HealthStatus {
+  SEHAT
+  SAKIT
+  OBSERVASI
+  KARANTINA
+}
+
+enum HPPCategory {
+  HARGA_BELI     // Harga beli dasar sapi
+  LANDED_COST    // Bongkar muat, trucking, asuransi
+  KARANTINA      // Biaya karantina & vet entry
+  PAKAN          // Biaya pakan harian
+  TENAGA_KERJA   // Upah harian kandang
+  UTILITAS       // Listrik + air
+  OVERHEAD       // Administrasi, sewa, penyusutan
+  LAINNYA
+}
+
+enum CattleStatus {
+  ARRIVAL      // Baru tiba, belum ditempatkan
+  IN_KANDANG   // Aktif di kandang
+  GRADING      // Dalam proses grading/penilaian
+  KARANTINA    // Dalam karantina
+  SOLD         // Sudah terjual / keluar
 }

@@ -117,7 +117,7 @@ const CattleArrivalModal = ({
 
   const [trucks,       setTrucks]       = useState([{ ...EMPTY_TRUK }]);
   const [rfidFile,     setRfidFile]     = useState(null);
-  const [rfidPreview,  setRfidPreview]  = useState(null);  // { count, rows[] }
+  // const [rfidPreview,  setRfidPreview]  = useState(null);  // { count, rows[] }
   const [photoFile,    setPhotoFile]    = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
   const [form, setForm] = useState({
@@ -129,7 +129,7 @@ const CattleArrivalModal = ({
   useEffect(() => {
     if (arrival) {
       setTrucks([{ ...EMPTY_TRUK }]);
-      setRfidFile(null); setRfidPreview(null);
+      setRfidFile(null); //setRfidPreview(null);
       setPhotoFile(null); setPhotoPreview(null);
       fetch('/api/warehouse').then(r => r.ok ? r.json() : []).then(setWarehouses).catch(console.error);
     }
@@ -167,13 +167,13 @@ const CattleArrivalModal = ({
   };
 
   // ── Upload RFID XLS ────────────────────────────────────────────────────────
-  const handleRfid = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    setRfidFile(file);
-    // Preview jumlah baris di client (opsional — pakai SheetJS jika tersedia)
-    setRfidPreview({ name: file.name, size: (file.size / 1024).toFixed(1) });
-  };
+  // const handleRfid = async (e) => {
+  //   const file = e.target.files[0];
+  //   if (!file) return;
+  //   setRfidFile(file);
+  //   // Preview jumlah baris di client (opsional — pakai SheetJS jika tersedia)
+  //   setRfidPreview({ name: file.name, size: (file.size / 1024).toFixed(1) });
+  // };
 
   // ── Validasi ───────────────────────────────────────────────────────────────
   const isFormValid =
@@ -232,7 +232,7 @@ const CattleArrivalModal = ({
           </div>
 
           {/* ── Upload RFID XLS ───────────────────────────────────────────── */}
-          <div className="space-y-1.5">
+          {/* <div className="space-y-1.5">
             <label className="text-[10px] font-black text-indigo-600 uppercase tracking-widest flex justify-between ml-1 italic">
               <span className="flex items-center gap-1"><Wifi size={10} /> Upload File RFID / Eartag (XLS)</span>
               {rfidPreview && <span className="text-green-500 flex items-center gap-1"><CheckCircle2 size={11} /> READY</span>}
@@ -255,7 +255,7 @@ const CattleArrivalModal = ({
                 </div>
               )}
             </label>
-          </div>
+          </div> */}
 
           {/* ── Foto Surat Jalan ──────────────────────────────────────────── */}
           <div className="space-y-1.5">

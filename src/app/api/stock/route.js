@@ -19,15 +19,27 @@ async function getRequestBody(request) {
   return {};
 }
 
-export async function GET() {
+export async function GET(request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const warehouseId = searchParams.get('warehouseId');
+    const category    = searchParams.get('category');     // opsional filter kategori
+    const minStock    = searchParams.get('minStock');      // opsional: hanya yang stok > n
+
+    const where = {};
+    if (warehouseId) where.warehouseId = warehouseId;
+    if (category)    where.category    = { contains: category, mode: 'insensitive' };
+    if (minStock)    where.stock       = { gt: parseFloat(minStock) || 0 };
+
     const stocks = await prisma.stock.findMany({
-      orderBy: { updatedAt: 'desc' }
+      where,
+      orderBy: { updatedAt: 'desc' },
     });
+
     return NextResponse.json(stocks);
   } catch (error) {
-    console.error("GET_STOCK_ERROR:", error);
-    return NextResponse.json({ message: "Gagal mengambil data stok" }, { status: 500 });
+    console.error('GET_STOCK_ERROR:', error);
+    return NextResponse.json({ message: 'Gagal mengambil data stok' }, { status: 500 });
   }
 }
 

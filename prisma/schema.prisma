@@ -17,6 +17,7 @@ model Warehouse {
   name      String   @unique
   code      String?  @unique
   address   String?
+  capacity  Int?     // Kapasitas maksimal kandang (opsional)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -38,6 +39,13 @@ model Warehouse {
   // Transfer relations
   transfersFrom CattleTransfer[] @relation("TransferFrom")
   transfersTo   CattleTransfer[] @relation("TransferTo")
+
+  // ── Feeding & Ration Management ────────────────────────────────────────
+  feedingSchedules  FeedingSchedule[]    @relation("FeedingSchedules")
+  feedConsumptions  FeedConsumptionLog[] @relation("FeedConsumptionLogs")
+
+  // Cattle Sales
+  cattleSalesOrders SalesOrder[] @relation("CattleSalesWarehouse")
 
   @@index([name])
 }
@@ -484,6 +492,9 @@ model Contact {
   nik         String?          @unique
   penjualan   Penjualan[]
   quotations  SalesQuotation[]
+  
+  // Cattle sales relation
+  cattleSalesOrders SalesOrder[] @relation("CattleSalesCustomer")
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -924,6 +935,9 @@ model Cattle {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Cattle Sales relations
+  salesOrderItems SalesOrderItem[]
+
   @@index([rfidNo])
   @@index([warehouseId])
   @@index([status])
@@ -1042,6 +1056,230 @@ model CattleHPPComponent {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// CATTLE SALES & DISTRIBUTION
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ── Model 1: Sales Order Sapi ─────────────────────────────────────────────────
+model SalesOrder {
+  id               String         @id @default(cuid())
+  invoiceNo        String         @unique     // INV/SB/2026/XXXX
+  customerId       String?
+  customer         Contact?       @relation("CattleSalesCustomer", fields: [customerId], references: [id])
+
+  // Totals
+  totalEkor        Int            @default(0)
+  totalWeightKg    Float          @default(0)
+  pricePerKg       Float          @default(0)  // Base price per kg
+  subtotal         Float          @default(0)
+  discount         Float          @default(0)
+  discountPct      Float          @default(0)
+  taxPct           Float          @default(0)
+  taxAmount        Float          @default(0)
+  shippingCost     Float          @default(0)
+  totalAmount      Float          @default(0)
+
+  // Status (sama dengan PenjualanStatus flow)
+  status           String         @default("PENDING_SALES")
+
+  // Payment
+  paymentMethod    String?        @default("TRANSFER")
+  dueDate          DateTime?
+  paidAt           DateTime?
+
+  // Approval stamps (mirror Penjualan)
+  salesApprovedBy      String?
+  salesApprovedAt      DateTime?
+  adminApprovedBy      String?
+  adminApprovedAt      DateTime?
+  supervisorApprovedBy String?
+  supervisorApprovedAt DateTime?
+  managerApprovedBy    String?
+  managerApprovedAt    DateTime?
+  rejectedBy           String?
+  rejectedAt           DateTime?
+  rejectedNotes        String?
+
+  // Metadata
+  warehouseId      String?        // Kandang asal sapi dijual
+  warehouse        Warehouse?     @relation("CattleSalesWarehouse", fields: [warehouseId], references: [id])
+  notes            String?
+  deliveryAddress  String?
+  createdBy        String?
+  isCattleReleased Boolean        @default(false)  // true = status Cattle sudah SOLD
+
+  items            SalesOrderItem[]
+  delivery         DeliveryTracking?
+
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@index([status])
+  @@index([customerId])
+  @@index([warehouseId])
+  @@index([createdAt])
+}
+
+// ── Model 2: Detail Item / Sapi yang Dijual ───────────────────────────────────
+model SalesOrderItem {
+  id            String     @id @default(cuid())
+  salesOrderId  String
+  salesOrder    SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
+
+  // Relasi ke Cattle (via rfidNo / id)
+  cattleId      String?    // Cattle.id (cuid) — nullable untuk jaga-jaga jika RFID belum terdaftar
+  rfidNo        String     // RFID tag — primary identifier
+
+  // Data timbang keluar
+  finalWeightKg Float      @default(0)  // bobot timbang keluar (Bobot Panen)
+  hppPerEkor    Float      @default(0)  // snapshot HPP saat dijual
+  pricePerKg    Float      @default(0)  // harga jual per kg
+  subTotal      Float      @default(0)  // finalWeightKg × pricePerKg
+  marginPerEkor Float      @default(0)  // subTotal - hppPerEkor
+
+  // Info tambahan
+  breed         String?    // Jenis sapi
+  notes         String?
+
+  // Relasi ke Cattle
+  cattle        Cattle?    @relation(fields: [cattleId], references: [id])
+
+  @@index([salesOrderId])
+  @@index([cattleId])
+  @@index([rfidNo])
+}
+
+// ── Model 3: Delivery Tracking ────────────────────────────────────────────────
+model DeliveryTracking {
+  id               String         @id @default(cuid())
+  salesOrderId     String         @unique
+  salesOrder       SalesOrder     @relation(fields: [salesOrderId], references: [id])
+
+  suratJalanNo     String         @unique
+  driverName       String?
+  vehicleNo        String?
+  vehicleCapacity  Int?           // Kapasitas ekor
+  helperName       String?        // Kenek / asisten sopir
+
+  status           DeliveryStatus @default(PENDING)
+  departedAt       DateTime?
+  estimatedArrival DateTime?
+  arrivedAt        DateTime?
+
+  originAddress    String?        // Alamat kandang asal
+  destAddress      String?        // Alamat pembeli
+  notes            String?
+  receivedBy       String?        // Nama penerima di tujuan
+
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@index([status])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// FEEDING & RATION MANAGEMENT (v2)
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ── Model 1: Formula Ransum ───────────────────────────────────────────────────
+// Bahan baku direferensikan langsung ke Stock.name (itemName)
+model RationFormula {
+  id               String   @id @default(cuid())
+  name             String   @unique
+  description      String?
+  totalCostPerKg   Float    @default(0)   // Auto-kalkulasi dari RationIngredient
+  targetKgPerHead  Float?                 // Rekomendasi kg/ekor/sesi
+  isActive         Boolean  @default(true)
+  createdBy        String?
+
+  ingredients  RationIngredient[]
+  schedules    FeedingSchedule[]
+  consumptions FeedConsumptionLog[]
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// ── Model 2: Komposisi Bahan dalam Formula ────────────────────────────────────
+// itemName harus sama dengan Stock.name agar FIFO deduction bisa jalan
+model RationIngredient {
+  id              String        @id @default(cuid())
+  rationFormulaId String
+  formula         RationFormula @relation(fields: [rationFormulaId], references: [id], onDelete: Cascade)
+
+  // Referensi ke Stock — bukan FeedIngredient
+  itemName        String        // = Stock.name
+  warehouseId     String?       // Warehouse sumber stok (opsional, bisa override saat konsumsi)
+  unit            String        @default("KG")
+
+  qtyKgPerBatch   Float         // kg bahan ini untuk 1 "batch" formula
+  pctOfTotal      Float         @default(0) // Auto: qtyKgPerBatch / total * 100
+  priceSnapshot   Float         @default(0) // Snapshot Stock.price saat formula dibuat
+  costContribution Float        @default(0) // Auto: qtyKgPerBatch * priceSnapshot
+
+  @@unique([rationFormulaId, itemName]) // 1 item max 1x per formula
+  @@index([rationFormulaId])
+  @@index([itemName])
+}
+
+// ── Model 3: Jadwal Pemberian Pakan ──────────────────────────────────────────
+model FeedingSchedule {
+  id              String        @id @default(cuid())
+  time            String        // "07:00", "16:00"
+  label           String?       // "Pagi", "Sore"
+  daysOfWeek      String        @default("MON,TUE,WED,THU,FRI,SAT,SUN")
+  rationFormulaId String
+  formula         RationFormula @relation(fields: [rationFormulaId], references: [id])
+  warehouseId     String        // Kandang tujuan
+  warehouse       Warehouse     @relation("FeedingSchedules", fields: [warehouseId], references: [id])
+  targetKgPerHead Float?
+  headCount       Int?
+  totalKgTarget   Float?        // Auto: targetKgPerHead * headCount
+  status          FeedingStatus @default(SCHEDULED)
+  isActive        Boolean       @default(true)
+  completedAt     DateTime?
+  completedBy     String?
+  notes           String?
+
+  consumptions    FeedConsumptionLog[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([warehouseId])
+  @@index([status])
+}
+
+// ── Model 4: Log Konsumsi Pakan ───────────────────────────────────────────────
+model FeedConsumptionLog {
+  id              String         @id @default(cuid())
+  date            DateTime       @default(now())
+  warehouseId     String?
+  warehouse       Warehouse?     @relation("FeedConsumptionLogs", fields: [warehouseId], references: [id])
+  cattleId        String?
+  rationFormulaId String?
+  formula         RationFormula? @relation(fields: [rationFormulaId], references: [id])
+  scheduleId      String?
+  schedule        FeedingSchedule? @relation(fields: [scheduleId], references: [id])
+  amountGiven     Float
+  amountWasted    Float          @default(0)
+  amountConsumed  Float          @default(0)
+  headCount       Int?
+  kgPerHead       Float?
+  estimatedCost   Float?
+  deductionRef    String?        // referenceId di BatchDeduction untuk trace
+  isStockDeducted Boolean        @default(false)
+  createdBy       String
+  notes           String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([warehouseId])
+  @@index([date])
+  @@index([rationFormulaId])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // OTHER MODELS
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -1104,9 +1342,8 @@ model Transaction {
   updatedAt   DateTime @updatedAt
 }
 
-
 // ═══════════════════════════════════════════════════════════════════════════
-// ENUMS
+// ENUMS (Semua enum ditempatkan di paling bawah)
 // ═══════════════════════════════════════════════════════════════════════════
 
 enum PurchaseStatus {
@@ -1188,4 +1425,19 @@ enum CattleStatus {
   GRADING      // Dalam proses grading/penilaian
   KARANTINA    // Dalam karantina
   SOLD         // Sudah terjual / keluar
+}
+
+enum FeedingStatus {
+  SCHEDULED   // Terjadwal, belum dilaksanakan
+  IN_PROGRESS // Sedang berlangsung
+  COMPLETED   // Selesai & stok sudah dipotong
+  SKIPPED     // Dilewati (alasan dicatat di notes)
+}
+
+// ── Enum Delivery untuk Cattle Sales ─────────────────────────────────────────
+enum DeliveryStatus {
+  PENDING       // Belum berangkat
+  ON_DELIVERY   // Dalam perjalanan
+  DELIVERED     // Sudah diterima
+  CANCELLED
 }

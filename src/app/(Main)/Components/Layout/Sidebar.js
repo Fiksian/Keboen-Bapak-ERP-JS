@@ -7,7 +7,8 @@ import {
   LayoutDashboard, User, CheckSquare, Package,
   ShoppingCart, CloudSun, BarChart3, Settings, ChevronRight, PanelLeftClose,
   PanelLeftOpen, Warehouse, Clock, Store, User2, CircleDollarSign, X, Calendar,
-  Truck, FileCheck, ClipboardList, ChevronDown
+  Truck, FileCheck, ClipboardList, ChevronDown,
+  Leaf
 } from 'lucide-react';
 
 
@@ -19,6 +20,7 @@ const menuConfig = [
   { type: 'link', id: 'contacts',  name: 'Contacts',  icon: User2,           path: '/Contacts'  },
   { type: 'link', id: 'tasks',     name: 'Tasks',     icon: CheckSquare,     path: '/Tasks'     },
   { type: 'link', id: 'produksi',  name: 'Produksi',  icon: Settings,        path: '/Produksi'  },
+  { type: 'link', id: 'pakan',     name: 'Pakan',     icon: Leaf,            path: '/Pakan'     },
 
   {
     type:  'group',
@@ -45,10 +47,11 @@ const menuConfig = [
     ],
   },
 
-  { type: 'link', id: 'warehouse', name: 'Warehouse', icon: Package,           path: '/Stock'     },
-  { type: 'link', id: 'penjualan', name: 'Penjualan', icon: Store,             path: '/Penjualan' },
-  { type: 'link', id: 'finance',   name: 'Finance',   icon: CircleDollarSign,  path: '/Finance'   },
-  { type: 'link', id: 'history',   name: 'History',   icon: Calendar,          path: '/History'   },
+  { type: 'link', id: 'warehouse',      name: 'Warehouse',      icon: Package,           path: '/Stock'     },
+  { type: 'link', id: 'penjualan',      name: 'Penjualan',      icon: Store,             path: '/Penjualan' },
+  { type: 'link', id: 'penjualan_sapi', name: 'Penjualan Sapi', icon: Store,             path: '/PenjualanSapi' },
+  { type: 'link', id: 'finance',        name: 'Finance',        icon: CircleDollarSign,  path: '/Finance'   },
+  { type: 'link', id: 'history',        name: 'History',        icon: Calendar,          path: '/History'   },
 ];
 
 // ─── Sub-menu permission: group aktif jika setidaknya satu child bisa diakses ─

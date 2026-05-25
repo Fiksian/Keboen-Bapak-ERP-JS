@@ -215,7 +215,7 @@ const ApprovalModal = ({ sale, localSale, onClose, onApproved }) => {
     onApproved(optimistic, false /* belum final */);
 
     try {
-      const res  = await fetch(`/api/penjualan/${sale.dbId}/approve`, {
+      const res  = await fetch(`/api/sales/barang/${sale.dbId}/approve`, {
         method:  'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ stage, notes }),

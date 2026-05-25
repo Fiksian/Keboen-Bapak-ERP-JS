@@ -90,7 +90,7 @@ const SalesPage = () => {
       if (statusFilter !== 'ALL') params.set('status', statusFilter);
       if (dateFrom) params.set('from', dateFrom);
       if (dateTo)   params.set('to',   dateTo);
-      const res  = await fetch(`/api/penjualan?${params}`);
+      const res  = await fetch(`/api/sales/barang?${params}`);
       const data = await res.json();
       if (res.ok) setSalesData(data);
     } catch (err) {
@@ -145,7 +145,7 @@ const SalesPage = () => {
   const handleDelete = async (id) => {
     if (!confirm(`Hapus permanen transaksi ${id}?`)) return;
     try {
-      const res = await fetch(`/api/penjualan?id=${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/sales/barang?id=${id}`, { method: 'DELETE' });
       if (res.ok) {
         setSalesData(prev => prev.filter(item => item.id !== id));
         setActiveMenu(null);

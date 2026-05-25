@@ -492,7 +492,7 @@ const AddSalesModal = ({ isOpen, onClose, onRefresh }) => {
     if (!isValid) return;
     setLoading(true);
     try {
-      const res = await fetch('/api/penjualan', {
+      const res = await fetch('/api/sales/barang', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({

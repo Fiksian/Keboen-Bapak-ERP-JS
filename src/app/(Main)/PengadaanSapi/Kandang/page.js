@@ -1124,119 +1124,414 @@ const KandangCard = ({ warehouse, onOpen }) => {
   );
 };
 
-// ─── ImportModal (unchanged) ──────────────────────────────────
+// ─── ImportModal — v3 (multi-step: upload → preview → input berat → save) ───
 const ImportModal = ({ isOpen, onClose, warehouses, onSuccess }) => {
   const fileRef = useRef(null);
+
+  // ── Shared state ──────────────────────────────────────────
+  const [step,        setStep]        = useState(1); // 1 | 2
   const [file,        setFile]        = useState(null);
   const [warehouseId, setWarehouseId] = useState('');
   const [note,        setNote]        = useState('');
-  const [progress,    setProgress]    = useState(0);
-  const [status,      setStatus]      = useState('idle');
-  const [result,      setResult]      = useState(null);
-  const [errorMsg,    setErrorMsg]    = useState('');
 
+  // ── Step 1 state ──────────────────────────────────────────
+  const [uploading,   setUploading]   = useState(false);
+  const [uploadErr,   setUploadErr]   = useState('');
+
+  // ── Step 2 state ──────────────────────────────────────────
+  const [sessionId,   setSessionId]   = useState('');
+  const [rfidList,    setRfidList]    = useState([]); // [{ rfidNo, eartagNo, rowIndex }]
+  const [weights,     setWeights]     = useState({}); // { [rfidNo]: { weight: '', notes: '' } }
+  const [fillAll,     setFillAll]     = useState(''); // "isi semua" value
+  const [saving,      setSaving]      = useState(false);
+  const [saveErr,     setSaveErr]     = useState('');
+  const [result,      setResult]      = useState(null);
+  const [searchQ,     setSearchQ]     = useState('');
+
+  // ── Reset ─────────────────────────────────────────────────
   const reset = () => {
-    setFile(null); setWarehouseId(''); setNote('');
-    setProgress(0); setStatus('idle'); setResult(null); setErrorMsg('');
+    setStep(1); setFile(null); setWarehouseId(''); setNote('');
+    setUploading(false); setUploadErr('');
+    setSessionId(''); setRfidList([]); setWeights({});
+    setFillAll(''); setSaving(false); setSaveErr(''); setResult(null); setSearchQ('');
     if (fileRef.current) fileRef.current.value = '';
   };
   const handleClose = () => { reset(); onClose(); };
 
-  const handleSubmit = async () => {
+  // ── Step 1: Upload & parse preview ────────────────────────
+  const handlePreview = async () => {
     if (!file || !warehouseId) return;
-    setStatus('uploading'); setProgress(10);
+    setUploading(true); setUploadErr('');
     const fd = new FormData();
     fd.append('file', file);
     fd.append('warehouseId', warehouseId);
-    if (note.trim()) fd.append('note', note.trim());
-    const iv = setInterval(() => setProgress((p) => Math.min(p + 10, 85)), 300);
+    fd.append('isPreview', 'true');
     try {
       const res  = await fetch('/api/cattle/import-rfid', { method: 'POST', body: fd });
       const data = await res.json();
-      clearInterval(iv); setProgress(100);
-      if (res.ok) { setStatus('success'); setResult(data); onSuccess?.(); }
-      else        { setStatus('error');   setErrorMsg(data.message); }
-    } catch { clearInterval(iv); setStatus('error'); setErrorMsg('Gagal terhubung.'); }
+      if (!res.ok) { setUploadErr(data.message || 'Gagal memproses file.'); return; }
+      // Init per-ekor weights state (eartagNo pre-filled from file if available)
+      const initWeights = {};
+      for (const r of data.rfidList) initWeights[r.rfidNo] = { weight: '', notes: '', eartagNo: r.eartagNo || '' };
+      setRfidList(data.rfidList);
+      setWeights(initWeights);
+      setSessionId(data.sessionId);
+      setStep(2);
+    } catch { setUploadErr('Gagal terhubung ke server.'); }
+    finally  { setUploading(false); }
   };
 
+  // ── Step 2: Input berat helpers ───────────────────────────
+  const setWeight = (rfidNo, field, value) =>
+    setWeights((prev) => ({ ...prev, [rfidNo]: { ...prev[rfidNo], [field]: value } }));
+
+  const applyFillAll = () => {
+    if (!fillAll) return;
+    const v = parseFloat(fillAll);
+    if (isNaN(v) || v <= 0 || v > 1500) return;
+    setWeights((prev) => {
+      const next = { ...prev };
+      for (const k of Object.keys(next)) next[k] = { ...next[k], weight: fillAll };
+      return next;
+    });
+  };
+
+  const filledCount  = Object.values(weights).filter((w) => w.weight && parseFloat(w.weight) > 0).length;
+  const totalCount   = rfidList.length;
+  const allFilled    = filledCount === totalCount && totalCount > 0;
+
+  // Validation helper per row
+  const isValidWeight = (v) => {
+    const n = parseFloat(v);
+    return !isNaN(n) && n > 0 && n <= 1500;
+  };
+
+  // ── Step 2: Submit save ───────────────────────────────────
+  const handleSave = async () => {
+    // Client-side validation
+    const invalid = rfidList.filter((r) => !isValidWeight(weights[r.rfidNo]?.weight));
+    if (invalid.length) {
+      setSaveErr(`${invalid.length} RFID belum diisi berat yang valid (0.1–1500 kg).`);
+      return;
+    }
+    setSaving(true); setSaveErr('');
+    try {
+      const payload = {
+        sessionId,
+        warehouseId,
+        note: note.trim() || undefined,
+        weights: rfidList.map((r) => ({
+          rfidNo  : r.rfidNo,
+          weight  : parseFloat(weights[r.rfidNo].weight),
+          eartagNo: weights[r.rfidNo].eartagNo?.trim() || null,
+          notes   : weights[r.rfidNo].notes,
+        })),
+      };
+      const res  = await fetch('/api/cattle/import-rfid', {
+        method : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body   : JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) { setSaveErr(data.message || 'Gagal menyimpan.'); return; }
+      setResult(data);
+      onSuccess?.();
+    } catch { setSaveErr('Gagal terhubung ke server.'); }
+    finally  { setSaving(false); }
+  };
+
+  // Filtered list for step 2 search (eartagNo comes from editable weights state)
+  const filteredList = rfidList.filter((r) => {
+    if (!searchQ) return true;
+    const liveEartag = weights[r.rfidNo]?.eartagNo || r.eartagNo || '';
+    return r.rfidNo.includes(searchQ) || liveEartag.toLowerCase().includes(searchQ.toLowerCase());
+  });
+
   if (!isOpen) return null;
-  return (
+
+  // ── RESULT screen ─────────────────────────────────────────
+  if (result) return (
     <div className="fixed inset-0 z-[300] flex items-end sm:items-center justify-center p-0 sm:p-4">
       <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={handleClose} />
-      <div className="relative w-full sm:max-w-lg bg-white rounded-t-[32px] sm:rounded-[32px] shadow-2xl animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-300">
-        <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-[#8da070] rounded-xl text-white"><FileSpreadsheet size={18} /></div>
-            <div>
-              <h3 className="text-sm font-black text-slate-900 uppercase italic tracking-tight">Import RFID</h3>
-              <p className="text-[9px] text-[#8da070] font-bold uppercase tracking-widest">Upload .xlsx / .csv</p>
+      <div className="relative w-full sm:max-w-lg bg-white rounded-t-[32px] sm:rounded-[32px] shadow-2xl animate-in slide-in-from-bottom-4 duration-300 p-6 space-y-5">
+        <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
+          <div className="p-2.5 bg-[#8da070] rounded-xl text-white"><FileSpreadsheet size={18} /></div>
+          <div><h3 className="text-sm font-black text-slate-900 uppercase italic">Import Selesai</h3></div>
+          <button onClick={handleClose} className="ml-auto p-2 hover:bg-slate-100 rounded-xl"><X size={20} className="text-slate-400" /></button>
+        </div>
+        <div className="bg-green-50 border border-green-200 rounded-[20px] p-5 text-center space-y-3">
+          <CheckCircle2 size={40} className="text-green-500 mx-auto" />
+          <p className="font-black text-green-800 uppercase italic text-sm">{result.message}</p>
+          <div className="grid grid-cols-3 gap-2">
+            {[{l:'Total',v:result.total},{l:'Baru',v:result.created},{l:'Update',v:result.updated}].map((s,i)=>(
+              <div key={i} className="bg-white rounded-xl p-3 border border-green-100">
+                <p className="text-[8px] font-black text-green-500 uppercase">{s.l}</p>
+                <p className="text-xl font-black text-green-800">{s.v}</p>
+              </div>
+            ))}
+          </div>
+          {result.errors?.length > 0 && (
+            <div className="text-left bg-amber-50 border border-amber-200 rounded-xl p-3">
+              <p className="text-[9px] font-black text-amber-700 uppercase mb-1">Error ({result.errors.length}):</p>
+              {result.errors.slice(0,5).map((e,i)=>(
+                <p key={i} className="text-[9px] text-amber-600">{e.rfidNo}: {e.reason}</p>
+              ))}
+            </div>
+          )}
+        </div>
+        <button onClick={handleClose} className="w-full py-3.5 bg-[#8da070] text-white rounded-xl font-black text-xs uppercase tracking-widest">Tutup</button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="fixed inset-0 z-[300] flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={step === 1 ? handleClose : undefined} />
+      <div className={`relative w-full bg-white shadow-2xl animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-300 flex flex-col
+        ${step === 1 ? 'sm:max-w-lg rounded-t-[32px] sm:rounded-[32px]' : 'sm:max-w-3xl rounded-t-[32px] sm:rounded-[32px]'}
+        max-h-[92vh]`}>
+
+        {/* ── Header ── */}
+        <div className="p-5 border-b border-slate-100 flex items-center gap-3 shrink-0">
+          {step === 2 && (
+            <button onClick={() => setStep(1)} className="p-1.5 hover:bg-slate-100 rounded-xl mr-1">
+              <ChevronLeft size={18} className="text-slate-400" />
+            </button>
+          )}
+          <div className="p-2.5 bg-[#8da070] rounded-xl text-white"><FileSpreadsheet size={18} /></div>
+          <div className="flex-1 min-w-0">
+            <h3 className="text-sm font-black text-slate-900 uppercase italic tracking-tight">
+              {step === 1 ? 'Import RFID' : 'Input Berat per Ekor'}
+            </h3>
+            <div className="flex items-center gap-2 mt-0.5">
+              {[1, 2].map((s) => (
+                <div key={s} className="flex items-center gap-1">
+                  <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-black
+                    ${step >= s ? 'bg-[#8da070] text-white' : 'bg-slate-100 text-slate-400'}`}>{s}</div>
+                  {s < 2 && <div className={`w-8 h-0.5 ${step >= 2 ? 'bg-[#8da070]' : 'bg-slate-100'}`} />}
+                </div>
+              ))}
+              <span className="text-[8px] font-bold text-slate-400 uppercase ml-1">
+                {step === 1 ? 'Upload File' : `${filledCount}/${totalCount} terisi`}
+              </span>
             </div>
           </div>
-          <button onClick={handleClose} className="p-2 hover:bg-slate-100 rounded-xl"><X size={20} className="text-slate-400" /></button>
+          <button onClick={handleClose} className="p-2 hover:bg-slate-100 rounded-xl shrink-0">
+            <X size={20} className="text-slate-400" />
+          </button>
         </div>
-        <div className="p-6 space-y-5">
-          {status === 'success' && result && (
-            <div className="bg-green-50 border border-green-200 rounded-[20px] p-5 text-center space-y-3">
-              <CheckCircle2 size={36} className="text-green-500 mx-auto" />
-              <p className="font-black text-green-800 uppercase italic text-sm">{result.message}</p>
-              <div className="grid grid-cols-3 gap-2">
-                {[{ l:'Total',v:result.total},{l:'Baru',v:result.created},{l:'Update',v:result.updated}].map((s,i)=>(
-                  <div key={i} className="bg-white rounded-xl p-3 border border-green-100">
-                    <p className="text-[8px] font-black text-green-500 uppercase">{s.l}</p>
-                    <p className="text-xl font-black text-green-800">{s.v}</p>
+
+        {/* ══════════════════════════════════════════════════════
+            STEP 1: Upload + Pilih Kandang
+        ══════════════════════════════════════════════════════ */}
+        {step === 1 && (
+          <div className="p-6 space-y-4 overflow-y-auto">
+            {/* Drop zone */}
+            <div
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => { e.preventDefault(); setFile(e.dataTransfer.files[0]); }}
+              onClick={() => fileRef.current?.click()}
+              className={`border-2 border-dashed rounded-[20px] p-6 text-center cursor-pointer transition-all
+                ${file ? 'border-[#8da070] bg-[#8da070]/5' : 'border-slate-200 hover:border-[#8da070]/50'}`}>
+              <input ref={fileRef} type="file" accept=".xlsx,.csv,.xls" className="hidden"
+                onChange={(e) => setFile(e.target.files[0] || null)} />
+              {file ? (
+                <div className="flex items-center justify-center gap-3">
+                  <FileSpreadsheet size={20} className="text-[#8da070]" />
+                  <div className="text-left">
+                    <p className="text-xs font-black text-slate-800 truncate max-w-[200px]">{file.name}</p>
+                    <p className="text-[9px] text-slate-400">{(file.size / 1024).toFixed(1)} KB</p>
                   </div>
-                ))}
-              </div>
-              <button onClick={handleClose} className="w-full py-3 bg-[#8da070] text-white rounded-xl font-black text-xs uppercase">Tutup</button>
-            </div>
-          )}
-          {status === 'error' && (
-            <div className="bg-red-50 border border-red-200 rounded-[20px] p-5 space-y-3">
-              <div className="flex items-center gap-3"><AlertTriangle size={20} className="text-red-500 shrink-0" /><p className="text-sm font-black text-red-700 uppercase italic">Import Gagal</p></div>
-              <p className="text-[11px] text-red-600">{errorMsg}</p>
-              <button onClick={reset} className="px-4 py-2 bg-red-600 text-white rounded-xl font-black text-[10px] uppercase">Coba Lagi</button>
-            </div>
-          )}
-          {(status === 'idle' || status === 'uploading') && (
-            <>
-              <div onDragOver={(e)=>e.preventDefault()} onDrop={(e)=>{e.preventDefault();setFile(e.dataTransfer.files[0]);}}
-                onClick={()=>fileRef.current?.click()}
-                className={`border-2 border-dashed rounded-[20px] p-6 text-center cursor-pointer transition-all ${file?'border-[#8da070] bg-[#8da070]/5':'border-slate-200 hover:border-[#8da070]/50'}`}>
-                <input ref={fileRef} type="file" accept=".xlsx,.csv,.xls" className="hidden" onChange={(e)=>setFile(e.target.files[0]||null)} />
-                {file ? (
-                  <div className="flex items-center justify-center gap-3">
-                    <FileSpreadsheet size={20} className="text-[#8da070]" />
-                    <div className="text-left"><p className="text-xs font-black text-slate-800 truncate max-w-[200px]">{file.name}</p><p className="text-[9px] text-slate-400">{(file.size/1024).toFixed(1)} KB</p></div>
-                    <button onClick={(e)=>{e.stopPropagation();setFile(null);}} className="ml-auto p-1 text-red-400"><X size={14}/></button>
-                  </div>
-                ) : (
-                  <div className="space-y-2"><Upload size={28} className="mx-auto text-slate-300"/><p className="text-xs font-black text-slate-400 uppercase italic">Drop file atau klik</p><p className="text-[8px] text-slate-300">Kolom: RFID/EID + Weight/Berat</p></div>
-                )}
-              </div>
-              <div className="relative">
-                <select value={warehouseId} onChange={(e)=>setWarehouseId(e.target.value)}
-                  className="w-full appearance-none bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#8da070]/30">
-                  <option value="">-- Pilih Kandang Tujuan --</option>
-                  {warehouses.map((w)=><option key={w.id} value={w.id}>{w.name}{w.code?` (${w.code})`:''}</option>)}
-                </select>
-                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"/>
-              </div>
-              <input type="text" value={note} onChange={(e)=>setNote(e.target.value)} placeholder="Catatan batch (opsional)"
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#8da070]/30 placeholder:text-slate-300" />
-              {status==='uploading' && (
-                <div className="space-y-1.5">
-                  <div className="flex justify-between"><span className="text-[9px] font-black text-[#8da070] uppercase animate-pulse">Memproses...</span><span className="text-[9px] text-slate-400">{progress}%</span></div>
-                  <div className="h-2 bg-slate-100 rounded-full overflow-hidden"><div className="h-full bg-[#8da070] rounded-full transition-all duration-300" style={{width:`${progress}%`}}/></div>
+                  <button onClick={(e) => { e.stopPropagation(); setFile(null); }} className="ml-auto p-1 text-red-400">
+                    <X size={14} />
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Upload size={28} className="mx-auto text-slate-300" />
+                  <p className="text-xs font-black text-slate-400 uppercase italic">Drop file atau klik</p>
+                  <p className="text-[8px] text-slate-300">Kolom wajib: RFID/EID · Berat diisi manual di step berikutnya</p>
                 </div>
               )}
-              <button onClick={handleSubmit} disabled={!file||!warehouseId||status==='uploading'}
-                className={`w-full py-4 rounded-xl font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${
-                  !file||!warehouseId||status==='uploading'?'bg-slate-100 text-slate-300 cursor-not-allowed':'bg-slate-900 text-white hover:bg-[#8da070] active:scale-[0.98] shadow-xl'}`}>
-                {status==='uploading'?<><Loader2 size={14} className="animate-spin"/>Memproses...</>:<><Upload size={14}/>Proses Import</>}
-              </button>
-            </>
-          )}
-        </div>
+            </div>
+
+            {/* Warehouse */}
+            <div className="relative">
+              <select value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}
+                className="w-full appearance-none bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#8da070]/30">
+                <option value="">-- Pilih Kandang Tujuan --</option>
+                {warehouses.map((w) => (
+                  <option key={w.id} value={w.id}>{w.name}{w.code ? ` (${w.code})` : ''}</option>
+                ))}
+              </select>
+              <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            </div>
+
+            {/* Note */}
+            <input type="text" value={note} onChange={(e) => setNote(e.target.value)}
+              placeholder="Catatan batch (opsional)"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#8da070]/30 placeholder:text-slate-300" />
+
+            {/* Error */}
+            {uploadErr && (
+              <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl p-3">
+                <AlertTriangle size={14} className="text-red-500 shrink-0 mt-0.5" />
+                <p className="text-[11px] text-red-600">{uploadErr}</p>
+              </div>
+            )}
+
+            {/* Upload btn */}
+            <button onClick={handlePreview} disabled={!file || !warehouseId || uploading}
+              className={`w-full py-4 rounded-xl font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all
+                ${!file || !warehouseId || uploading
+                  ? 'bg-slate-100 text-slate-300 cursor-not-allowed'
+                  : 'bg-slate-900 text-white hover:bg-[#8da070] active:scale-[0.98] shadow-xl'}`}>
+              {uploading
+                ? <><Loader2 size={14} className="animate-spin" />Memproses file...</>
+                : <><ChevronRight size={14} />Lanjut — Input Berat</>}
+            </button>
+          </div>
+        )}
+
+        {/* ══════════════════════════════════════════════════════
+            STEP 2: Input berat per ekor
+        ══════════════════════════════════════════════════════ */}
+        {step === 2 && (
+          <>
+            {/* Toolbar */}
+            <div className="px-5 py-3 border-b border-slate-100 flex flex-wrap items-center gap-2 shrink-0">
+              {/* Progress */}
+              <div className="flex-1 min-w-[140px]">
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-[9px] font-black text-slate-500 uppercase">Terisi {filledCount}/{totalCount}</span>
+                  <span className="text-[9px] font-bold text-slate-400">{Math.round(filledCount/totalCount*100)||0}%</span>
+                </div>
+                <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-[#8da070] rounded-full transition-all duration-300"
+                    style={{ width: `${totalCount ? (filledCount/totalCount*100) : 0}%` }} />
+                </div>
+              </div>
+
+              {/* Search */}
+              <div className="relative">
+                <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-300" />
+                <input value={searchQ} onChange={(e) => setSearchQ(e.target.value)}
+                  placeholder="Cari RFID / Eartag..."
+                  className="pl-7 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[10px] font-medium text-slate-700 w-40 focus:outline-none focus:ring-1 focus:ring-[#8da070]/40" />
+              </div>
+
+              {/* Fill all */}
+              <div className="flex items-center gap-1">
+                <input type="number" value={fillAll} onChange={(e) => setFillAll(e.target.value)}
+                  placeholder="kg semua"
+                  className="w-20 px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[10px] font-medium text-slate-700 focus:outline-none focus:ring-1 focus:ring-[#8da070]/40 placeholder:text-slate-300" />
+                <button onClick={applyFillAll}
+                  className="px-2.5 py-1.5 bg-slate-800 text-white rounded-lg text-[9px] font-black uppercase whitespace-nowrap hover:bg-[#8da070] transition-colors">
+                  Isi Semua
+                </button>
+              </div>
+            </div>
+
+            {/* Table */}
+            <div className="overflow-auto flex-1 min-h-0">
+              <table className="w-full text-left border-collapse">
+                <thead className="sticky top-0 bg-slate-50 z-10">
+                  <tr>
+                    <th className="px-4 py-2.5 text-[8px] font-black text-slate-400 uppercase w-8">No</th>
+                    <th className="px-3 py-2.5 text-[8px] font-black text-slate-400 uppercase">RFID / EID</th>
+                    <th className="px-3 py-2.5 text-[8px] font-black text-slate-400 uppercase">Eartag <span className="text-[#8da070]">✎</span></th>
+                    <th className="px-3 py-2.5 text-[8px] font-black text-slate-400 uppercase w-32">Berat (kg) *</th>
+                    <th className="px-3 py-2.5 text-[8px] font-black text-slate-400 uppercase">Catatan</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredList.map((r, idx) => {
+                    const w   = weights[r.rfidNo] || { weight: '', notes: '', eartagNo: '' };
+                    const ok  = isValidWeight(w.weight);
+                    const err = w.weight && !ok;
+                    return (
+                      <tr key={r.rfidNo} className={`border-t border-slate-50 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'}`}>
+                        <td className="px-4 py-2 text-[9px] text-slate-300 font-bold">{r.rowIndex}</td>
+                        <td className="px-3 py-2">
+                          <span className="text-[10px] font-black text-slate-700 font-mono">{r.rfidNo}</span>
+                        </td>
+                        <td className="px-3 py-2">
+                          <input
+                            type="text"
+                            value={w.eartagNo}
+                            onChange={(e) => setWeight(r.rfidNo, 'eartagNo', e.target.value)}
+                            placeholder="Isi eartag..."
+                            className={`w-full px-2.5 py-1.5 rounded-lg border text-[10px] font-bold text-slate-700 focus:outline-none focus:ring-1 transition-colors placeholder:text-slate-200
+                              ${w.eartagNo ? 'border-[#8da070]/40 bg-[#8da070]/5 focus:ring-[#8da070]/40' : 'border-slate-200 bg-white focus:ring-[#8da070]/40'}`}
+                          />
+                        </td>
+                        <td className="px-3 py-2">
+                          <div className="relative">
+                            <input
+                              type="number" min="0.1" max="1500" step="0.1"
+                              value={w.weight}
+                              onChange={(e) => setWeight(r.rfidNo, 'weight', e.target.value)}
+                              placeholder="0.0"
+                              className={`w-full px-2.5 py-1.5 rounded-lg border text-[10px] font-bold text-slate-800 focus:outline-none focus:ring-1 transition-colors
+                                ${err
+                                  ? 'border-red-300 bg-red-50 focus:ring-red-400'
+                                  : ok
+                                  ? 'border-green-200 bg-green-50/60 focus:ring-green-400'
+                                  : 'border-slate-200 bg-white focus:ring-[#8da070]/40'}`}
+                            />
+                            {ok && <Check size={10} className="absolute right-2 top-1/2 -translate-y-1/2 text-green-500" />}
+                          </div>
+                        </td>
+                        <td className="px-3 py-2">
+                          <input
+                            type="text"
+                            value={w.notes}
+                            onChange={(e) => setWeight(r.rfidNo, 'notes', e.target.value)}
+                            placeholder="opsional"
+                            className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-[10px] text-slate-600 focus:outline-none focus:ring-1 focus:ring-[#8da070]/40 placeholder:text-slate-200"
+                          />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              {filteredList.length === 0 && (
+                <div className="py-10 text-center text-[10px] text-slate-300 font-bold uppercase">Tidak ada hasil untuk "{searchQ}"</div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t border-slate-100 space-y-3 shrink-0">
+              {saveErr && (
+                <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl p-3">
+                  <AlertTriangle size={13} className="text-red-500 shrink-0 mt-0.5" />
+                  <p className="text-[10px] text-red-600">{saveErr}</p>
+                </div>
+              )}
+              <div className="flex items-center gap-3">
+                <button onClick={() => { setStep(1); setSaveErr(''); }}
+                  className="px-5 py-3.5 bg-slate-100 text-slate-500 rounded-xl font-black text-[10px] uppercase hover:bg-slate-200 transition-colors">
+                  Kembali
+                </button>
+                <button onClick={handleSave} disabled={saving || !allFilled}
+                  className={`flex-1 py-3.5 rounded-xl font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all
+                    ${saving || !allFilled
+                      ? 'bg-slate-100 text-slate-300 cursor-not-allowed'
+                      : 'bg-slate-900 text-white hover:bg-[#8da070] active:scale-[0.98] shadow-xl'}`}>
+                  {saving
+                    ? <><Loader2 size={14} className="animate-spin" />Menyimpan...</>
+                    : <><CheckCircle2 size={14} />Simpan {totalCount} Ekor</>}
+                </button>
+              </div>
+              {!allFilled && (
+                <p className="text-center text-[8px] text-slate-300 font-bold uppercase">
+                  {totalCount - filledCount} ekor belum diisi berat
+                </p>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

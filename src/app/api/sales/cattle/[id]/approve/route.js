@@ -91,6 +91,26 @@ export async function PATCH(req, { params }) {
         select: { id: true, invoiceNo: true, status: true, rejectedBy: true, rejectedNotes: true },
       });
 
+      // ── Revert PENDING_SALE cattle → IN_KANDANG ─────────────────────────────
+      // Hanya revert yang masih PENDING_SALE (belum SOLD atau status lain)
+      const rfidList = order.items.map((i) => i.rfidNo).filter(Boolean);
+      const cattleIds = order.items.map((i) => i.cattleId).filter(Boolean);
+
+      if (cattleIds.length > 0) {
+        await prisma.cattle.updateMany({
+          where: { id: { in: cattleIds }, status: 'PENDING_SALE' },
+          data : { status: 'IN_KANDANG', weightPanen: null, updatedAt: now },
+        });
+      }
+      // Fallback: cari via rfidNo jika cattleId null di beberapa item
+      const missingIds = order.items.filter((i) => !i.cattleId).map((i) => i.rfidNo).filter(Boolean);
+      if (missingIds.length > 0) {
+        await prisma.cattle.updateMany({
+          where: { rfidNo: { in: missingIds }, status: 'PENDING_SALE' },
+          data : { status: 'IN_KANDANG', weightPanen: null, updatedAt: now },
+        });
+      }
+
       prisma.history.create({ data: {
         action: 'CATTLE_SALE_REJECTED', item: order.invoiceNo, category: 'Sales Sapi', type: 'MONEY',
         quantity: order.totalAmount, unit: 'IDR', user: approver, referenceId: order.id,
@@ -174,25 +194,26 @@ export async function PATCH(req, { params }) {
 
       const result = await prisma.$transaction(async (tx) => {
 
-        // a. Ambil cattleId dari items (bisa via rfidNo jika cattleId null)
+        // a. Kumpulkan cattleIds + update Cattle per-item → SOLD + weightPanen final
         const cattleIds = [];
+
+        // b. Update semua Cattle yang terlibat → SOLD + weightPanen final + keluar kandang
         for (const item of order.items) {
           let cid = item.cattleId;
           if (!cid && item.rfidNo) {
             const c = await tx.cattle.findFirst({ where: { rfidNo: item.rfidNo }, select: { id: true } });
             cid = c?.id || null;
           }
-          if (cid) cattleIds.push(cid);
-        }
+          if (!cid) continue;
 
-        // b. Update semua Cattle yang terlibat → SOLD + keluarkan dari kandang
-        if (cattleIds.length > 0) {
-          await tx.cattle.updateMany({
-            where: { id: { in: cattleIds } },
+          cattleIds.push(cid);
+          await tx.cattle.update({
+            where: { id: cid },
             data : {
-              status     : 'SOLD',
-              warehouseId: null,         // keluar dari kandang
-              updatedAt  : now,
+              status      : 'SOLD',
+              warehouseId : null,
+              weightPanen : item.finalWeightKg || undefined, // konfirmasi bobot panen final
+              updatedAt   : now,
             },
           });
         }

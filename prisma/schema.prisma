@@ -1424,6 +1424,7 @@ enum CattleStatus {
   IN_KANDANG   // Aktif di kandang
   GRADING      // Dalam proses grading/penilaian
   KARANTINA    // Dalam karantina
+  PENDING_SALE // Di-booking dalam Sales Order aktif (belum SOLD)
   SOLD         // Sudah terjual / keluar
 }
 

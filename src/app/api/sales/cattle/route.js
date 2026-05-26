@@ -194,6 +194,30 @@ export async function POST(req) {
       });
     });
 
+    // ── Lock cattle yang masuk order → PENDING_SALE + snapshot weightPanen ──
+    // Dilakukan di luar transaksi utama agar tidak blok terlalu lama.
+    // Gunakan upsert-safe: hanya update jika masih IN_KANDANG (hindari race condition).
+    const lockPromises = itemsData.map(async (it) => {
+      try {
+        // Cari cattle — via cattleId yg sudah di-enrich, atau via rfidNo
+        const cattleId = it.cattleId
+          || (await prisma.cattle.findFirst({ where: { rfidNo: it.rfidNo }, select: { id: true } }))?.id;
+        if (!cattleId) return;
+
+        await prisma.cattle.updateMany({
+          where: { id: cattleId, status: 'IN_KANDANG' }, // hanya lock jika masih bebas
+          data : {
+            status      : 'PENDING_SALE',
+            weightPanen : it.finalWeightKg, // snapshot bobot panen / timbang keluar
+            updatedAt   : new Date(),
+          },
+        });
+      } catch (e) {
+        console.error('CATTLE_LOCK_ERR:', it.rfidNo, e.message);
+      }
+    });
+    await Promise.allSettled(lockPromises);
+
     return NextResponse.json({
       message : `Invoice ${order.invoiceNo} berhasil dibuat.`,
       invoiceNo: order.invoiceNo,

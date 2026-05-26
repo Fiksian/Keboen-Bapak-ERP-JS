@@ -40,11 +40,12 @@ const resolveDate   = (c) => c?.lastScanAt ?? c?.lastWeightDate ?? null;
 
 // ─── Configs ──────────────────────────────────────────────────
 const STATUS_CFG = {
-  ARRIVAL   : { label: 'Arrival',    bg: 'bg-amber-50',  text: 'text-amber-700',  border: 'border-amber-200', dot: 'bg-amber-400'  },
-  IN_KANDANG: { label: 'In Kandang', bg: 'bg-green-50',  text: 'text-green-700',  border: 'border-green-200', dot: 'bg-green-400'  },
-  GRADING   : { label: 'Grading',    bg: 'bg-blue-50',   text: 'text-blue-700',   border: 'border-blue-200',  dot: 'bg-blue-400'   },
-  SOLD      : { label: 'Sold',       bg: 'bg-slate-50',  text: 'text-slate-500',  border: 'border-slate-200', dot: 'bg-slate-400'  },
-  KARANTINA : { label: 'Karantina',  bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200',dot: 'bg-purple-400' },
+  ARRIVAL     : { label: 'Arrival',       bg: 'bg-amber-50',   text: 'text-amber-700',  border: 'border-amber-200',  dot: 'bg-amber-400'  },
+  IN_KANDANG  : { label: 'In Kandang',    bg: 'bg-green-50',   text: 'text-green-700',  border: 'border-green-200',  dot: 'bg-green-400'  },
+  GRADING     : { label: 'Grading',       bg: 'bg-blue-50',    text: 'text-blue-700',   border: 'border-blue-200',   dot: 'bg-blue-400'   },
+  SOLD        : { label: 'Sold',          bg: 'bg-slate-50',   text: 'text-slate-500',  border: 'border-slate-200',  dot: 'bg-slate-400'  },
+  KARANTINA   : { label: 'Karantina',     bg: 'bg-purple-50',  text: 'text-purple-700', border: 'border-purple-200', dot: 'bg-purple-400' },
+  PENDING_SALE: { label: 'Pending Sale',  bg: 'bg-orange-50',  text: 'text-orange-700', border: 'border-orange-200', dot: 'bg-orange-400' },
 };
 
 const HEALTH_CFG = {
@@ -930,6 +931,7 @@ const CattleDetailModal = ({ warehouse, isOpen, onClose, warehouses }) => {
                   className="appearance-none bg-slate-50 border border-slate-200 rounded-xl pl-3 pr-7 py-2 text-[10px] font-black text-slate-600 focus:outline-none">
                   <option value="ALL">Semua</option>
                   <option value="IN_KANDANG">In Kandang</option>
+                  <option value="PENDING_SALE">Pending Sale</option>
                   <option value="ARRIVAL">Arrival</option>
                   <option value="GRADING">Grading</option>
                   <option value="KARANTINA">Karantina</option>
@@ -1547,7 +1549,7 @@ const KandangPage = () => {
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [selected,     setSelected]     = useState(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const [globalStats,  setGlobalStats]  = useState({ active: 0, total: 0, weight: 0, kandang: 0, healthIssues: 0 });
+  const [globalStats,  setGlobalStats]  = useState({ active: 0, total: 0, weight: 0, kandang: 0, healthIssues: 0, pendingSale: 0 });
 
   const isAuthorized = ['SuperAdmin','Admin','Supervisor','Staff'].includes(session?.user?.role);
 
@@ -1565,6 +1567,7 @@ const KandangPage = () => {
         weight      : active.reduce((s, c) => s + resolveWeight(c), 0),
         kandang     : data.length,
         healthIssues: active.filter((c) => c.healthStatus && c.healthStatus !== 'SEHAT').length,
+        pendingSale : active.filter((c) => c.status === 'PENDING_SALE').length,
       });
     } catch { console.error('KANDANG_FETCH'); }
     finally { setLoading(false); }
@@ -1599,13 +1602,13 @@ const KandangPage = () => {
         </div>
       </div>
 
-      {/* Stats — 5 kartu */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
         {[
           { l:'Total Kandang', v: globalStats.kandang,                                                    icon:<Warehouse size={18}/>,  color:'text-[#8da070]', bg:'bg-[#8da070]/10' },
           { l:'Sapi Aktif',    v: globalStats.active,   sub: globalStats.total>globalStats.active?`${globalStats.total} total`:null, icon:<Beef size={18}/>,     color:'text-blue-600',  bg:'bg-blue-50'      },
           { l:'Berat Aktif',   v: fmtKg(globalStats.weight),                                              icon:<Scale size={18}/>,     color:'text-amber-600', bg:'bg-amber-50'     },
           { l:'Avg / Ekor',    v: globalStats.active ? fmtKg(globalStats.weight/globalStats.active):'-',  icon:<TrendingUp size={18}/>, color:'text-purple-600',bg:'bg-purple-50'    },
+          { l:'Pending Sale',  v: globalStats.pendingSale, sub: globalStats.pendingSale>0?'di-booking sales':null, icon:<ArrowRight size={18}/>, color: globalStats.pendingSale>0?'text-orange-600':'text-slate-400', bg: globalStats.pendingSale>0?'bg-orange-50':'bg-slate-50' },
           { l:'Isu Kesehatan', v: globalStats.healthIssues, sub: globalStats.healthIssues>0?'perlu atensi':null,icon:<Heart size={18}/>,color:globalStats.healthIssues>0?'text-red-600':'text-slate-400',bg:globalStats.healthIssues>0?'bg-red-50':'bg-slate-50'},
         ].map((s, i) => (
           <div key={i} className="bg-white p-4 md:p-5 rounded-[24px] border border-gray-100 shadow-sm flex items-center gap-3 hover:scale-[1.02] transition-transform">

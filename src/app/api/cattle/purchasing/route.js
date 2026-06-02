@@ -1,6 +1,8 @@
 // app/api/cattle/purchasing/route.js
 //
-// GET    /api/cattle/purchasing?status=xxx     — list semua PO sapi
+// GET    /api/cattle/purchasing?status=xxx&status2=yyy     — list semua PO sapi
+//        Support multiple status: ?status=APPROVED&status=PARTIALLY_RECEIVED
+//        atau ?status[]=APPROVED&status[]=PARTIALLY_RECEIVED
 // POST   /api/cattle/purchasing                — buat PO baru (langsung atau dari DO)
 
 import { NextResponse }    from "next/server";
@@ -36,6 +38,27 @@ const calcHpp = ({
   return { hppPerKg: parseFloat(hppPerKg.toFixed(2)), hppPerEkor: parseFloat(hppPerEkor.toFixed(2)), hppTotal: parseFloat(hppTotal.toFixed(2)) };
 };
 
+// ─── Helper untuk parsing status ───────────────────────────────────────────────
+const parseStatusParam = (searchParams) => {
+  // Coba baca sebagai array (status[])
+  const statusArray = searchParams.getAll('status[]');
+  if (statusArray.length > 0) {
+    return statusArray;
+  }
+  
+  // Coba baca sebagai single value (status)
+  const singleStatus = searchParams.get('status');
+  if (singleStatus) {
+    // Jika mengandung koma, split menjadi array
+    if (singleStatus.includes(',')) {
+      return singleStatus.split(',').map(s => s.trim());
+    }
+    return [singleStatus];
+  }
+  
+  return null;
+};
+
 // ─── GET ──────────────────────────────────────────────────────────────────────
 export async function GET(request) {
   try {
@@ -43,12 +66,28 @@ export async function GET(request) {
     if (!session) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
     const { searchParams } = new URL(request.url);
-    const status = searchParams.get("status");
+    const statusValues = parseStatusParam(searchParams);
     const isReceived = searchParams.get("isReceived");
+    const includeFull = searchParams.get("includeFull") === 'true'; // ⭐ baru: parameter untuk include PO penuh
 
     const where = {};
-    if (status) where.status = status;
-    if (isReceived !== null) where.isReceived = isReceived === 'true';
+    
+    // Handle multiple status values
+    if (statusValues && statusValues.length > 0) {
+      // Validasi bahwa semua nilai adalah enum yang valid (termasuk RECEIVED)
+      const validStatuses = ['DRAFT', 'PENDING', 'APPROVED', 'PARTIALLY_RECEIVED', 'RECEIVED', 'CANCELLED'];
+      const filteredStatuses = statusValues.filter(s => validStatuses.includes(s));
+      
+      if (filteredStatuses.length === 1) {
+        where.status = filteredStatuses[0];
+      } else if (filteredStatuses.length > 1) {
+        where.status = { in: filteredStatuses };
+      }
+    }
+    
+    if (isReceived !== null) {
+      where.isReceived = isReceived === 'true';
+    }
 
     const orders = await prisma.cattlePurchasing.findMany({
       where,
@@ -77,7 +116,6 @@ export async function GET(request) {
             avgWeightReceived: true,
             susutPct: true,
             susutAlert: true,
-            // HAPUS: receivedAt tidak ada di schema, gunakan createdAt
             createdAt: true,
             status: true,
           },
@@ -127,6 +165,10 @@ export async function GET(request) {
       // Ambil STTB terbaru
       const latestSttb = order.sttbs?.[0];
 
+      // ⭐ Hitung sisa kuota
+      const sisaKuota = order.totalHeadOrdered - (order.headReceived || 0);
+      const isFull = sisaKuota <= 0;
+
       return {
         ...order,
         // Field untuk ArrivalModal / frontend
@@ -136,6 +178,8 @@ export async function GET(request) {
         totalHeadReceived,
         totalWeightReceived,
         isFullyReceived,
+        sisaKuota,      // ⭐ baru: sisa kuota
+        isFull,         // ⭐ baru: flag apakah PO sudah penuh
         // Status untuk frontend
         canReceive: order.status === 'APPROVED' && !order.isReceived && !isFullyReceived,
         canCreateSttb: order.status === 'APPROVED' && !order.isReceived && !latestSttb,
@@ -155,7 +199,13 @@ export async function GET(request) {
       };
     });
 
-    return NextResponse.json(transformedOrders);
+    // ⭐ Filter berdasarkan includeFull jika diperlukan
+    let filteredOrders = transformedOrders;
+    if (!includeFull) {
+      filteredOrders = transformedOrders.filter(order => !order.isFull);
+    }
+
+    return NextResponse.json(filteredOrders);
   } catch (err) {
     console.error("CATTLE_PO_GET:", err.message);
     return NextResponse.json({ message: err.message }, { status: 500 });
@@ -315,6 +365,37 @@ export async function POST(request) {
   } catch (err) {
     console.error("CATTLE_PO_POST:", err.message);
     if (err.code === "P2002") return NextResponse.json({ message: "Nomor PO duplikat. Coba lagi." }, { status: 409 });
+    return NextResponse.json({ message: err.message }, { status: 500 });
+  }
+}
+
+// ─── PATCH (untuk update status PO) ───────────────────────────────────────────
+export async function PATCH(request) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+
+    const body = await request.json();
+    const { id, status, headReceived, isReceived } = body;
+
+    if (!id) return NextResponse.json({ message: "ID PO wajib diisi." }, { status: 400 });
+
+    const updateData = {};
+    if (status) updateData.status = status;
+    if (headReceived !== undefined) updateData.headReceived = headReceived;
+    if (isReceived !== undefined) updateData.isReceived = isReceived;
+
+    const updated = await prisma.cattlePurchasing.update({
+      where: { id },
+      data: updateData,
+    });
+
+    return NextResponse.json({
+      message: `PO ${updated.noPO} berhasil diupdate.`,
+      data: updated,
+    });
+  } catch (err) {
+    console.error("CATTLE_PO_PATCH:", err.message);
     return NextResponse.json({ message: err.message }, { status: 500 });
   }
 }

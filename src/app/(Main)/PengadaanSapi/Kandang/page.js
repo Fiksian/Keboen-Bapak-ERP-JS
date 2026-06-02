@@ -1,12 +1,9 @@
-// /app/(Main)/PengadaanSapi/Kandang/page.js — v2
+// /app/(Main)/PengadaanSapi/Kandang/page.js — v4 (Dengan Override PO Penuh)
 // Keboen Bapak ERP
-// Fitur baru:
+// Fitur:
 //  • CattleProfileModal — per-sapi detail (klik baris di CattleDetailModal)
-//  • Tab Bobot     — 4 tipe (Beli, Terima, Grading, Panen) + kalkulasi susut
-//  • Tab Kesehatan — status + riwayat catatan kesehatan
-//  • Tab Vaksin    — daftar vaksin + form input baru
-//  • Tab HPP       — komponen biaya + kalkulasi HPP/ekor & HPP/kg
-//  • Tab Transfer  — pindah kandang + riwayat
+//  • Tab Bobot, Kesehatan, Vaksin, HPP, Transfer
+//  • Import RFID dengan pemilihan PO Sapi + validasi kuota + override PO penuh
 // ──────────────────────────────────────────────────────────────
 
 'use client';
@@ -21,6 +18,7 @@ import {
   DollarSign, Plus, ChevronLeft, BarChart3,
   ShieldCheck, Thermometer, Package, Truck,
   Zap, Users, MoreHorizontal, ArrowRight, Check,
+  Link, FileCheck,
 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 
@@ -118,7 +116,7 @@ const CattleProfileModal = ({ cattleId, isOpen, onClose, warehouses }) => {
   const [loading, setLoading] = useState(false);
   const [tab,     setTab]   = useState('bobot');
   const [saving,  setSaving] = useState(false);
-  const [msg,     setMsg]   = useState(null); // { type: 'ok'|'err', text }
+  const [msg,     setMsg]   = useState(null);
 
   const isAuthorized = ['SuperAdmin','Admin','Supervisor','Staff'].includes(session?.user?.role);
 
@@ -161,8 +159,6 @@ const CattleProfileModal = ({ cattleId, isOpen, onClose, warehouses }) => {
     <div className="fixed inset-0 z-[350] flex justify-end overflow-hidden">
       <div className="absolute inset-0 bg-slate-900/70 backdrop-blur-sm" onClick={onClose} />
       <div className="relative w-full sm:max-w-2xl bg-[#f8f9fa] h-full shadow-2xl animate-in slide-in-from-right duration-300 flex flex-col">
-
-        {/* ── Header ── */}
         <div className="p-5 md:p-6 bg-white border-b border-slate-100 shrink-0">
           <div className="flex items-start justify-between gap-3 mb-3">
             <div className="flex items-center gap-3 min-w-0">
@@ -194,7 +190,6 @@ const CattleProfileModal = ({ cattleId, isOpen, onClose, warehouses }) => {
             </button>
           </div>
 
-          {/* Kandang + quick weight row */}
           {data && (
             <div className="grid grid-cols-3 gap-2 mt-2">
               <div className="bg-slate-50 rounded-xl p-2.5">
@@ -212,7 +207,6 @@ const CattleProfileModal = ({ cattleId, isOpen, onClose, warehouses }) => {
             </div>
           )}
 
-          {/* Feedback */}
           {msg && (
             <div className={`mt-3 px-3 py-2 rounded-xl text-[10px] font-bold flex items-center gap-2 ${
               msg.type === 'ok' ? 'bg-green-50 text-green-700 border border-green-200'
@@ -223,7 +217,6 @@ const CattleProfileModal = ({ cattleId, isOpen, onClose, warehouses }) => {
             </div>
           )}
 
-          {/* Tabs */}
           <div className="flex gap-1 mt-3 bg-slate-50 p-1 rounded-xl">
             {TABS.map((t) => (
               <button key={t.key} onClick={() => { setTab(t.key); setMsg(null); }}
@@ -238,7 +231,6 @@ const CattleProfileModal = ({ cattleId, isOpen, onClose, warehouses }) => {
           </div>
         </div>
 
-        {/* ── Tab Content ── */}
         <div className="flex-1 overflow-y-auto p-4 md:p-6 custom-scrollbar">
           {loading ? (
             <div className="flex flex-col items-center justify-center py-20">
@@ -278,7 +270,6 @@ const TabBobot = ({ data, onPost, saving, isAuthorized }) => {
 
   return (
     <div className="space-y-5">
-      {/* 4 Weight cards */}
       <div className="grid grid-cols-2 gap-3">
         {weightTypes.map((type) => {
           const cfg = WEIGHT_CFG[type];
@@ -307,7 +298,6 @@ const TabBobot = ({ data, onPost, saving, isAuthorized }) => {
         })}
       </div>
 
-      {/* Susut analysis */}
       <div className={`rounded-[18px] p-4 border ${
         susut == null ? 'bg-slate-50 border-dashed border-slate-200'
         : susut > 8.5 ? 'bg-red-50 border-red-200'
@@ -344,7 +334,6 @@ const TabBobot = ({ data, onPost, saving, isAuthorized }) => {
         <p className="text-[7px] text-slate-400 mt-1">Toleransi: ≤8.0% normal · 8.0–8.5% warning · &gt;8.5% kritis</p>
       </div>
 
-      {/* History */}
       {data.weightRecords?.length > 0 && (
         <div>
           <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Riwayat Penimbangan</p>
@@ -366,7 +355,6 @@ const TabBobot = ({ data, onPost, saving, isAuthorized }) => {
         </div>
       )}
 
-      {/* Form input bobot */}
       {isAuthorized && (
         <div className="bg-white rounded-[18px] p-4 border border-slate-100 space-y-3">
           <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Input Bobot Baru</p>
@@ -406,19 +394,16 @@ const TabBobot = ({ data, onPost, saving, isAuthorized }) => {
 // ══════════════════════════════════════════
 const TabKesehatan = ({ data, onPost, saving, isAuthorized }) => {
   const [form, setForm] = useState({ healthStatus: 'SEHAT', diagnosis: '', treatment: '', treatedBy: '', note: '' });
-
   const hCfg = HEALTH_CFG[data.healthStatus] ?? HEALTH_CFG.SEHAT;
 
   return (
     <div className="space-y-5">
-      {/* Current status */}
       <div className={`rounded-[18px] p-5 border ${hCfg.bg} ${hCfg.border}`}>
         <p className="text-[8px] font-black uppercase tracking-widest opacity-60 mb-1">Status Kesehatan Saat Ini</p>
         <p className={`text-2xl font-black uppercase italic tracking-tight ${hCfg.text}`}>{hCfg.label}</p>
         <p className="text-[9px] opacity-60 mt-1">Diperbarui: {fmtDateTime(data.updatedAt)}</p>
       </div>
 
-      {/* Health history */}
       {data.healthRecords?.length > 0 && (
         <div>
           <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Riwayat Kesehatan</p>
@@ -441,7 +426,6 @@ const TabKesehatan = ({ data, onPost, saving, isAuthorized }) => {
         </div>
       )}
 
-      {/* Form */}
       {isAuthorized && (
         <div className="bg-white rounded-[18px] p-4 border border-slate-100 space-y-3">
           <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Perbarui Catatan Kesehatan</p>
@@ -483,12 +467,11 @@ const TabVaksin = ({ data, onPost, saving, isAuthorized }) => {
     vaccineType: 'ANTHRAX', vaccineDate: '', doseNumber: '1', nextDueDate: '', administeredBy: '', batchNo: '', note: '',
   });
 
-  const today     = new Date();
-  const overdue   = (data.vaccines ?? []).filter((v) => v.nextDueDate && new Date(v.nextDueDate) < today);
+  const today = new Date();
+  const overdue = (data.vaccines ?? []).filter((v) => v.nextDueDate && new Date(v.nextDueDate) < today);
 
   return (
     <div className="space-y-5">
-      {/* Overdue alert */}
       {overdue.length > 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-[18px] p-4 flex items-start gap-3">
           <AlertTriangle size={16} className="text-amber-600 shrink-0 mt-0.5" />
@@ -499,7 +482,6 @@ const TabVaksin = ({ data, onPost, saving, isAuthorized }) => {
         </div>
       )}
 
-      {/* Status */}
       <div className="grid grid-cols-2 gap-3">
         <div className={`rounded-[18px] p-4 border ${data.vaccinated ? 'bg-teal-50 border-teal-200' : 'bg-slate-50 border-dashed border-slate-200'}`}>
           <p className="text-[8px] font-black uppercase tracking-widest text-slate-400 mb-1">Status Vaksin</p>
@@ -517,7 +499,6 @@ const TabVaksin = ({ data, onPost, saving, isAuthorized }) => {
         </div>
       </div>
 
-      {/* Vaccine list */}
       {data.vaccines?.length > 0 && (
         <div>
           <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Riwayat Vaksin</p>
@@ -550,7 +531,6 @@ const TabVaksin = ({ data, onPost, saving, isAuthorized }) => {
         </div>
       )}
 
-      {/* Form */}
       {isAuthorized && (
         <div className="bg-white rounded-[18px] p-4 border border-slate-100 space-y-3">
           <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Input Vaksin Baru</p>
@@ -605,9 +585,8 @@ const TabVaksin = ({ data, onPost, saving, isAuthorized }) => {
 const TabHPP = ({ data, onPost, saving, isAuthorized }) => {
   const [form, setForm] = useState({ category: 'PAKAN', description: '', amount: '', isPerHead: true, headCount: '', note: '' });
 
-  // Rekonstruksi breakdown dari data
   const components = data.hppComponents ?? [];
-  const perHead    = (c) => c.isPerHead ? c.amount : (c.headCount ? c.amount / c.headCount : c.amount);
+  const perHead = (c) => c.isPerHead ? c.amount : (c.headCount ? c.amount / c.headCount : c.amount);
 
   const grouped = {};
   for (const c of components) {
@@ -617,26 +596,21 @@ const TabHPP = ({ data, onPost, saving, isAuthorized }) => {
   }
 
   const totalComponents = components.reduce((s, c) => s + perHead(c), 0);
-  const baseHargaBeli   = data.hargaBeliTotal ?? 0;
-  const grandTotal      = baseHargaBeli + totalComponents;
-  const hppPerKg        = data.weightTerima ? grandTotal / data.weightTerima : null;
-
-  // Susut cost adjustment: HPP pakai weightTerima tapi bayar harga weightBeli
+  const baseHargaBeli = data.hargaBeliTotal ?? 0;
+  const grandTotal = baseHargaBeli + totalComponents;
+  const hppPerKg = data.weightTerima ? grandTotal / data.weightTerima : null;
   const susutCostAdj = data.weightBeli && data.weightTerima && data.hargaBeliPerKg
     ? (data.weightBeli - data.weightTerima) * data.hargaBeliPerKg
     : null;
 
   return (
     <div className="space-y-5">
-      {/* HPP summary */}
       <div className="bg-white rounded-[18px] p-5 border border-slate-100 space-y-3">
         <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Ringkasan HPP</p>
         <div className="space-y-2">
           <div className="flex items-center justify-between py-1.5 border-b border-slate-50">
             <span className="text-[11px] text-slate-600 font-bold">Harga Beli Base</span>
-            <span className="font-black text-slate-800 text-[11px]">
-              {data.hargaBeliTotal ? fmtRp(data.hargaBeliTotal) : '-'}
-            </span>
+            <span className="font-black text-slate-800 text-[11px]">{data.hargaBeliTotal ? fmtRp(data.hargaBeliTotal) : '-'}</span>
           </div>
           {data.hargaBeliPerKg && (
             <div className="flex items-center justify-between py-1.5 border-b border-slate-50">
@@ -676,7 +650,6 @@ const TabHPP = ({ data, onPost, saving, isAuthorized }) => {
         </div>
       </div>
 
-      {/* Komponen detail */}
       {components.length > 0 && (
         <div>
           <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Detail Komponen</p>
@@ -699,7 +672,6 @@ const TabHPP = ({ data, onPost, saving, isAuthorized }) => {
         </div>
       )}
 
-      {/* Form tambah komponen */}
       {isAuthorized && (
         <div className="bg-white rounded-[18px] p-4 border border-slate-100 space-y-3">
           <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Tambah Komponen Biaya</p>
@@ -755,7 +727,6 @@ const TabTransfer = ({ data, onPost, saving, isAuthorized, warehouses }) => {
 
   return (
     <div className="space-y-5">
-      {/* Current location */}
       <div className="bg-[#8da070]/10 rounded-[18px] p-4 border border-[#8da070]/20 flex items-center gap-3">
         <div className="p-2.5 bg-[#8da070] text-white rounded-xl"><Warehouse size={16} /></div>
         <div>
@@ -765,7 +736,6 @@ const TabTransfer = ({ data, onPost, saving, isAuthorized, warehouses }) => {
         </div>
       </div>
 
-      {/* Transfer history */}
       {data.transfers?.length > 0 && (
         <div>
           <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Riwayat Transfer</p>
@@ -788,7 +758,6 @@ const TabTransfer = ({ data, onPost, saving, isAuthorized, warehouses }) => {
         </div>
       )}
 
-      {/* Transfer form */}
       {isAuthorized && (
         <div className="bg-white rounded-[18px] p-4 border border-slate-100 space-y-3">
           <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Pindah ke Kandang Lain</p>
@@ -833,13 +802,12 @@ const TabTransfer = ({ data, onPost, saving, isAuthorized, warehouses }) => {
 
 // ═══════════════════════════════════════════════════════════════
 // CattleDetailModal — daftar sapi dalam satu kandang
-// Klik baris → CattleProfileModal
 // ═══════════════════════════════════════════════════════════════
 const CattleDetailModal = ({ warehouse, isOpen, onClose, warehouses }) => {
-  const [cattle,    setCattle]    = useState([]);
-  const [loading,   setLoading]   = useState(false);
-  const [search,    setSearch]    = useState('');
-  const [filter,    setFilter]    = useState('ALL');
+  const [cattle, setCattle] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState('ALL');
   const [profileId, setProfileId] = useState(null);
 
   useEffect(() => {
@@ -863,18 +831,16 @@ const CattleDetailModal = ({ warehouse, isOpen, onClose, warehouses }) => {
     );
   });
 
-  const activeWeight     = filtered.reduce((s, c) => s + resolveWeight(c), 0);
-  const totalAllStatus   = warehouse._count?.cattle ?? cattle.length;
-  const vaccinated       = cattle.filter((c) => c.vaccinated).length;
-  const healthIssues     = cattle.filter((c) => c.healthStatus && c.healthStatus !== 'SEHAT').length;
+  const activeWeight = filtered.reduce((s, c) => s + resolveWeight(c), 0);
+  const totalAllStatus = warehouse._count?.cattle ?? cattle.length;
+  const vaccinated = cattle.filter((c) => c.vaccinated).length;
+  const healthIssues = cattle.filter((c) => c.healthStatus && c.healthStatus !== 'SEHAT').length;
 
   return (
     <>
       <div className="fixed inset-0 z-[250] flex justify-end overflow-hidden">
         <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose} />
         <div className="relative w-full sm:max-w-2xl bg-[#f8f9fa] h-full shadow-2xl animate-in slide-in-from-right duration-400 flex flex-col">
-
-          {/* Header */}
           <div className="p-5 md:p-6 bg-white border-b border-slate-100 shrink-0">
             <div className="flex items-start justify-between gap-3 mb-4">
               <div className="flex items-center gap-3">
@@ -902,7 +868,6 @@ const CattleDetailModal = ({ warehouse, isOpen, onClose, warehouses }) => {
               </button>
             </div>
 
-            {/* Mini stats 5 kolom */}
             <div className="grid grid-cols-5 gap-2 mb-3">
               {[
                 { l: 'Total', v: totalAllStatus, bg: 'bg-slate-50' },
@@ -918,7 +883,6 @@ const CattleDetailModal = ({ warehouse, isOpen, onClose, warehouses }) => {
               ))}
             </div>
 
-            {/* Search + Filter */}
             <div className="flex gap-2">
               <div className="flex-1 relative">
                 <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300" />
@@ -942,7 +906,6 @@ const CattleDetailModal = ({ warehouse, isOpen, onClose, warehouses }) => {
             </div>
           </div>
 
-          {/* Cattle list */}
           <div className="flex-1 overflow-y-auto p-4 md:p-6 custom-scrollbar">
             {loading ? (
               <div className="flex flex-col items-center justify-center py-20">
@@ -963,20 +926,17 @@ const CattleDetailModal = ({ warehouse, isOpen, onClose, warehouses }) => {
 
                 {filtered.map((c) => {
                   const displayWeight = resolveWeight(c);
-                  const displayDate   = resolveDate(c);
-                  const hasIssue      = c.healthStatus && c.healthStatus !== 'SEHAT';
+                  const displayDate = resolveDate(c);
+                  const hasIssue = c.healthStatus && c.healthStatus !== 'SEHAT';
 
                   return (
-                    // Klik → CattleProfileModal
                     <div key={c.id} onClick={() => setProfileId(c.id)}
-                      className="bg-white rounded-[18px] p-4 border border-slate-100 flex items-center gap-3 hover:border-[#8da070]/30 hover:shadow-md transition-all group cursor-pointer active:scale-[0.99]"
-                    >
+                      className="bg-white rounded-[18px] p-4 border border-slate-100 flex items-center gap-3 hover:border-[#8da070]/30 hover:shadow-md transition-all group cursor-pointer active:scale-[0.99]">
                       <div className={`p-2 rounded-xl shrink-0 transition-all group-hover:scale-110 ${
                         hasIssue ? 'bg-red-50 text-red-500' : 'bg-[#8da070]/10 text-[#8da070] group-hover:bg-[#8da070] group-hover:text-white'
                       }`}>
                         <Wifi size={14} />
                       </div>
-
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-black text-slate-800 text-[11px] uppercase tracking-tight font-mono">{c.id}</span>
@@ -998,7 +958,6 @@ const CattleDetailModal = ({ warehouse, isOpen, onClose, warehouses }) => {
                           )}
                         </div>
                       </div>
-
                       <div className="text-right shrink-0 flex items-center gap-2">
                         <div>
                           <p className="text-base font-black text-slate-900">{fmtKg(displayWeight)}</p>
@@ -1016,14 +975,7 @@ const CattleDetailModal = ({ warehouse, isOpen, onClose, warehouses }) => {
           </div>
         </div>
       </div>
-
-      {/* CattleProfileModal stacks on top */}
-      <CattleProfileModal
-        cattleId={profileId}
-        isOpen={!!profileId}
-        onClose={() => setProfileId(null)}
-        warehouses={warehouses}
-      />
+      <CattleProfileModal cattleId={profileId} isOpen={!!profileId} onClose={() => setProfileId(null)} warehouses={warehouses} />
     </>
   );
 };
@@ -1033,24 +985,21 @@ const CattleDetailModal = ({ warehouse, isOpen, onClose, warehouses }) => {
 // ═══════════════════════════════════════════════════════════════
 const KandangCard = ({ warehouse, onOpen }) => {
   const activeCattle = warehouse.cattle ?? [];
-  const headCount    = activeCattle.length;
-  const totalCount   = warehouse._count?.cattle ?? headCount;
-  const soldCount    = Math.max(0, totalCount - headCount);
-  const totalWeight  = activeCattle.reduce((s, c) => s + resolveWeight(c), 0);
-  const avgWeight    = headCount > 0 ? totalWeight / headCount : 0;
-  const vaccinated   = activeCattle.filter((c) => c.vaccinated).length;
+  const headCount = activeCattle.length;
+  const totalCount = warehouse._count?.cattle ?? headCount;
+  const soldCount = Math.max(0, totalCount - headCount);
+  const totalWeight = activeCattle.reduce((s, c) => s + resolveWeight(c), 0);
+  const avgWeight = headCount > 0 ? totalWeight / headCount : 0;
+  const vaccinated = activeCattle.filter((c) => c.vaccinated).length;
   const healthIssues = activeCattle.filter((c) => c.healthStatus && c.healthStatus !== 'SEHAT').length;
 
-  const fillPct  = warehouse.capacity ? Math.min(100, Math.round((headCount / warehouse.capacity) * 100)) : null;
+  const fillPct = warehouse.capacity ? Math.min(100, Math.round((headCount / warehouse.capacity) * 100)) : null;
   const capColor = fillPct > 90 ? 'bg-red-400' : fillPct > 70 ? 'bg-amber-400' : 'bg-[#8da070]';
 
   return (
     <div onClick={() => onOpen(warehouse)}
-      className="bg-white p-5 rounded-[28px] border border-gray-50 shadow-sm cursor-pointer hover:border-[#8da070]/40 hover:shadow-2xl hover:shadow-[#8da070]/10 active:scale-[0.97] transition-all group relative overflow-hidden"
-    >
+      className="bg-white p-5 rounded-[28px] border border-gray-50 shadow-sm cursor-pointer hover:border-[#8da070]/40 hover:shadow-2xl hover:shadow-[#8da070]/10 active:scale-[0.97] transition-all group relative overflow-hidden">
       <div className="absolute -top-6 -right-6 w-24 h-24 bg-[#8da070]/5 rounded-full group-hover:scale-150 transition-transform duration-500" />
-
-      {/* Health alert badge */}
       {healthIssues > 0 && (
         <div className="absolute top-3 right-3 z-10">
           <span className="text-[8px] font-black px-2 py-0.5 rounded-full bg-red-100 text-red-600 border border-red-200">
@@ -1058,7 +1007,6 @@ const KandangCard = ({ warehouse, onOpen }) => {
           </span>
         </div>
       )}
-
       <div className="flex items-start justify-between mb-4 relative">
         <div className="flex items-center gap-3">
           <div className="p-2.5 bg-[#8da070] text-white rounded-xl shadow-lg shadow-[#8da070]/20 shrink-0 group-hover:rotate-[-5deg] transition-transform">
@@ -1076,7 +1024,6 @@ const KandangCard = ({ warehouse, onOpen }) => {
           <ChevronRight size={14} />
         </div>
       </div>
-
       <div className="grid grid-cols-2 gap-3 mb-3">
         <div className="bg-slate-50 rounded-2xl p-3">
           <p className="text-[8px] font-black text-slate-400 uppercase mb-1 flex items-center gap-1"><Beef size={8} /> Aktif</p>
@@ -1089,8 +1036,6 @@ const KandangCard = ({ warehouse, onOpen }) => {
           <p className="text-[8px] text-[#8da070]/50 font-bold mt-0.5">avg {fmtKg(avgWeight)}</p>
         </div>
       </div>
-
-      {/* Vaksin & health mini row */}
       {headCount > 0 && (
         <div className="flex items-center gap-2 mb-3">
           <span className="text-[8px] font-bold text-teal-600 bg-teal-50 border border-teal-100 px-2 py-0.5 rounded-lg flex items-center gap-1">
@@ -1103,7 +1048,6 @@ const KandangCard = ({ warehouse, onOpen }) => {
           )}
         </div>
       )}
-
       {fillPct !== null && (
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
@@ -1115,7 +1059,6 @@ const KandangCard = ({ warehouse, onOpen }) => {
           </div>
         </div>
       )}
-
       {headCount > 0 && (
         <div className="flex items-center gap-1.5 mt-3 pt-3 border-t border-slate-50">
           <Activity size={9} className="text-[#8da070] animate-pulse" />
@@ -1126,33 +1069,61 @@ const KandangCard = ({ warehouse, onOpen }) => {
   );
 };
 
-// ─── ImportModal — v3 (multi-step: upload → preview → input berat → save) ───
+// ═══════════════════════════════════════════════════════════════
+// ImportModal — v5 (Dengan Override PO Penuh)
+// ═══════════════════════════════════════════════════════════════
 const ImportModal = ({ isOpen, onClose, warehouses, onSuccess }) => {
   const fileRef = useRef(null);
 
   // ── Shared state ──────────────────────────────────────────
-  const [step,        setStep]        = useState(1); // 1 | 2
-  const [file,        setFile]        = useState(null);
+  const [step, setStep] = useState(1);
+  const [file, setFile] = useState(null);
   const [warehouseId, setWarehouseId] = useState('');
-  const [note,        setNote]        = useState('');
+  const [note, setNote] = useState('');
+  
+  // ⭐ State untuk integrasi PO
+  const [purchasingId, setPurchasingId] = useState('');
+  const [poList, setPoList] = useState([]);
+  const [loadingPO, setLoadingPO] = useState(false);
+  const [quotaInfo, setQuotaInfo] = useState(null);
+  
+  // ⭐ State untuk override PO penuh
+  const [forceOverride, setForceOverride] = useState(false);
 
   // ── Step 1 state ──────────────────────────────────────────
-  const [uploading,   setUploading]   = useState(false);
-  const [uploadErr,   setUploadErr]   = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [uploadErr, setUploadErr] = useState('');
 
   // ── Step 2 state ──────────────────────────────────────────
-  const [sessionId,   setSessionId]   = useState('');
-  const [rfidList,    setRfidList]    = useState([]); // [{ rfidNo, eartagNo, rowIndex }]
-  const [weights,     setWeights]     = useState({}); // { [rfidNo]: { weight: '', notes: '' } }
-  const [fillAll,     setFillAll]     = useState(''); // "isi semua" value
-  const [saving,      setSaving]      = useState(false);
-  const [saveErr,     setSaveErr]     = useState('');
-  const [result,      setResult]      = useState(null);
-  const [searchQ,     setSearchQ]     = useState('');
+  const [sessionId, setSessionId] = useState('');
+  const [rfidList, setRfidList] = useState([]);
+  const [weights, setWeights] = useState({});
+  const [fillAll, setFillAll] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saveErr, setSaveErr] = useState('');
+  const [result, setResult] = useState(null);
+  const [searchQ, setSearchQ] = useState('');
 
-  // ── Reset ─────────────────────────────────────────────────
+  // ⭐ Fetch daftar PO (termasuk RECEIVED) saat modal terbuka
+  useEffect(() => {
+    if (!isOpen) return;
+    setPurchasingId('');
+    setQuotaInfo(null);
+    setForceOverride(false);
+    setLoadingPO(true);
+    // Tambahkan RECEIVED ke query parameter
+    fetch('/api/cattle/purchasing?status=APPROVED,PARTIALLY_RECEIVED,RECEIVED&includeFull=true')
+      .then(r => r.json())
+      .then(data => {
+        setPoList(data);
+      })
+      .catch(console.error)
+      .finally(() => setLoadingPO(false));
+  }, [isOpen]);
+
   const reset = () => {
     setStep(1); setFile(null); setWarehouseId(''); setNote('');
+    setPurchasingId(''); setQuotaInfo(null); setForceOverride(false);
     setUploading(false); setUploadErr('');
     setSessionId(''); setRfidList([]); setWeights({});
     setFillAll(''); setSaving(false); setSaveErr(''); setResult(null); setSearchQ('');
@@ -1160,7 +1131,7 @@ const ImportModal = ({ isOpen, onClose, warehouses, onSuccess }) => {
   };
   const handleClose = () => { reset(); onClose(); };
 
-  // ── Step 1: Upload & parse preview ────────────────────────
+  // ── Step 1: Upload & parse preview ──
   const handlePreview = async () => {
     if (!file || !warehouseId) return;
     setUploading(true); setUploadErr('');
@@ -1168,22 +1139,25 @@ const ImportModal = ({ isOpen, onClose, warehouses, onSuccess }) => {
     fd.append('file', file);
     fd.append('warehouseId', warehouseId);
     fd.append('isPreview', 'true');
+    if (purchasingId) fd.append('purchasingId', purchasingId);
+
     try {
-      const res  = await fetch('/api/cattle/import-rfid', { method: 'POST', body: fd });
+      const res = await fetch('/api/cattle/import-rfid', { method: 'POST', body: fd });
       const data = await res.json();
       if (!res.ok) { setUploadErr(data.message || 'Gagal memproses file.'); return; }
-      // Init per-ekor weights state (eartagNo pre-filled from file if available)
+      
       const initWeights = {};
       for (const r of data.rfidList) initWeights[r.rfidNo] = { weight: '', notes: '', eartagNo: r.eartagNo || '' };
       setRfidList(data.rfidList);
       setWeights(initWeights);
       setSessionId(data.sessionId);
+      setQuotaInfo(data.quotaCheck);
+      setForceOverride(false); // Reset override saat preview baru
       setStep(2);
     } catch { setUploadErr('Gagal terhubung ke server.'); }
-    finally  { setUploading(false); }
+    finally { setUploading(false); }
   };
 
-  // ── Step 2: Input berat helpers ───────────────────────────
   const setWeight = (rfidNo, field, value) =>
     setWeights((prev) => ({ ...prev, [rfidNo]: { ...prev[rfidNo], [field]: value } }));
 
@@ -1198,24 +1172,25 @@ const ImportModal = ({ isOpen, onClose, warehouses, onSuccess }) => {
     });
   };
 
-  const filledCount  = Object.values(weights).filter((w) => w.weight && parseFloat(w.weight) > 0).length;
-  const totalCount   = rfidList.length;
-  const allFilled    = filledCount === totalCount && totalCount > 0;
+  const filledCount = Object.values(weights).filter((w) => w.weight && parseFloat(w.weight) > 0).length;
+  const totalCount = rfidList.length;
+  const allFilled = filledCount === totalCount && totalCount > 0;
+  const isValidWeight = (v) => { const n = parseFloat(v); return !isNaN(n) && n > 0 && n <= 1500; };
 
-  // Validation helper per row
-  const isValidWeight = (v) => {
-    const n = parseFloat(v);
-    return !isNaN(n) && n > 0 && n <= 1500;
-  };
-
-  // ── Step 2: Submit save ───────────────────────────────────
+  // ⭐ Handle save dengan override
   const handleSave = async () => {
-    // Client-side validation
     const invalid = rfidList.filter((r) => !isValidWeight(weights[r.rfidNo]?.weight));
     if (invalid.length) {
       setSaveErr(`${invalid.length} RFID belum diisi berat yang valid (0.1–1500 kg).`);
       return;
     }
+    
+    // Jika PO penuh dan belum di-override, minta konfirmasi
+    if (quotaInfo?.isFull && !forceOverride) {
+      setSaveErr('⚠️ PO sudah PENUH. Klik "Simpan Paksa" jika tetap ingin melanjutkan.');
+      return;
+    }
+    
     setSaving(true); setSaveErr('');
     try {
       const payload = {
@@ -1223,26 +1198,26 @@ const ImportModal = ({ isOpen, onClose, warehouses, onSuccess }) => {
         warehouseId,
         note: note.trim() || undefined,
         weights: rfidList.map((r) => ({
-          rfidNo  : r.rfidNo,
-          weight  : parseFloat(weights[r.rfidNo].weight),
+          rfidNo: r.rfidNo,
+          weight: parseFloat(weights[r.rfidNo].weight),
           eartagNo: weights[r.rfidNo].eartagNo?.trim() || null,
-          notes   : weights[r.rfidNo].notes,
+          notes: weights[r.rfidNo].notes,
         })),
+        forceOverride, // ⭐ Kirim flag override ke server
       };
-      const res  = await fetch('/api/cattle/import-rfid', {
-        method : 'POST',
+      const res = await fetch('/api/cattle/import-rfid', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body   : JSON.stringify(payload),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!res.ok) { setSaveErr(data.message || 'Gagal menyimpan.'); return; }
       setResult(data);
       onSuccess?.();
     } catch { setSaveErr('Gagal terhubung ke server.'); }
-    finally  { setSaving(false); }
+    finally { setSaving(false); }
   };
 
-  // Filtered list for step 2 search (eartagNo comes from editable weights state)
   const filteredList = rfidList.filter((r) => {
     if (!searchQ) return true;
     const liveEartag = weights[r.rfidNo]?.eartagNo || r.eartagNo || '';
@@ -1264,6 +1239,9 @@ const ImportModal = ({ isOpen, onClose, warehouses, onSuccess }) => {
         <div className="bg-green-50 border border-green-200 rounded-[20px] p-5 text-center space-y-3">
           <CheckCircle2 size={40} className="text-green-500 mx-auto" />
           <p className="font-black text-green-800 uppercase italic text-sm">{result.message}</p>
+          {result.warning && (
+            <p className="text-[10px] text-amber-600 bg-amber-50 p-2 rounded-lg">{result.warning}</p>
+          )}
           <div className="grid grid-cols-3 gap-2">
             {[{l:'Total',v:result.total},{l:'Baru',v:result.created},{l:'Update',v:result.updated}].map((s,i)=>(
               <div key={i} className="bg-white rounded-xl p-3 border border-green-100">
@@ -1324,11 +1302,10 @@ const ImportModal = ({ isOpen, onClose, warehouses, onSuccess }) => {
         </div>
 
         {/* ══════════════════════════════════════════════════════
-            STEP 1: Upload + Pilih Kandang
+            STEP 1: Upload + Pilih Kandang + Pilih PO
         ══════════════════════════════════════════════════════ */}
         {step === 1 && (
           <div className="p-6 space-y-4 overflow-y-auto">
-            {/* Drop zone */}
             <div
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => { e.preventDefault(); setFile(e.dataTransfer.files[0]); }}
@@ -1352,7 +1329,7 @@ const ImportModal = ({ isOpen, onClose, warehouses, onSuccess }) => {
                 <div className="space-y-2">
                   <Upload size={28} className="mx-auto text-slate-300" />
                   <p className="text-xs font-black text-slate-400 uppercase italic">Drop file atau klik</p>
-                  <p className="text-[8px] text-slate-300">Kolom wajib: RFID/EID · Berat diisi manual di step berikutnya</p>
+                  <p className="text-[8px] text-slate-300">Kolom wajib: RFID/EID</p>
                 </div>
               )}
             </div>
@@ -1369,12 +1346,32 @@ const ImportModal = ({ isOpen, onClose, warehouses, onSuccess }) => {
               <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
             </div>
 
-            {/* Note */}
+            {/* ⭐ Dropdown PO Sapi (termasuk yang sudah RECEIVED) */}
+            <div className="relative">
+              <select value={purchasingId} onChange={(e) => setPurchasingId(e.target.value)}
+                className="w-full appearance-none bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#8da070]/30">
+                <option value="">-- Pilih PO Sapi (Opsional) --</option>
+                {loadingPO && <option disabled>Memuat PO...</option>}
+                {poList.map(po => (
+                  <option key={po.id} value={po.id}>
+                    {po.noPO} - {po.vendorName} 
+                    {po.isFull 
+                      ? ` [PENUH - ${po.headReceived}/${po.totalHead} ekor]` 
+                      : ` (sisa ${po.sisaKuota} ekor)`}
+                    {po.status === 'RECEIVED' && ' ✓ RECEIVED'}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+                <Link size={12} />
+              </div>
+            </div>
+
             <input type="text" value={note} onChange={(e) => setNote(e.target.value)}
               placeholder="Catatan batch (opsional)"
               className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#8da070]/30 placeholder:text-slate-300" />
 
-            {/* Error */}
             {uploadErr && (
               <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl p-3">
                 <AlertTriangle size={14} className="text-red-500 shrink-0 mt-0.5" />
@@ -1382,7 +1379,6 @@ const ImportModal = ({ isOpen, onClose, warehouses, onSuccess }) => {
               </div>
             )}
 
-            {/* Upload btn */}
             <button onClick={handlePreview} disabled={!file || !warehouseId || uploading}
               className={`w-full py-4 rounded-xl font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all
                 ${!file || !warehouseId || uploading
@@ -1396,13 +1392,11 @@ const ImportModal = ({ isOpen, onClose, warehouses, onSuccess }) => {
         )}
 
         {/* ══════════════════════════════════════════════════════
-            STEP 2: Input berat per ekor
+            STEP 2: Input berat per ekor + tampilkan info kuota + override
         ══════════════════════════════════════════════════════ */}
         {step === 2 && (
           <>
-            {/* Toolbar */}
             <div className="px-5 py-3 border-b border-slate-100 flex flex-wrap items-center gap-2 shrink-0">
-              {/* Progress */}
               <div className="flex-1 min-w-[140px]">
                 <div className="flex justify-between items-center mb-1">
                   <span className="text-[9px] font-black text-slate-500 uppercase">Terisi {filledCount}/{totalCount}</span>
@@ -1413,16 +1407,12 @@ const ImportModal = ({ isOpen, onClose, warehouses, onSuccess }) => {
                     style={{ width: `${totalCount ? (filledCount/totalCount*100) : 0}%` }} />
                 </div>
               </div>
-
-              {/* Search */}
               <div className="relative">
                 <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-300" />
                 <input value={searchQ} onChange={(e) => setSearchQ(e.target.value)}
                   placeholder="Cari RFID / Eartag..."
                   className="pl-7 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[10px] font-medium text-slate-700 w-40 focus:outline-none focus:ring-1 focus:ring-[#8da070]/40" />
               </div>
-
-              {/* Fill all */}
               <div className="flex items-center gap-1">
                 <input type="number" value={fillAll} onChange={(e) => setFillAll(e.target.value)}
                   placeholder="kg semua"
@@ -1433,6 +1423,29 @@ const ImportModal = ({ isOpen, onClose, warehouses, onSuccess }) => {
                 </button>
               </div>
             </div>
+
+            {/* ⭐ Info kuota dengan styling untuk PO penuh */}
+            {quotaInfo && (
+              <div className={`mx-5 mt-3 p-3 rounded-xl text-[10px] font-bold flex items-start gap-2 ${
+                quotaInfo.isOver ? 'bg-red-50 text-red-700 border border-red-200' 
+                : quotaInfo.isFull ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                : 'bg-blue-50 text-blue-700 border border-blue-200'
+              }`}>
+                {quotaInfo.isOver ? <AlertTriangle size={14} /> 
+                 : quotaInfo.isFull ? <AlertTriangle size={14} />
+                 : <FileCheck size={14} />}
+                <div>
+                  <p>PO: {quotaInfo.poHead} ekor · Sudah diterima: {quotaInfo.received} ekor · Sisa kuota: {quotaInfo.sisaKuota} ekor</p>
+                  <p>Scan: {quotaInfo.scanned} ekor · 
+                    {quotaInfo.isOver 
+                      ? ` ⚠ Melebihi ${Math.abs(quotaInfo.selisih)} ekor!`
+                      : quotaInfo.isFull
+                      ? ` ⚠ PO sudah PENUH (${quotaInfo.received}/${quotaInfo.poHead}), import akan menambah ekor melebihi kuota.`
+                      : ` Sisa kuota setelah import: ${quotaInfo.selisih} ekor`}
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Table */}
             <div className="overflow-auto flex-1 min-h-0">
@@ -1448,8 +1461,8 @@ const ImportModal = ({ isOpen, onClose, warehouses, onSuccess }) => {
                 </thead>
                 <tbody>
                   {filteredList.map((r, idx) => {
-                    const w   = weights[r.rfidNo] || { weight: '', notes: '', eartagNo: '' };
-                    const ok  = isValidWeight(w.weight);
+                    const w = weights[r.rfidNo] || { weight: '', notes: '', eartagNo: '' };
+                    const ok = isValidWeight(w.weight);
                     const err = w.weight && !ok;
                     return (
                       <tr key={r.rfidNo} className={`border-t border-slate-50 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'}`}>
@@ -1458,40 +1471,28 @@ const ImportModal = ({ isOpen, onClose, warehouses, onSuccess }) => {
                           <span className="text-[10px] font-black text-slate-700 font-mono">{r.rfidNo}</span>
                         </td>
                         <td className="px-3 py-2">
-                          <input
-                            type="text"
-                            value={w.eartagNo}
+                          <input type="text" value={w.eartagNo}
                             onChange={(e) => setWeight(r.rfidNo, 'eartagNo', e.target.value)}
                             placeholder="Isi eartag..."
                             className={`w-full px-2.5 py-1.5 rounded-lg border text-[10px] font-bold text-slate-700 focus:outline-none focus:ring-1 transition-colors placeholder:text-slate-200
-                              ${w.eartagNo ? 'border-[#8da070]/40 bg-[#8da070]/5 focus:ring-[#8da070]/40' : 'border-slate-200 bg-white focus:ring-[#8da070]/40'}`}
-                          />
+                              ${w.eartagNo ? 'border-[#8da070]/40 bg-[#8da070]/5 focus:ring-[#8da070]/40' : 'border-slate-200 bg-white focus:ring-[#8da070]/40'}`} />
                         </td>
                         <td className="px-3 py-2">
                           <div className="relative">
-                            <input
-                              type="number" min="0.1" max="1500" step="0.1"
-                              value={w.weight}
-                              onChange={(e) => setWeight(r.rfidNo, 'weight', e.target.value)}
+                            <input type="number" min="0.1" max="1500" step="0.1"
+                              value={w.weight} onChange={(e) => setWeight(r.rfidNo, 'weight', e.target.value)}
                               placeholder="0.0"
                               className={`w-full px-2.5 py-1.5 rounded-lg border text-[10px] font-bold text-slate-800 focus:outline-none focus:ring-1 transition-colors
-                                ${err
-                                  ? 'border-red-300 bg-red-50 focus:ring-red-400'
-                                  : ok
-                                  ? 'border-green-200 bg-green-50/60 focus:ring-green-400'
-                                  : 'border-slate-200 bg-white focus:ring-[#8da070]/40'}`}
-                            />
+                                ${err ? 'border-red-300 bg-red-50 focus:ring-red-400'
+                                  : ok ? 'border-green-200 bg-green-50/60 focus:ring-green-400'
+                                  : 'border-slate-200 bg-white focus:ring-[#8da070]/40'}`} />
                             {ok && <Check size={10} className="absolute right-2 top-1/2 -translate-y-1/2 text-green-500" />}
                           </div>
                         </td>
                         <td className="px-3 py-2">
-                          <input
-                            type="text"
-                            value={w.notes}
-                            onChange={(e) => setWeight(r.rfidNo, 'notes', e.target.value)}
+                          <input type="text" value={w.notes} onChange={(e) => setWeight(r.rfidNo, 'notes', e.target.value)}
                             placeholder="opsional"
-                            className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-[10px] text-slate-600 focus:outline-none focus:ring-1 focus:ring-[#8da070]/40 placeholder:text-slate-200"
-                          />
+                            className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-[10px] text-slate-600 focus:outline-none focus:ring-1 focus:ring-[#8da070]/40 placeholder:text-slate-200" />
                         </td>
                       </tr>
                     );
@@ -1512,13 +1513,23 @@ const ImportModal = ({ isOpen, onClose, warehouses, onSuccess }) => {
                 </div>
               )}
               <div className="flex items-center gap-3">
-                <button onClick={() => { setStep(1); setSaveErr(''); }}
+                <button onClick={() => { setStep(1); setSaveErr(''); setForceOverride(false); }}
                   className="px-5 py-3.5 bg-slate-100 text-slate-500 rounded-xl font-black text-[10px] uppercase hover:bg-slate-200 transition-colors">
                   Kembali
                 </button>
-                <button onClick={handleSave} disabled={saving || !allFilled}
+                
+                {/* ⭐ Tombol Simpan Paksa untuk PO penuh */}
+                {quotaInfo?.isFull && !forceOverride && (
+                  <button onClick={() => setForceOverride(true)}
+                    className="px-5 py-3.5 bg-amber-500 text-white rounded-xl font-black text-[10px] uppercase hover:bg-amber-600 transition-all">
+                    ⚠️ Simpan Paksa (Override)
+                  </button>
+                )}
+                
+                <button onClick={handleSave} 
+                  disabled={saving || !allFilled || (quotaInfo?.isOver && !forceOverride)}
                   className={`flex-1 py-3.5 rounded-xl font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all
-                    ${saving || !allFilled
+                    ${saving || !allFilled || (quotaInfo?.isOver && !forceOverride)
                       ? 'bg-slate-100 text-slate-300 cursor-not-allowed'
                       : 'bg-slate-900 text-white hover:bg-[#8da070] active:scale-[0.98] shadow-xl'}`}>
                   {saving
@@ -1529,6 +1540,16 @@ const ImportModal = ({ isOpen, onClose, warehouses, onSuccess }) => {
               {!allFilled && (
                 <p className="text-center text-[8px] text-slate-300 font-bold uppercase">
                   {totalCount - filledCount} ekor belum diisi berat
+                </p>
+              )}
+              {quotaInfo?.isOver && !forceOverride && (
+                <p className="text-center text-[8px] text-red-500 font-bold uppercase">
+                  ⚠ Jumlah scan melebihi sisa kuota PO. Kurangi jumlah ekor atau pilih PO lain.
+                </p>
+              )}
+              {quotaInfo?.isFull && forceOverride && (
+                <p className="text-center text-[8px] text-amber-600 font-bold uppercase">
+                  ⚠ Mode Override aktif. Data akan disimpan meskipun PO sudah penuh.
                 </p>
               )}
             </div>
@@ -1544,12 +1565,12 @@ const ImportModal = ({ isOpen, onClose, warehouses, onSuccess }) => {
 // ═══════════════════════════════════════════════════════════════
 const KandangPage = () => {
   const { data: session } = useSession();
-  const [warehouses,   setWarehouses]   = useState([]);
-  const [loading,      setLoading]      = useState(true);
+  const [warehouses, setWarehouses] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [isImportOpen, setIsImportOpen] = useState(false);
-  const [selected,     setSelected]     = useState(null);
+  const [selected, setSelected] = useState(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const [globalStats,  setGlobalStats]  = useState({ active: 0, total: 0, weight: 0, kandang: 0, healthIssues: 0, pendingSale: 0 });
+  const [globalStats, setGlobalStats] = useState({ active: 0, total: 0, weight: 0, kandang: 0, healthIssues: 0, pendingSale: 0 });
 
   const isAuthorized = ['SuperAdmin','Admin','Supervisor','Staff'].includes(session?.user?.role);
 
@@ -1562,12 +1583,12 @@ const KandangPage = () => {
       setWarehouses(data);
       const active = data.flatMap((w) => w.cattle ?? []);
       setGlobalStats({
-        active      : active.length,
-        total       : data.reduce((s, w) => s + (w._count?.cattle ?? 0), 0),
-        weight      : active.reduce((s, c) => s + resolveWeight(c), 0),
-        kandang     : data.length,
+        active: active.length,
+        total: data.reduce((s, w) => s + (w._count?.cattle ?? 0), 0),
+        weight: active.reduce((s, c) => s + resolveWeight(c), 0),
+        kandang: data.length,
         healthIssues: active.filter((c) => c.healthStatus && c.healthStatus !== 'SEHAT').length,
-        pendingSale : active.filter((c) => c.status === 'PENDING_SALE').length,
+        pendingSale: active.filter((c) => c.status === 'PENDING_SALE').length,
       });
     } catch { console.error('KANDANG_FETCH'); }
     finally { setLoading(false); }
@@ -1577,8 +1598,6 @@ const KandangPage = () => {
 
   return (
     <div className="p-4 md:p-8 bg-[#f8f9fa] min-h-screen space-y-6 md:space-y-8 animate-in fade-in duration-500 pb-24 md:pb-8">
-
-      {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-black text-gray-900 uppercase italic tracking-tight leading-none">
@@ -1604,12 +1623,12 @@ const KandangPage = () => {
 
       <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
         {[
-          { l:'Total Kandang', v: globalStats.kandang,                                                    icon:<Warehouse size={18}/>,  color:'text-[#8da070]', bg:'bg-[#8da070]/10' },
-          { l:'Sapi Aktif',    v: globalStats.active,   sub: globalStats.total>globalStats.active?`${globalStats.total} total`:null, icon:<Beef size={18}/>,     color:'text-blue-600',  bg:'bg-blue-50'      },
-          { l:'Berat Aktif',   v: fmtKg(globalStats.weight),                                              icon:<Scale size={18}/>,     color:'text-amber-600', bg:'bg-amber-50'     },
-          { l:'Avg / Ekor',    v: globalStats.active ? fmtKg(globalStats.weight/globalStats.active):'-',  icon:<TrendingUp size={18}/>, color:'text-purple-600',bg:'bg-purple-50'    },
-          { l:'Pending Sale',  v: globalStats.pendingSale, sub: globalStats.pendingSale>0?'di-booking sales':null, icon:<ArrowRight size={18}/>, color: globalStats.pendingSale>0?'text-orange-600':'text-slate-400', bg: globalStats.pendingSale>0?'bg-orange-50':'bg-slate-50' },
-          { l:'Isu Kesehatan', v: globalStats.healthIssues, sub: globalStats.healthIssues>0?'perlu atensi':null,icon:<Heart size={18}/>,color:globalStats.healthIssues>0?'text-red-600':'text-slate-400',bg:globalStats.healthIssues>0?'bg-red-50':'bg-slate-50'},
+          { l:'Total Kandang', v: globalStats.kandang, icon:<Warehouse size={18}/>, color:'text-[#8da070]', bg:'bg-[#8da070]/10' },
+          { l:'Sapi Aktif', v: globalStats.active, sub: globalStats.total>globalStats.active?`${globalStats.total} total`:null, icon:<Beef size={18}/>, color:'text-blue-600', bg:'bg-blue-50' },
+          { l:'Berat Aktif', v: fmtKg(globalStats.weight), icon:<Scale size={18}/>, color:'text-amber-600', bg:'bg-amber-50' },
+          { l:'Avg / Ekor', v: globalStats.active ? fmtKg(globalStats.weight/globalStats.active):'-', icon:<TrendingUp size={18}/>, color:'text-purple-600', bg:'bg-purple-50' },
+          { l:'Pending Sale', v: globalStats.pendingSale, sub: globalStats.pendingSale>0?'di-booking sales':null, icon:<ArrowRight size={18}/>, color: globalStats.pendingSale>0?'text-orange-600':'text-slate-400', bg: globalStats.pendingSale>0?'bg-orange-50':'bg-slate-50' },
+          { l:'Isu Kesehatan', v: globalStats.healthIssues, sub: globalStats.healthIssues>0?'perlu atensi':null, icon:<Heart size={18}/>, color:globalStats.healthIssues>0?'text-red-600':'text-slate-400', bg:globalStats.healthIssues>0?'bg-red-50':'bg-slate-50'},
         ].map((s, i) => (
           <div key={i} className="bg-white p-4 md:p-5 rounded-[24px] border border-gray-100 shadow-sm flex items-center gap-3 hover:scale-[1.02] transition-transform">
             <div className={`${s.bg} ${s.color} p-3 rounded-xl shrink-0`}>{s.icon}</div>
@@ -1624,7 +1643,6 @@ const KandangPage = () => {
         ))}
       </div>
 
-      {/* Grid */}
       {loading && warehouses.length === 0 ? (
         <div className="h-72 flex flex-col items-center justify-center bg-white rounded-[32px] border border-gray-100">
           <Loader2 className="animate-spin text-[#8da070] mb-4" size={44} />

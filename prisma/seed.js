@@ -176,8 +176,8 @@ async function main() {
 
       for (const breed of breeds) {
         await tx.cattleBreed.upsert({
-          where: { id: breed.id },
-          update: { name: breed.name, description: breed.description },
+          where: { name: breed.name },
+          update: { description: breed.description },
           create: breed,
         });
       }

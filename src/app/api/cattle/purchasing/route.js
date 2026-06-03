@@ -68,13 +68,11 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const statusValues = parseStatusParam(searchParams);
     const isReceived = searchParams.get("isReceived");
-    const includeFull = searchParams.get("includeFull") === 'true'; // ⭐ baru: parameter untuk include PO penuh
+    const includeFull = searchParams.get("includeFull") === 'true';
 
     const where = {};
     
-    // Handle multiple status values
     if (statusValues && statusValues.length > 0) {
-      // Validasi bahwa semua nilai adalah enum yang valid (termasuk RECEIVED)
       const validStatuses = ['DRAFT', 'PENDING', 'APPROVED', 'PARTIALLY_RECEIVED', 'RECEIVED', 'CANCELLED'];
       const filteredStatuses = statusValues.filter(s => validStatuses.includes(s));
       
@@ -147,45 +145,28 @@ export async function GET(request) {
       orderBy: { createdAt: "desc" },
     });
 
-    // Transform data untuk kebutuhan frontend
     const transformedOrders = orders.map(order => {
-      // Hitung total head yang sudah diterima dari arrivals
       const totalHeadReceived = order.arrivals?.reduce((sum, a) => sum + (a.totalHeadArrived || 0), 0) || 0;
-      // Gunakan netWeightTotal untuk total berat yang diterima
       const totalWeightReceived = order.arrivals?.reduce((sum, a) => sum + (a.netWeightTotal || 0), 0) || 0;
-      
-      // Hitung rata-rata berat per ekor dari PO
-      const avgWeightKg = order.totalHeadOrdered > 0 
-        ? (order.totalWeightKg / order.totalHeadOrdered).toFixed(1) 
-        : 0;
-      
-      // Cek apakah PO sudah fully received
+      const avgWeightKg = order.totalHeadOrdered > 0 ? (order.totalWeightKg / order.totalHeadOrdered).toFixed(1) : 0;
       const isFullyReceived = totalHeadReceived >= order.totalHeadOrdered;
-      
-      // Ambil STTB terbaru
       const latestSttb = order.sttbs?.[0];
-
-      // ⭐ Hitung sisa kuota
       const sisaKuota = order.totalHeadOrdered - (order.headReceived || 0);
       const isFull = sisaKuota <= 0;
 
       return {
         ...order,
-        // Field untuk ArrivalModal / frontend
         avgWeightKg: parseFloat(avgWeightKg),
         headCount: order.totalHeadOrdered,
         hppAwalPerEkor: order.hppPerEkor,
         totalHeadReceived,
         totalWeightReceived,
         isFullyReceived,
-        sisaKuota,      // ⭐ baru: sisa kuota
-        isFull,         // ⭐ baru: flag apakah PO sudah penuh
-        // Status untuk frontend
+        sisaKuota,
+        isFull,
         canReceive: order.status === 'APPROVED' && !order.isReceived && !isFullyReceived,
         canCreateSttb: order.status === 'APPROVED' && !order.isReceived && !latestSttb,
-        // STTB Info
         latestSttb,
-        // Ambil data item pertama untuk preview (jika ada)
         firstItem: order.items?.[0] ? {
           id: order.items[0].id,
           jenisSapi: order.items[0].jenisSapi,
@@ -199,7 +180,6 @@ export async function GET(request) {
       };
     });
 
-    // ⭐ Filter berdasarkan includeFull jika diperlukan
     let filteredOrders = transformedOrders;
     if (!includeFull) {
       filteredOrders = transformedOrders.filter(order => !order.isFull);
@@ -230,14 +210,13 @@ export async function POST(request) {
     } = body;
 
     if (!vendorName) return NextResponse.json({ message: "Nama vendor wajib diisi." }, { status: 400 });
-    if (!items.length) return NextResponse.json({ message: "Minimal satu jenis sapi harus diisi." }, { status: 400 });
+    if (!items.length) return NextResponse.json({ message: "Minimal satu item harus diisi." }, { status: 400 });
 
-    // Validasi items
+    // Validasi items tanpa mewajibkan jenisSapi
     for (const it of items) {
-      if (!it.jenisSapi) return NextResponse.json({ message: "Jenis sapi wajib diisi." }, { status: 400 });
-      if (!(parseInt(it.headOrdered) > 0)) return NextResponse.json({ message: `Jumlah ekor "${it.jenisSapi}" harus > 0.` }, { status: 400 });
-      if (!(parseFloat(it.weightKg) > 0)) return NextResponse.json({ message: `Total bobot "${it.jenisSapi}" harus > 0.` }, { status: 400 });
-      if (!(parseFloat(it.pricePerKg) > 0)) return NextResponse.json({ message: `Harga/kg "${it.jenisSapi}" harus > 0.` }, { status: 400 });
+      if (!(parseInt(it.headOrdered) > 0)) return NextResponse.json({ message: `Jumlah ekor harus > 0.` }, { status: 400 });
+      if (!(parseFloat(it.weightKg) > 0)) return NextResponse.json({ message: `Total bobot harus > 0.` }, { status: 400 });
+      if (!(parseFloat(it.pricePerKg) > 0)) return NextResponse.json({ message: `Harga/kg harus > 0.` }, { status: 400 });
     }
 
     // Hitung agregat
@@ -292,11 +271,15 @@ export async function POST(request) {
         const pKg    = parseFloat(it.pricePerKg) || 0;
         const avgWt  = headO > 0 ? wt / headO : 0;
 
+        // Jika jenisSapi tidak disediakan, gunakan "-"
+        const jenisSapi = it.jenisSapi ? it.jenisSapi.toUpperCase() : "-";
+        const gender = it.gender || "CAMPUR";
+
         await tx.cattlePOItem.create({
           data: {
             purchasingId:   po.id,
-            jenisSapi:      it.jenisSapi.toUpperCase(),
-            gender:         it.gender  || "CAMPUR",
+            jenisSapi,
+            gender,
             headOrdered:    headO,
             weightKg:       wt,
             avgWeightKg:    avgWt,
@@ -319,7 +302,6 @@ export async function POST(request) {
             },
           });
           
-          // Update DO status
           const doItem = await tx.cattleDOItem.findUnique({ 
             where: { id: it.doItemId }, 
             select: { deliveryOrderId: true } 

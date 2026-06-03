@@ -90,14 +90,14 @@ export async function POST(request, { params }) {
         return NextResponse.json({ message: `Item ID "${entry.doItemId}" tidak ada dalam DO ini` }, { status: 400 });
       }
       if (!entry.vendorName?.trim()) {
-        return NextResponse.json({ message: `Vendor untuk ${doItem.jenisSapi} wajib diisi` }, { status: 400 });
+        return NextResponse.json({ message: `Vendor untuk item wajib diisi` }, { status: 400 });
       }
       if (!entry.pricePerKg || parseFloat(entry.pricePerKg) <= 0) {
-        return NextResponse.json({ message: `Harga untuk ${doItem.jenisSapi} harus lebih dari 0` }, { status: 400 });
+        return NextResponse.json({ message: `Harga harus lebih dari 0` }, { status: 400 });
       }
       const weightKg = parseFloat(entry.weightKg) || 0;
       if (weightKg <= 0) {
-        return NextResponse.json({ message: `Bobot untuk ${doItem.jenisSapi} harus lebih dari 0` }, { status: 400 });
+        return NextResponse.json({ message: `Bobot harus lebih dari 0` }, { status: 400 });
       }
     }
 
@@ -115,19 +115,21 @@ export async function POST(request, { params }) {
         const pricePerHeadUSD = entry.pricePerHeadUSD || 0;
 
         // Hitung HPP untuk PO ini
-        const totalHeadForPO = headOrdered;
-        const totalWeightForPO = weightKg;
         const hpp = calcHpp({
           pricePerKgIDR: pricePerKg,
-          totalWeightKg: totalWeightForPO,
+          totalWeightKg: weightKg,
           biayaBongkar: entry.biayaBongkar || 0,
           biayaTracking: entry.biayaTracking || 0,
           biayaKarantina: entry.biayaKarantina || 0,
           biayaLainLain: entry.biayaLainLain || 0,
-          totalHeadOrdered: totalHeadForPO,
+          totalHeadOrdered: headOrdered,
         });
 
         const noPO = await generateNoPO(tx);
+
+        // Jenis sapi dari DO item, jika kosong pakai "-"
+        const jenisSapi = doItem.jenisSapi?.trim() || "-";
+        const gender = doItem.gender || "CAMPUR";
 
         // Buat CattlePurchasing
         const po = await tx.cattlePurchasing.create({
@@ -162,8 +164,8 @@ export async function POST(request, { params }) {
             purchasingId: po.id,
             doItemId: doItem.id,
             breedId: doItem.breedId,
-            jenisSapi: doItem.jenisSapi,
-            gender: doItem.gender,
+            jenisSapi: jenisSapi,
+            gender: gender,
             headOrdered: headOrdered,
             weightKg: weightKg,
             avgWeightKg: avgWeightKg,

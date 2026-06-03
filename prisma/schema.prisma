@@ -893,6 +893,7 @@ model Cattle {
   id             String       @id @default(cuid())
   rfidNo         String       @unique
   name           String?
+  breed          String?
   weight         Float        @default(0)
   status         CattleStatus @default(ARRIVAL)
   lastWeightDate DateTime?

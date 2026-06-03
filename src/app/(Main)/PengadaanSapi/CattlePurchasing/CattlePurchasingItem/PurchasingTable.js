@@ -139,7 +139,6 @@ const CattlePurchasingTable = ({
                   )}
                 </th>
                 <th className="px-4 py-6 border-b border-gray-100">PO & Eksportir</th>
-                <th className="px-5 py-6 border-b border-gray-100">Detail Sapi</th>
                 <th className="px-5 py-6 border-b border-gray-100 text-center">Ekor & Bobot</th>
                 <th className="px-5 py-6 border-b border-gray-100 text-center">Harga & HPP</th>
                 <th className="px-5 py-6 border-b border-gray-100 text-center">Status</th>
@@ -152,10 +151,6 @@ const CattlePurchasingTable = ({
                 const headArrived   = po.arrivals?.reduce((s, a) => s + (a.totalHeadArrived||0), 0) || 0;
                 const isFirstGroup  = index === 0 || po.vendorName !== currentData[index - 1]?.vendorName;
                 const dateCreated   = new Date(po.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
-
-                // Ringkasan items
-                const breeds = [...new Set((po.items||[]).map(i => i.jenisSapi))].join(', ');
-                const genders = [...new Set((po.items||[]).map(i => i.gender).filter(Boolean))];
 
                 return (
                   <tr key={po.id}
@@ -202,43 +197,6 @@ const CattlePurchasingTable = ({
                         <span className="flex items-center gap-1 text-[9px] text-gray-400 font-bold">
                           <CalendarDays size={9} /> {dateCreated}
                         </span>
-                      </div>
-                    </td>
-
-                    {/* Detail Sapi */}
-                    <td className={`px-5 py-5 border-b border-gray-50 ${isFirstGroup ? 'pt-7' : 'pt-4'}`}>
-                      <div className="flex flex-col gap-1.5">
-                        <p className="font-black text-gray-900 uppercase text-[12px] tracking-tight group-hover:text-[#8da070] transition-colors truncate max-w-[160px]">
-                          {breeds || 'Mixed'}
-                        </p>
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          {genders.map(g => (
-                            <span key={g} className={`text-[8px] font-black px-2 py-0.5 rounded-lg border uppercase ${
-                              g === 'JANTAN' ? 'bg-blue-50 text-blue-600 border-blue-100' :
-                              g === 'BETINA' ? 'bg-pink-50 text-pink-600 border-pink-100' :
-                              'bg-gray-50 text-gray-500 border-gray-200'}`}>
-                              {g === 'JANTAN' ? '♂ Jantan' : g === 'BETINA' ? '♀ Betina' : '± Campur'}
-                            </span>
-                          ))}
-                        </div>
-                        {po.items?.length > 1 && (
-                          <span className="text-[8px] font-bold text-gray-400">{po.items.length} jenis sapi</span>
-                        )}
-                        {po.requestedBy && (
-                          <div className="flex items-center gap-1 text-[9px] text-gray-400 font-bold">
-                            <User size={9} className="text-blue-400" /> {po.requestedBy}
-                          </div>
-                        )}
-                        {(po.approvedBy) && (
-                          <div className="flex items-center gap-1 text-[9px] text-green-600 font-bold">
-                            <ShieldCheck size={9} /> {po.approvedBy}
-                          </div>
-                        )}
-                        {!po.approvedBy && po.status === 'PENDING' && (
-                          <div className="flex items-center gap-1 text-[9px] text-amber-500 font-bold animate-pulse">
-                            <Info size={9} /> Waiting approval
-                          </div>
-                        )}
                       </div>
                     </td>
 
@@ -341,7 +299,7 @@ const CattlePurchasingTable = ({
                 );
               }) : (
                 <tr>
-                  <td colSpan={7} className="p-32 text-center text-gray-300 font-black uppercase tracking-widest italic text-[10px]">
+                  <td colSpan={6} className="p-32 text-center text-gray-300 font-black uppercase tracking-widest italic text-[10px]">
                     Belum Ada Purchase Order Sapi
                   </td>
                 </tr>
@@ -353,7 +311,6 @@ const CattlePurchasingTable = ({
         {/* ── Mobile Cards ──────────────────────────────────────────────────────── */}
         <div className="md:hidden divide-y divide-gray-50">
           {currentData.length > 0 ? currentData.map(po => {
-            const breeds = [...new Set((po.items||[]).map(i => i.jenisSapi))].join(', ');
             return (
               <div key={po.id}
                 className={`p-5 space-y-4 transition-all ${selectedIds.includes(po.id) ? 'bg-[#8da070]/5' : 'active:bg-gray-50'}`}>
@@ -389,17 +346,11 @@ const CattlePurchasingTable = ({
                   </div>
                 </div>
 
-                {/* Row 2: breed + HPP */}
-                <div className="grid grid-cols-2 gap-2 text-[10px]">
-                  <div className="bg-gray-50 p-3 rounded-2xl">
-                    <p className="text-[8px] font-black text-gray-400 uppercase mb-0.5">Jenis Sapi</p>
-                    <p className="font-black text-gray-700 uppercase truncate">{breeds || '-'}</p>
-                  </div>
-                  <div className="bg-[#8da070]/10 p-3 rounded-2xl border border-[#8da070]/20">
-                    <p className="text-[8px] font-black text-[#8da070] uppercase mb-0.5">HPP / Ekor</p>
-                    <p className="font-black text-gray-800 italic">Rp {fmtRp(po.hppPerEkor)}</p>
-                    <p className="text-[8px] text-gray-400 mt-0.5">Total Rp {fmtRp(po.hppTotal)}</p>
-                  </div>
+                {/* Row 2: HPP */}
+                <div className="bg-[#8da070]/10 p-3 rounded-2xl border border-[#8da070]/20">
+                  <p className="text-[8px] font-black text-[#8da070] uppercase mb-0.5">HPP / Ekor</p>
+                  <p className="font-black text-gray-800 italic">Rp {fmtRp(po.hppPerEkor)}</p>
+                  <p className="text-[8px] text-gray-400 mt-0.5">Total Rp {fmtRp(po.hppTotal)}</p>
                 </div>
 
                 {/* Row 3: actions */}

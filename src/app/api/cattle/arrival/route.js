@@ -270,7 +270,7 @@ export async function GET(request) {
 
     const arrivals = await prisma.cattleArrival.findMany({
       include: {
-        po: {
+        purchasing: {  // ✅ Perbaikan: 'purchasing' bukan 'po'
           select: {
             noPO: true,
             vendorName: true,
@@ -279,6 +279,10 @@ export async function GET(request) {
             hppPerEkor: true,
           },
         },
+        warehouse: true,
+        trucks: true,
+        rfidTags: true,
+        cattle: true,
       },
       orderBy: { createdAt: "desc" },
     });

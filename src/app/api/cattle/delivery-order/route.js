@@ -36,7 +36,6 @@ export async function GET(request) {
           include: {
             breed: true,
             purchasingOrders: {
-              // HANYA include - jangan pakai select
               include: {
                 purchasing: {
                   select: {
@@ -76,27 +75,11 @@ export async function POST(request) {
     if (!items.length) return NextResponse.json({ message: "Minimal satu item harus diisi." }, { status: 400 });
     
     for (const it of items) {
-      if (!it.jenisSapi) return NextResponse.json({ message: "Jenis sapi wajib diisi." }, { status: 400 });
-      if (!(parseInt(it.headRequired) > 0)) return NextResponse.json({ message: `Jumlah ekor "${it.jenisSapi}" harus > 0.` }, { status: 400 });
+      // jenisSapi tidak wajib, jika tidak ada pakai "-"
+      if (!(parseInt(it.headRequired) > 0)) return NextResponse.json({ message: `Jumlah ekor harus > 0.` }, { status: 400 });
     }
 
     const result = await prisma.$transaction(async (tx) => {
-      // Validasi breedId
-      const breedIds = items.filter(it => it.breedId).map(it => it.breedId);
-      if (breedIds.length > 0) {
-        const existingBreeds = await tx.cattleBreed.findMany({
-          where: { id: { in: breedIds } },
-          select: { id: true }
-        });
-        
-        const existingBreedIds = new Set(existingBreeds.map(b => b.id));
-        const invalidBreeds = breedIds.filter(id => !existingBreedIds.has(id));
-        
-        if (invalidBreeds.length > 0) {
-          throw new Error(`Breed ID tidak valid: ${invalidBreeds.join(', ')}`);
-        }
-      }
-
       const doNo = await generateDONo(tx);
 
       const do_ = await tx.cattleDeliveryOrder.create({
@@ -115,12 +98,14 @@ export async function POST(request) {
         const wt      = parseFloat(it.weightRequiredKg) || 0;
         const harga   = parseFloat(it.estimasiHargaPerKg) || 0;
         const est     = wt * harga;
+        const jenisSapi = it.jenisSapi ? it.jenisSapi.toUpperCase() : "-";
+        const gender = it.gender || "CAMPUR";
 
         await tx.cattleDOItem.create({
           data: {
             deliveryOrderId:    do_.id,
-            jenisSapi:          it.jenisSapi.toUpperCase(),
-            gender:             it.gender || "CAMPUR",
+            jenisSapi,
+            gender,
             headRequired:       head,
             weightRequiredKg:   wt,
             estimasiHargaPerKg: harga,

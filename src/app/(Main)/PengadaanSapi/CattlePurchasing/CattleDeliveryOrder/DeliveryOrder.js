@@ -54,109 +54,21 @@ const FulfillmentBar = ({ headRequired, headOrdered }) => {
   );
 };
 
-// ─── Breed picker untuk form item ─────────────────────────────────────────────
-const BreedPicker = ({ value, onChange, breeds, placeholder = 'Pilih Jenis Sapi...' }) => {
-  const [open, setOpen] = useState(false);
-  const [q, setQ]       = useState('');
-  const ref             = useRef(null);
-
-  useEffect(() => {
-    const h = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-    document.addEventListener('mousedown', h);
-    return () => document.removeEventListener('mousedown', h);
-  }, []);
-
-  const filtered = useMemo(() =>
-    !q ? breeds.slice(0, 10) : breeds.filter(b => b.name.toLowerCase().includes(q.toLowerCase())),
-    [q, breeds]
-  );
-  const isValid = breeds.some(b => b.name.toUpperCase() === (value||'').toUpperCase());
-
-  return (
-    <div ref={ref} className="relative">
-      <div onClick={() => setOpen(o => !o)}
-        className={`flex items-center gap-2 w-full bg-white border rounded-xl px-3 py-2.5 cursor-pointer transition-all ${isValid ? 'border-[#8da070] bg-[#8da070]/5' : value ? 'border-amber-300' : 'border-gray-100 hover:border-[#8da070]/40'}`}>
-        <span className="text-sm shrink-0">🐄</span>
-        <span className={`flex-1 text-xs font-bold uppercase truncate ${isValid ? 'text-gray-800' : 'text-gray-400'}`}>
-          {value || placeholder}
-        </span>
-        {isValid && <CheckCircle2 size={11} className="text-[#8da070] shrink-0" />}
-      </div>
-      {open && (
-        <div className="absolute z-[400] left-0 right-0 mt-1 bg-white border border-gray-100 rounded-2xl shadow-2xl overflow-hidden max-h-[200px] flex flex-col">
-          <div className="p-2 border-b">
-            <div className="relative">
-              <Search size={11} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input autoFocus className="w-full pl-8 pr-3 py-2 bg-gray-50 rounded-xl text-xs font-bold text-gray-600 outline-none"
-                placeholder="Cari jenis sapi..." value={q} onChange={e => setQ(e.target.value)} />
-            </div>
-          </div>
-          <div className="overflow-y-auto">
-            {filtered.map(b => (
-              <div key={b.id || b.name} onClick={() => { onChange(b); setOpen(false); setQ(''); }}
-                className="px-4 py-3 border-b border-gray-50 hover:bg-[#8da070] hover:text-white cursor-pointer flex items-center gap-3 group transition-colors">
-                <span className="text-sm shrink-0">🐄</span>
-                <div>
-                  <p className="text-[10px] font-black uppercase">{b.name}</p>
-                  {b.description && <p className="text-[8px] opacity-60 italic">{b.description}</p>}
-                </div>
-              </div>
-            ))}
-            {q && !filtered.find(b => b.name.toUpperCase() === q.toUpperCase()) && (
-              <div onClick={() => { onChange({ id: null, name: q.toUpperCase() }); setOpen(false); setQ(''); }}
-                className="px-4 py-3 hover:bg-amber-500 hover:text-white cursor-pointer flex items-center gap-2 transition-colors">
-                <Plus size={12} className="text-amber-500" />
-                <p className="text-[10px] font-black uppercase">Tambah "{q.toUpperCase()}"</p>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-const GENDERS = [
-  { k: 'JANTAN', l: '♂ Jantan' },
-  { k: 'BETINA', l: '♀ Betina' },
-  { k: 'CAMPUR', l: '± Campur' },
-];
-
 // ─── AddDOModal ────────────────────────────────────────────────────────────────
 export const AddDOModal = ({ isOpen, onClose, onSuccess, editData = null }) => {
   const { data: session }   = useSession();
   const [loading,      setLoading]    = useState(false);
-  const [breeds,       setBreeds]     = useState([]);
   const [title,        setTitle]      = useState('');
   const [expectedDate, setExpectedDate] = useState('');
   const [doNotes,      setDoNotes]    = useState('');
 
   const EMPTY_ITEM = useCallback(() => ({
     id: Date.now() + Math.random(),
-    jenisSapi: '', breedId: null, gender: 'CAMPUR',
     headRequired: '', weightRequiredKg: '',
     estimasiHargaPerKg: '', notes: '',
   }), []);
 
   const [items, setItems] = useState([EMPTY_ITEM()]);
-
-  const FALLBACK_BREEDS = [
-    { id: 'lim', name: 'LIMOUSIN',  description: 'Sapi potong Prancis'        },
-    { id: 'sim', name: 'SIMENTAL',  description: 'Sapi Swiss'                 },
-    { id: 'bx',  name: 'BX',        description: 'Brahman Cross Australia'    },
-    { id: 'bra', name: 'BRAHMAN',   description: 'Sapi impor Amerika'         },
-    { id: 'ang', name: 'ANGUS',     description: 'Sapi premium Skotlandia'    },
-    { id: 'wag', name: 'WAGYU',     description: 'Sapi premium Jepang'        },
-    { id: 'ong', name: 'ONGOLE',    description: 'Sapi PO lokal'              },
-    { id: 'cam', name: 'CAMPURAN',  description: 'Campuran / Tidak ditentukan'},
-  ];
-
-  useEffect(() => {
-    if (!isOpen) return;
-    fetch('/api/cattle/breeds').then(r => r.ok ? r.json() : [])
-      .then(d => setBreeds(d.length ? d : FALLBACK_BREEDS))
-      .catch(() => setBreeds(FALLBACK_BREEDS));
-  }, [isOpen]);
 
   useEffect(() => {
     if (editData) {
@@ -164,8 +76,7 @@ export const AddDOModal = ({ isOpen, onClose, onSuccess, editData = null }) => {
       setExpectedDate(editData.expectedDate?.split('T')[0] || '');
       setDoNotes(editData.notes || '');
       setItems(editData.items?.map(i => ({
-        id: i.id, jenisSapi: i.jenisSapi, breedId: i.breedId || null,
-        gender: i.gender || 'CAMPUR',
+        id: i.id,
         headRequired: i.headRequired || '',
         weightRequiredKg: i.weightRequiredKg || '',
         estimasiHargaPerKg: i.estimasiHargaPerKg || '',
@@ -177,10 +88,6 @@ export const AddDOModal = ({ isOpen, onClose, onSuccess, editData = null }) => {
   const addItem    = () => setItems(p => [...p, EMPTY_ITEM()]);
   const removeItem = (id) => setItems(p => p.filter(i => i.id !== id));
   const updateItem = (id, field, val) => setItems(p => p.map(i => i.id === id ? { ...i, [field]: val } : i));
-
-  const selectBreed = (rowId, breed) => setItems(p => p.map(i =>
-    i.id === rowId ? { ...i, jenisSapi: breed.name, breedId: breed.id || null } : i
-  ));
 
   const totalEstimasi = useMemo(() =>
     items.reduce((s, i) => {
@@ -206,8 +113,6 @@ export const AddDOModal = ({ isOpen, onClose, onSuccess, editData = null }) => {
       const payload = {
         title, expectedDate: expectedDate || null, notes: doNotes,
         items: items.map(i => ({
-          jenisSapi: i.jenisSapi, breedId: i.breedId || null,
-          gender:    i.gender,
           headRequired:       parseInt(i.headRequired) || 0,
           weightRequiredKg:   parseFloat(i.weightRequiredKg) || 0,
           estimasiHargaPerKg: parseFloat(i.estimasiHargaPerKg) || 0,
@@ -223,7 +128,7 @@ export const AddDOModal = ({ isOpen, onClose, onSuccess, editData = null }) => {
     finally { setLoading(false); }
   };
 
-  const isValid = items.every(i => i.jenisSapi && parseInt(i.headRequired) > 0);
+  const isValid = items.every(i => parseInt(i.headRequired) > 0);
   if (!isOpen) return null;
 
   return (
@@ -290,7 +195,7 @@ export const AddDOModal = ({ isOpen, onClose, onSuccess, editData = null }) => {
               </label>
               <button type="button" onClick={addItem}
                 className="flex items-center gap-2 px-4 py-2 bg-[#8da070] text-white rounded-xl text-[10px] font-black uppercase shadow-md hover:bg-[#7a8c61] transition-all active:scale-95">
-                <Plus size={13} strokeWidth={3} /> Tambah Jenis
+                <Plus size={13} strokeWidth={3} /> Tambah Baris
               </button>
             </div>
 
@@ -307,31 +212,8 @@ export const AddDOModal = ({ isOpen, onClose, onSuccess, editData = null }) => {
 
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
 
-                    {/* Jenis Sapi */}
-                    <div className="md:col-span-3 space-y-1.5">
-                      <label className="text-[9px] font-black text-gray-400 uppercase">Jenis Sapi *</label>
-                      <BreedPicker value={row.jenisSapi} breeds={breeds} onChange={b => selectBreed(row.id, b)} />
-                    </div>
-
-                    {/* Gender */}
-                    <div className="md:col-span-2 space-y-1.5">
-                      <label className="text-[9px] font-black text-gray-400 uppercase">Gender</label>
-                      <div className="flex gap-1">
-                        {GENDERS.map(g => (
-                          <button type="button" key={g.k}
-                            onClick={() => updateItem(row.id, 'gender', g.k)}
-                            className={`flex-1 py-2.5 rounded-xl text-[8px] font-black border transition-all ${
-                              row.gender === g.k
-                                ? 'bg-[#8da070] text-white border-[#8da070] shadow-md'
-                                : 'bg-white text-gray-400 border-gray-100 hover:border-[#8da070]/40'}`}>
-                            {g.l.split(' ')[0]}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
                     {/* Ekor */}
-                    <div className="md:col-span-2 space-y-1.5">
+                    <div className="md:col-span-3 space-y-1.5">
                       <label className="text-[9px] font-black text-gray-400 uppercase flex items-center gap-1">
                         <Hash size={9} /> Ekor *
                       </label>
@@ -345,7 +227,7 @@ export const AddDOModal = ({ isOpen, onClose, onSuccess, editData = null }) => {
                     </div>
 
                     {/* Total Bobot Estimasi */}
-                    <div className="md:col-span-2 space-y-1.5">
+                    <div className="md:col-span-3 space-y-1.5">
                       <label className="text-[9px] font-black text-gray-400 uppercase flex items-center gap-1">
                         <Scale size={9} /> Bobot (Kg)
                       </label>
@@ -365,7 +247,7 @@ export const AddDOModal = ({ isOpen, onClose, onSuccess, editData = null }) => {
                     </div>
 
                     {/* Estimasi Harga/Kg */}
-                    <div className="md:col-span-3 space-y-1.5">
+                    <div className="md:col-span-4 space-y-1.5">
                       <label className="text-[9px] font-black text-[#8da070] uppercase flex items-center gap-1">
                         <DollarSign size={9} /> Est. Harga/Kg
                       </label>
@@ -376,14 +258,15 @@ export const AddDOModal = ({ isOpen, onClose, onSuccess, editData = null }) => {
                           value={row.estimasiHargaPerKg}
                           onChange={e => updateItem(row.id, 'estimasiHargaPerKg', e.target.value)} />
                       </div>
-                      {est > 0 && (
-                        <div className="bg-slate-900 rounded-xl px-2 py-1.5 flex justify-between">
-                          <p className="text-[8px] font-bold text-slate-500">Est. Total</p>
-                          <p className="text-[9px] font-black text-white italic">Rp {fmtRp(est)}</p>
-                        </div>
-                      )}
                     </div>
                   </div>
+
+                  {est > 0 && (
+                    <div className="mt-3 bg-slate-900 rounded-xl px-3 py-2 flex justify-between items-center">
+                      <p className="text-[8px] font-bold text-slate-500 uppercase">Est. Total</p>
+                      <p className="text-[9px] font-black text-white italic">Rp {fmtRp(est)}</p>
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -426,13 +309,13 @@ export const AddDOModal = ({ isOpen, onClose, onSuccess, editData = null }) => {
   );
 };
 
-// ─── CreatePOFromDO Modal ──────────────────────────────────────────────────────
+// ─── CreatePOFromDOModal ──────────────────────────────────────────────────────
 export const CreatePOFromDOModal = ({ isOpen, onClose, doData, onSuccess }) => {
   const { data: session }     = useSession();
   const [loading,    setLoading]     = useState(false);
   const [contacts,   setContacts]    = useState([]);
   const [warehouses, setWarehouses]  = useState([]);
-  const [poForms,    setPoForms]     = useState({});  // { doItemId: { selected, vendorName, pricePerKg, weightKg } }
+  const [poForms,    setPoForms]     = useState({});
   const [vendorDropdown, setVendorDropdown] = useState({});
   const vendorRefs = useRef({});
 
@@ -475,9 +358,6 @@ export const CreatePOFromDOModal = ({ isOpen, onClose, doData, onSuccess }) => {
         const f     = poForms[doItemId];
         const doItem = doData.items.find(i => i.id === doItemId);
         return {
-          jenisSapi:   doItem.jenisSapi,
-          breedId:     doItem.breedId || null,
-          gender:      doItem.gender || 'CAMPUR',
           headOrdered: parseInt(f.headOrdered || doItem.headRequired - (doItem.headOrdered||0)),
           weightKg:    parseFloat(f.weightKg),
           pricePerKg:  parseFloat(f.pricePerKg),
@@ -485,7 +365,6 @@ export const CreatePOFromDOModal = ({ isOpen, onClose, doData, onSuccess }) => {
         };
       });
 
-      // Group items by vendor
       const byVendor = {};
       selectedItems.forEach(id => {
         const vendor = poForms[id].vendorName;
@@ -493,7 +372,6 @@ export const CreatePOFromDOModal = ({ isOpen, onClose, doData, onSuccess }) => {
         byVendor[vendor].push(items.find(i => i.doItemId === id));
       });
 
-      // Buat satu PO per vendor
       for (const [vendorName, vendorItems] of Object.entries(byVendor)) {
         const f = poForms[vendorItems[0].doItemId];
         await fetch('/api/cattle/purchasing', {
@@ -558,15 +436,6 @@ export const CreatePOFromDOModal = ({ isOpen, onClose, doData, onSuccess }) => {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-[12px] font-black text-gray-800 uppercase flex items-center gap-1">
-                        🐄 {item.jenisSapi}
-                      </p>
-                      <span className={`text-[10px] font-black px-3 py-1 text-lg rounded border ${
-                        item.gender === 'JANTAN' ? 'bg-blue-50 text-blue-600 border-blue-100' :
-                        item.gender === 'BETINA' ? 'bg-pink-50 text-pink-600 border-pink-100' :
-                        'bg-gray-50 text-gray-500 border-gray-200'}`}>
-                        {item.gender === 'JANTAN' ? '♂' : item.gender === 'BETINA' ? '♀' : '±'} {item.gender}
-                      </span>
                       {isFulfilled && (
                         <span className="text-[9px] font-black text-green-600 bg-green-50 px-2 py-0.5 rounded border border-green-200">✓ Terpenuhi</span>
                       )}
@@ -681,7 +550,7 @@ export const CreatePOFromDOModal = ({ isOpen, onClose, doData, onSuccess }) => {
   );
 };
 
-// ─── DO Detail Modal ───────────────────────────────────────────────────────────
+// ─── DO Detail Modal (tanpa jenis sapi) ───────────────────────────────────────
 export const DODetailModal = ({ isOpen, onClose, doData, onApprove, onReject, onCreatePO }) => {
   const { data: session } = useSession();
   const isAdmin  = ['SuperAdmin', 'Supervisor', 'Manager'].includes(session?.user?.role);
@@ -753,24 +622,16 @@ export const DODetailModal = ({ isOpen, onClose, doData, onApprove, onReject, on
             </div>
           </div>
 
-          {/* Items */}
+          {/* Items (tanpa jenis sapi) */}
           <div className="space-y-3">
-            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Daftar Sapi ({fulfilledCt}/{doData.items?.length || 0} terpenuhi)</p>
-            {doData.items?.map(item => (
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Daftar Kebutuhan ({fulfilledCt}/{doData.items?.length || 0} terpenuhi)</p>
+            {doData.items?.map((item, idx) => (
               <div key={item.id} className="border border-gray-100 rounded-[20px] overflow-hidden">
                 <div className="p-4 bg-gray-50 flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap mb-1">
-                      <p className="text-[12px] font-black text-gray-800 uppercase flex items-center gap-1">
-                        🐄 {item.jenisSapi}
-                      </p>
-                      <span className={`text-[8px] font-black px-2 py-0.5 rounded border ${
-                        item.gender === 'JANTAN' ? 'bg-blue-50 text-blue-600 border-blue-100' :
-                        item.gender === 'BETINA' ? 'bg-pink-50 text-pink-600 border-pink-100' :
-                        'bg-gray-50 text-gray-500 border-gray-200'}`}>
-                        {item.gender}
-                      </span>
-                    </div>
+                    <p className="text-[12px] font-black text-gray-800 uppercase">
+                      Baris {idx+1}
+                    </p>
                     <p className="text-[9px] text-gray-400">
                       {item.headRequired} ekor
                       {item.weightRequiredKg > 0 && ` · ~${fmtQty(item.weightRequiredKg)} kg`}
@@ -845,7 +706,7 @@ export const DODetailModal = ({ isOpen, onClose, doData, onApprove, onReject, on
   );
 };
 
-// ─── DO Table (list) ──────────────────────────────────────────────────────────
+// ─── DO Table (list) – hapus tampilan jenis sapi ─────────────────────────────
 const CattleDeliveryOrderTable = ({ data = [], onView, onDelete, loading }) => {
   const { data: session } = useSession();
   const isAdmin = ['SuperAdmin', 'Supervisor', 'Manager'].includes(session?.user?.role);
@@ -867,9 +728,14 @@ const CattleDeliveryOrderTable = ({ data = [], onView, onDelete, loading }) => {
         <table className="w-full text-left border-separate border-spacing-0">
           <thead>
             <tr className="text-gray-400 text-[10px] font-black uppercase tracking-[0.15em] bg-gray-50/50">
-              {['No DO', 'Judul / Sapi', 'Ekor & Bobot', 'Pemenuhan', 'Est. Anggaran', 'Status', 'Tgl', 'Aksi'].map(h => (
-                <th key={h} className="px-5 py-5 border-b border-gray-100">{h}</th>
-              ))}
+              <th className="px-5 py-5 border-b border-gray-100">No DO</th>
+              <th className="px-5 py-5 border-b border-gray-100">Judul</th>
+              <th className="px-5 py-5 border-b border-gray-100">Ekor & Bobot</th>
+              <th className="px-5 py-5 border-b border-gray-100">Pemenuhan</th>
+              <th className="px-5 py-5 border-b border-gray-100">Est. Anggaran</th>
+              <th className="px-5 py-5 border-b border-gray-100">Status</th>
+              <th className="px-5 py-5 border-b border-gray-100">Tgl</th>
+              <th className="px-5 py-5 border-b border-gray-100">Aksi</th>
             </tr>
           </thead>
           <tbody>
@@ -879,7 +745,6 @@ const CattleDeliveryOrderTable = ({ data = [], onView, onDelete, loading }) => {
               const totalWt     = do_.items?.reduce((s, i) => s + (i.weightRequiredKg||0), 0) || 0;
               const fulfilledCt = do_.items?.filter(i => (i.headOrdered||0) >= i.headRequired).length || 0;
               const totalItems  = do_.items?.length || 0;
-              const breeds      = [...new Set(do_.items?.map(i => i.jenisSapi) || [])].slice(0, 3).join(', ');
 
               return (
                 <tr key={do_.id} className="hover:bg-[#8da070]/5 transition-colors group">
@@ -887,8 +752,8 @@ const CattleDeliveryOrderTable = ({ data = [], onView, onDelete, loading }) => {
                     <span className="text-[11px] font-black text-[#8da070] bg-[#8da070]/10 border border-[#8da070]/20 px-2 py-0.5 rounded-lg">{do_.doNo}</span>
                   </td>
                   <td className="px-5 py-5 border-b border-gray-50">
-                    <p className="text-[11px] font-black text-gray-800 uppercase leading-tight">{do_.title || breeds || '-'}</p>
-                    {totalItems > 0 && <p className="text-[9px] text-gray-400 mt-0.5">{totalItems} jenis sapi</p>}
+                    <p className="text-[11px] font-black text-gray-800 uppercase leading-tight">{do_.title || '-'}</p>
+                    {totalItems > 0 && <p className="text-[9px] text-gray-400 mt-0.5">{totalItems} baris kebutuhan</p>}
                   </td>
                   <td className="px-5 py-5 border-b border-gray-50">
                     <div className="space-y-1">
@@ -905,7 +770,7 @@ const CattleDeliveryOrderTable = ({ data = [], onView, onDelete, loading }) => {
                   </td>
                   <td className="px-5 py-5 border-b border-gray-50">
                     <div className="min-w-[100px]">
-                      <p className="text-[9px] font-black text-gray-600 mb-1">{fulfilledCt}/{totalItems} jenis</p>
+                      <p className="text-[9px] font-black text-gray-600 mb-1">{fulfilledCt}/{totalItems} baris</p>
                       <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
                         <div className="h-full bg-[#8da070] rounded-full" style={{ width: `${totalItems ? (fulfilledCt/totalItems)*100 : 0}%` }} />
                       </div>
@@ -937,7 +802,11 @@ const CattleDeliveryOrderTable = ({ data = [], onView, onDelete, loading }) => {
                 </tr>
               );
             }) : (
-              <tr><td colSpan={8} className="py-24 text-center text-gray-300 font-black uppercase tracking-widest italic text-[10px]">Belum ada DO Sapi</td></tr>
+              <tr>
+                <td colSpan={8} className="py-24 text-center text-gray-300 font-black uppercase tracking-widest italic text-[10px]">
+                  Belum ada DO Sapi
+                </td>
+              </tr>
             )}
           </tbody>
         </table>
@@ -946,7 +815,6 @@ const CattleDeliveryOrderTable = ({ data = [], onView, onDelete, loading }) => {
       {/* Mobile */}
       <div className="md:hidden divide-y divide-gray-50">
         {current.map(do_ => {
-          const breeds      = [...new Set(do_.items?.map(i => i.jenisSapi) || [])].slice(0, 2).join(', ');
           const totalHead   = do_.items?.reduce((s, i) => s + (i.headRequired||0), 0) || 0;
           const fulfilledCt = do_.items?.filter(i => (i.headOrdered||0) >= i.headRequired).length || 0;
           const totalItems  = do_.items?.length || 0;
@@ -955,7 +823,7 @@ const CattleDeliveryOrderTable = ({ data = [], onView, onDelete, loading }) => {
               <div className="flex justify-between items-start">
                 <div className="space-y-1">
                   <span className="text-[9px] font-black text-[#8da070] bg-[#8da070]/10 px-2 py-0.5 rounded border border-[#8da070]/20">{do_.doNo}</span>
-                  <h4 className="font-black text-gray-800 text-sm uppercase">🐄 {do_.title || breeds}</h4>
+                  <h4 className="font-black text-gray-800 text-sm uppercase">{do_.title || 'DO Sapi'}</h4>
                   <p className="text-[9px] text-gray-400">{totalHead} ekor · {fulfilledCt}/{totalItems} terpenuhi</p>
                 </div>
                 <DOStatusBadge status={do_.status} />

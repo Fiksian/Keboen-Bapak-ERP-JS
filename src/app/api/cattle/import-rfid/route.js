@@ -60,6 +60,39 @@ function parseSpreadsheet(buffer) {
   return rfids;
 }
 
+// ─── GET (list cattle) ───────────────────────────────────────────────────────
+export async function GET(req) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+
+    const { searchParams } = new URL(req.url);
+    const warehouseId = searchParams.get('warehouseId');
+    const status = searchParams.get('status');
+    const purchasingId = searchParams.get('purchasingId');
+
+    const where = {};
+    if (warehouseId) where.warehouseId = warehouseId;
+    if (status) where.status = status;
+    if (purchasingId) where.purchasingId = purchasingId;
+
+    const cattle = await prisma.cattle.findMany({
+      where,
+      orderBy: { updatedAt: 'desc' },
+      include: {
+        warehouse: { select: { id: true, name: true, code: true } },
+        weightHistory: { orderBy: { recordedAt: 'desc' }, take: 3 },
+        purchasing: { select: { id: true, noPO: true, vendorName: true, hppPerEkor: true } }
+      }
+    });
+    return NextResponse.json(cattle);
+  } catch (err) {
+    console.error('CATTLE_GET_ERROR:', err);
+    return NextResponse.json({ message: err.message }, { status: 500 });
+  }
+}
+
+// ─── POST (import & save) ────────────────────────────────────────────────────
 export async function POST(req) {
   try {
     const session = await getServerSession(authOptions);
@@ -69,16 +102,26 @@ export async function POST(req) {
     const contentType = req.headers.get('content-type') || '';
 
     // ════════════════════════════════════════════════════════════
-    // STEP 2: Save dengan per-ekor weights (JSON body)
+    // STEP 2: Save dengan per-ekor weights + breeds (JSON body)
     // ════════════════════════════════════════════════════════════
     if (contentType.includes('application/json')) {
       const body = await req.json();
       const { sessionId, warehouseId: whId, note, weights, forceOverride } = body;
 
+      // Validasi payload baru: setiap weight harus memiliki breed
       if (!sessionId)
         return NextResponse.json({ message: 'sessionId wajib diisi.' }, { status: 400 });
       if (!weights?.length)
         return NextResponse.json({ message: 'Data berat kosong.' }, { status: 400 });
+
+      // Validasi breed per weight
+      const missingBreed = weights.filter(w => !w.breed);
+      if (missingBreed.length > 0) {
+        return NextResponse.json({
+          message: `${missingBreed.length} RFID belum dipilih jenis sapi.`,
+          missingRfids: missingBreed.map(w => w.rfidNo)
+        }, { status: 422 });
+      }
 
       purgeExpiredSessions();
       const sess = importSessions.get(sessionId);
@@ -93,11 +136,10 @@ export async function POST(req) {
       if (!warehouse)
         return NextResponse.json({ message: 'Kandang tidak ditemukan.' }, { status: 404 });
 
-      // ── Validasi kuota PO (dengan dukungan override) ─────────────────────────
+      // ── Validasi kuota PO ─────────────────────────────────────
       const purchasingId = sess.purchasingId || null;
       let cattlePO = null;
       let sisaKuota = Infinity;
-      let isPOFull = false;
       let warningMessage = null;
 
       if (purchasingId) {
@@ -106,9 +148,8 @@ export async function POST(req) {
           return NextResponse.json({ message: 'PO Sapi tidak ditemukan.' }, { status: 404 });
 
         sisaKuota = cattlePO.totalHeadOrdered - (cattlePO.headReceived || 0);
-        isPOFull = (cattlePO.headReceived || 0) >= cattlePO.totalHeadOrdered;
+        const isPOFull = (cattlePO.headReceived || 0) >= cattlePO.totalHeadOrdered;
 
-        // Hitung jumlah RFID yang BENAR-BENAR baru (belum ada di database)
         const uniqueRfids = new Set(weights.map(w => String(w.rfidNo)));
         const existing = await prisma.cattle.findMany({
           where: { rfidNo: { in: [...uniqueRfids] } },
@@ -117,7 +158,6 @@ export async function POST(req) {
         const existingSet = new Set(existing.map(c => c.rfidNo));
         const newHeadCount = [...uniqueRfids].filter(r => !existingSet.has(r)).length;
 
-        // Validasi kuota: jika melebihi sisa kuota DAN bukan override
         if (newHeadCount > sisaKuota && !forceOverride && sisaKuota >= 0) {
           return NextResponse.json({
             message: `Jumlah sapi baru (${newHeadCount}) melebihi sisa kuota PO ${cattlePO.noPO} (${sisaKuota} ekor). Gunakan "Simpan Paksa" jika tetap ingin melanjutkan.`,
@@ -129,20 +169,29 @@ export async function POST(req) {
           }, { status: 422 });
         }
 
-        // Jika override dan PO penuh, buat warning
         if (isPOFull && forceOverride && newHeadCount > 0) {
           warningMessage = `⚠️ PO ${cattlePO.noPO} sudah PENUH (${cattlePO.headReceived}/${cattlePO.totalHeadOrdered}). Menambah ${newHeadCount} ekor melebihi kuota.`;
         }
       }
 
-      // ── Buat weight map ──────────────────────────────────────
-      const weightMap = new Map();
+      // ── Buat weight + breed map ───────────────────────────────
+      const dataMap = new Map();
       for (const w of weights) {
         const wt = parseFloat(w.weight);
         if (isNaN(wt) || wt <= 0 || wt > 1500)
           return NextResponse.json({ message: `Berat tidak valid untuk RFID ${w.rfidNo}` }, { status: 422 });
-        weightMap.set(String(w.rfidNo), {
-          weight: wt, notes: w.notes || '', eartagNo: w.eartagNo ? String(w.eartagNo).trim() : null
+        
+        // Validasi breed: harus berupa string non-kosong
+        const breed = w.breed?.trim().toUpperCase();
+        if (!breed) {
+          return NextResponse.json({ message: `Jenis sapi untuk RFID ${w.rfidNo} harus diisi.` }, { status: 422 });
+        }
+
+        dataMap.set(String(w.rfidNo), {
+          weight: wt,
+          breed: breed,
+          notes: w.notes || '',
+          eartagNo: w.eartagNo ? String(w.eartagNo).trim() : null
         });
       }
 
@@ -155,17 +204,22 @@ export async function POST(req) {
       // ── Simpan dalam transaction ─────────────────────────────
       await prisma.$transaction(async (tx) => {
         for (const { rfidNo, eartagNo } of sess.rfidList) {
-          const entry = weightMap.get(rfidNo);
+          const entry = dataMap.get(rfidNo);
           if (!entry) {
             errors.push({ rfidNo, reason: 'Tidak ada data berat.' });
             continue;
           }
-          const { weight, notes, eartagNo: payloadEartag } = entry;
+          const { weight, breed, notes, eartagNo: payloadEartag } = entry;
           const resolvedEartag = payloadEartag || eartagNo || null;
           const cattleNote = [batchNote, notes].filter(Boolean).join(' · ');
 
+          // ✅ Perbaikan: hapus field weightCurrent karena tidak ada di model
           const baseData = {
-            weight, weightBeli: weight, weightTerima: weight, weightCurrent: weight,
+            weight,
+            breed,                                    // ⭐ BARU: simpan jenis sapi
+            weightBeli: weight,
+            weightTerima: weight,
+            // weightCurrent: weight,  // ❌ HAPUS baris ini
             status: 'IN_KANDANG',
             lastWeightDate: now,
             lastScanAt: now,
@@ -174,7 +228,9 @@ export async function POST(req) {
             ...(resolvedEartag && { name: resolvedEartag }),
             weightHistory: {
               create: {
-                weight, recordedAt: now, recordedBy,
+                weight,
+                recordedAt: now,
+                recordedBy,
                 note: cattleNote,
                 sourceFile: sess.fileName || 'import-rfid'
               }
@@ -191,17 +247,12 @@ export async function POST(req) {
           }
         }
 
-        // Update status PO jika ada (termasuk untuk override)
+        // Update status PO jika ada
         if (purchasingId && cattlePO) {
           const newHeadReceived = (cattlePO.headReceived || 0) + created;
           const isNowFull = newHeadReceived >= cattlePO.totalHeadOrdered;
           
-          // Aturan update status:
-          // - Jika sebelumnya RECEIVED, tetap RECEIVED (tidak turun status)
-          // - Jika sebelumnya PARTIALLY_RECEIVED, bisa naik ke RECEIVED
-          // - Jika sebelumnya APPROVED, bisa naik ke PARTIALLY_RECEIVED atau RECEIVED
           let newStatus = cattlePO.status;
-          
           if (cattlePO.status !== 'RECEIVED') {
             if (isNowFull) {
               newStatus = 'RECEIVED';
@@ -276,7 +327,7 @@ export async function POST(req) {
       );
     }
 
-    // Validasi PO jika diberikan (IZINKAN APPROVED, PARTIALLY_RECEIVED, RECEIVED)
+    // Validasi PO jika diberikan
     let poSummary = null;
     if (purchasingIdInput) {
       const po = await prisma.cattlePurchasing.findUnique({
@@ -286,7 +337,6 @@ export async function POST(req) {
       if (!po)
         return NextResponse.json({ message: 'PO Sapi tidak ditemukan.' }, { status: 404 });
       
-      // ⭐ IZINKAN status RECEIVED juga
       if (!['APPROVED', 'PARTIALLY_RECEIVED', 'RECEIVED'].includes(po.status))
         return NextResponse.json(
           { message: `PO ${po.noPO} belum berstatus APPROVED, PARTIALLY_RECEIVED atau RECEIVED. Status saat ini: ${po.status}` },
@@ -303,7 +353,7 @@ export async function POST(req) {
         avgWeightKg: po.totalHeadOrdered > 0 ? po.totalWeightKg / po.totalHeadOrdered : 0,
         hppPerEkor: po.hppPerEkor || 0, 
         status: po.status,
-        isFull: isFull,  // ⭐ tambahkan flag apakah PO sudah penuh
+        isFull: isFull,
       };
     }
 
@@ -328,7 +378,7 @@ export async function POST(req) {
         scanned: rfidList.length,
         selisih: poSummary.sisaKuota - rfidList.length,
         isOver: rfidList.length > poSummary.sisaKuota && poSummary.sisaKuota >= 0,
-        isFull: poSummary.isFull,  // ⭐ tambahkan flag isFull
+        isFull: poSummary.isFull,
       } : null;
 
       return NextResponse.json({
@@ -345,37 +395,6 @@ export async function POST(req) {
   } catch (err) {
     console.error('IMPORT_RFID_ERROR:', err);
     return NextResponse.json({ message: 'Kesalahan server: ' + err.message }, { status: 500 });
-  }
-}
-
-export async function GET(req) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-
-    const { searchParams } = new URL(req.url);
-    const warehouseId = searchParams.get('warehouseId');
-    const status = searchParams.get('status');
-    const purchasingId = searchParams.get('purchasingId');
-
-    const where = {};
-    if (warehouseId) where.warehouseId = warehouseId;
-    if (status) where.status = status;
-    if (purchasingId) where.purchasingId = purchasingId;
-
-    const cattle = await prisma.cattle.findMany({
-      where,
-      orderBy: { updatedAt: 'desc' },
-      include: {
-        warehouse: { select: { id: true, name: true, code: true } },
-        weightHistory: { orderBy: { recordedAt: 'desc' }, take: 3 },
-        purchasing: { select: { id: true, noPO: true, vendorName: true, hppPerEkor: true } }
-      }
-    });
-    return NextResponse.json(cattle);
-  } catch (err) {
-    console.error('CATTLE_GET_ERROR:', err);
-    return NextResponse.json({ message: err.message }, { status: 500 });
   }
 }
 

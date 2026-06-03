@@ -18,32 +18,25 @@ export async function GET(req, { params }) {
     const session = await getServerSession(authOptions);
     if (!session) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 
-    // ✅ AWALI params karena di Next.js 15+ params adalah Promise
     const { id } = await params;
-
-    if (!id) {
-      return NextResponse.json({ message: 'ID tidak valid' }, { status: 400 });
-    }
+    if (!id) return NextResponse.json({ message: 'ID tidak valid' }, { status: 400 });
 
     const cattle = await prisma.cattle.findUnique({
-      where  : { id: id },
+      where: { id },
       include: {
         warehouse    : { select: { id: true, name: true, code: true } },
         arrival      : { select: { id: true, arrivalNo: true, createdAt: true } },
-        weightHistory: { orderBy: { recordedAt: 'desc' } }, // semua riwayat
+        weightHistory: { orderBy: { recordedAt: 'desc' } },
+        purchasing   : { select: { id: true, noPO: true, vendorName: true, hppPerEkor: true } }, // ✅ TAMBAHKAN
       },
     });
 
     if (!cattle) return NextResponse.json({ message: 'Sapi tidak ditemukan.' }, { status: 404 });
 
-    // Kalkulasi pertumbuhan berat (weight gain)
     const history = cattle.weightHistory;
-    const gain    = history.length >= 2
-      ? history[0].weight - history[history.length - 1].weight
-      : null;
+    const gain    = history.length >= 2 ? history[0].weight - history[history.length - 1].weight : null;
 
     return NextResponse.json({ ...cattle, weightGain: gain });
-
   } catch (err) {
     console.error('CATTLE_GET_SINGLE:', err);
     return NextResponse.json({ message: err.message }, { status: 500 });

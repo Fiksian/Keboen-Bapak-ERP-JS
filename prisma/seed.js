@@ -164,14 +164,14 @@ async function main() {
       // ──────────────────────────────────────────────────────────────────────
       console.log('🐄 Seeding Cattle Breeds...');
       const breeds = [
-        { id: 'lim', name: 'LIMOUSIN', description: 'Sapi potong asal Prancis, kualitas daging premium' },
-        { id: 'sim', name: 'SIMENTAL', description: 'Sapi asal Swiss, pertumbuhan cepat' },
-        { id: 'bra', name: 'BRAHMAN', description: 'Sapi impor asal Amerika, tahan panas' },
-        { id: 'ang', name: 'ANGUS', description: 'Sapi premium asal Skotlandia' },
-        { id: 'bx', name: 'BX', description: 'Brahman Cross Australia, persilangan unggul' },
-        { id: 'wag', name: 'WAGYU', description: 'Sapi premium Jepang, marbling tinggi' },
-        { id: 'ong', name: 'ONGOLE', description: 'Sapi PO lokal' },
-        { id: 'cam', name: 'CAMPURAN', description: 'Campuran berbagai jenis' },
+        {name: 'LIMOUSIN', description: 'Sapi potong asal Prancis, kualitas daging premium' },
+        {name: 'SIMENTAL', description: 'Sapi asal Swiss, pertumbuhan cepat' },
+        {name: 'BRAHMAN', description: 'Sapi impor asal Amerika, tahan panas' },
+        {name: 'ANGUS', description: 'Sapi premium asal Skotlandia' },
+        {name: 'BX', description: 'Brahman Cross Australia, persilangan unggul' },
+        {name: 'WAGYU', description: 'Sapi premium Jepang, marbling tinggi' },
+        {name: 'ONGOLE', description: 'Sapi PO lokal' },
+        {name: 'CAMPURAN', description: 'Campuran berbagai jenis' },
       ];
 
       for (const breed of breeds) {

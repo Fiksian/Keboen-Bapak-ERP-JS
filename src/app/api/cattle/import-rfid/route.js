@@ -174,14 +174,12 @@ export async function POST(req) {
         }
       }
 
-      // ── Buat weight + breed map ───────────────────────────────
       const dataMap = new Map();
       for (const w of weights) {
         const wt = parseFloat(w.weight);
         if (isNaN(wt) || wt <= 0 || wt > 1500)
           return NextResponse.json({ message: `Berat tidak valid untuk RFID ${w.rfidNo}` }, { status: 422 });
         
-        // Validasi breed: harus berupa string non-kosong
         const breed = w.breed?.trim().toUpperCase();
         if (!breed) {
           return NextResponse.json({ message: `Jenis sapi untuk RFID ${w.rfidNo} harus diisi.` }, { status: 422 });
@@ -213,13 +211,11 @@ export async function POST(req) {
           const resolvedEartag = payloadEartag || eartagNo || null;
           const cattleNote = [batchNote, notes].filter(Boolean).join(' · ');
 
-          // ✅ Perbaikan: hapus field weightCurrent karena tidak ada di model
           const baseData = {
             weight,
-            breed,                                    // ⭐ BARU: simpan jenis sapi
+            breed,                                   
             weightBeli: weight,
             weightTerima: weight,
-            // weightCurrent: weight,  // ❌ HAPUS baris ini
             status: 'IN_KANDANG',
             lastWeightDate: now,
             lastScanAt: now,

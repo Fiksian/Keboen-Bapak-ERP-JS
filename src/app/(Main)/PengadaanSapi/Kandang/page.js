@@ -1,3 +1,4 @@
+// /app/(Main)/PengadaanSapi/Kandang/page.js — v5 (Dengan breed dari database)
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -175,7 +176,6 @@ const CattleProfileModal = ({ cattleId, isOpen, onClose, warehouses }) => {
                     </span>
                   )}
                 </div>
-                {/* ✅ Tampilkan informasi PO asal */}
                 {data?.purchasing && (
                   <div className="mt-1 flex items-center gap-1">
                     <span className="text-[8px] font-black text-[#8da070] bg-[#8da070]/10 px-2 py-0.5 rounded border border-[#8da070]/20">
@@ -928,7 +928,7 @@ const CattleDetailModal = ({ warehouse, isOpen, onClose, warehouses }) => {
                   const displayWeight = resolveWeight(c);
                   const displayDate = resolveDate(c);
                   const hasIssue = c.healthStatus && c.healthStatus !== 'SEHAT';
-                  const poInfo = c.purchasing; // { noPO, vendorName }
+                  const poInfo = c.purchasing;
 
                   return (
                     <div key={c.id} onClick={() => setProfileId(c.id)}
@@ -952,7 +952,6 @@ const CattleDetailModal = ({ warehouse, isOpen, onClose, warehouses }) => {
                             </span>
                           )}
                           {c.susutPct != null && <SusutBadge pct={c.susutPct} />}
-                          {/* ✅ Tampilkan PO asal jika ada */}
                           {poInfo && (
                             <span className="text-[8px] font-black text-[#8da070] bg-[#8da070]/10 px-1.5 py-0.5 rounded border border-[#8da070]/20">
                               PO: {poInfo.noPO}
@@ -1077,44 +1076,39 @@ const KandangCard = ({ warehouse, onOpen }) => {
 };
 
 // ═══════════════════════════════════════════════════════════════
-// ImportModal — v6 (Dengan breed per RFID)
+// ImportModal — v6 (Dengan breed per RFID dan mengambil dari database)
 // ═══════════════════════════════════════════════════════════════
 const ImportModal = ({ isOpen, onClose, warehouses, onSuccess }) => {
   const fileRef = useRef(null);
 
-  // ── Shared state ──────────────────────────────────────────
   const [step, setStep] = useState(1);
   const [file, setFile] = useState(null);
   const [warehouseId, setWarehouseId] = useState('');
   const [note, setNote] = useState('');
   
-  // State untuk integrasi PO
   const [purchasingId, setPurchasingId] = useState('');
   const [poList, setPoList] = useState([]);
   const [loadingPO, setLoadingPO] = useState(false);
   const [quotaInfo, setQuotaInfo] = useState(null);
   const [forceOverride, setForceOverride] = useState(false);
 
-  // Step 1 state
   const [uploading, setUploading] = useState(false);
   const [uploadErr, setUploadErr] = useState('');
 
-  // Step 2 state
   const [sessionId, setSessionId] = useState('');
   const [rfidList, setRfidList] = useState([]);
-  const [weights, setWeights] = useState({});     // { rfidNo: { weight, breed, notes, eartagNo } }
+  const [weights, setWeights] = useState({});
   const [fillAll, setFillAll] = useState('');
-  const [fillAllBreed, setFillAllBreed] = useState('');  // ⭐ BARU: bulk breed
+  const [fillAllBreed, setFillAllBreed] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveErr, setSaveErr] = useState('');
   const [result, setResult] = useState(null);
   const [searchQ, setSearchQ] = useState('');
 
-  // ⭐ Daftar breed master (ambil dari API)
+  // ⭐ Daftar breed master (ambil dari API database)
   const [breedsMaster, setBreedsMaster] = useState([]);
   const [breedsLoading, setBreedsLoading] = useState(false);
 
-  // Fetch daftar PO dan breeds saat modal terbuka
   useEffect(() => {
     if (!isOpen) return;
     setPurchasingId('');
@@ -1147,7 +1141,6 @@ const ImportModal = ({ isOpen, onClose, warehouses, onSuccess }) => {
   
   const handleClose = () => { reset(); onClose(); };
 
-  // ── Step 1: Upload & parse preview ──
   const handlePreview = async () => {
     if (!file || !warehouseId) return;
     setUploading(true); setUploadErr('');
@@ -1162,12 +1155,11 @@ const ImportModal = ({ isOpen, onClose, warehouses, onSuccess }) => {
       const data = await res.json();
       if (!res.ok) { setUploadErr(data.message || 'Gagal memproses file.'); return; }
       
-      // Inisialisasi weights dengan breed default (kosong)
       const initWeights = {};
       for (const r of data.rfidList) {
         initWeights[r.rfidNo] = { 
           weight: '', 
-          breed: '',           // ⭐ BARU: breed kosong
+          breed: '',
           notes: '', 
           eartagNo: r.eartagNo || '' 
         };
@@ -1185,7 +1177,6 @@ const ImportModal = ({ isOpen, onClose, warehouses, onSuccess }) => {
   const setWeightField = (rfidNo, field, value) =>
     setWeights((prev) => ({ ...prev, [rfidNo]: { ...prev[rfidNo], [field]: value } }));
 
-  // ⭐ Bulk action: set semua breed
   const applyFillAllBreed = () => {
     if (!fillAllBreed) return;
     setWeights((prev) => {
@@ -1197,7 +1188,6 @@ const ImportModal = ({ isOpen, onClose, warehouses, onSuccess }) => {
     });
   };
 
-  // ⭐ Bulk action: set semua weight
   const applyFillAllWeight = () => {
     if (!fillAll) return;
     const v = parseFloat(fillAll);
@@ -1218,16 +1208,13 @@ const ImportModal = ({ isOpen, onClose, warehouses, onSuccess }) => {
   const allBreedFilled = breedFilledCount === totalCount && totalCount > 0;
   const isValidWeight = (v) => { const n = parseFloat(v); return !isNaN(n) && n > 0 && n <= 1500; };
 
-  // ⭐ Handle save dengan breed
   const handleSave = async () => {
-    // Validasi semua weight
     const invalidWeight = rfidList.filter((r) => !isValidWeight(weights[r.rfidNo]?.weight));
     if (invalidWeight.length) {
       setSaveErr(`${invalidWeight.length} RFID belum diisi berat yang valid (0.1–1500 kg).`);
       return;
     }
     
-    // Validasi semua breed
     const missingBreed = rfidList.filter((r) => !weights[r.rfidNo]?.breed?.trim());
     if (missingBreed.length) {
       setSaveErr(`${missingBreed.length} RFID belum dipilih jenis sapi.`);
@@ -1248,7 +1235,7 @@ const ImportModal = ({ isOpen, onClose, warehouses, onSuccess }) => {
         weights: rfidList.map((r) => ({
           rfidNo: r.rfidNo,
           weight: parseFloat(weights[r.rfidNo].weight),
-          breed: weights[r.rfidNo].breed.trim().toUpperCase(),  // ⭐ kirim breed
+          breed: weights[r.rfidNo].breed.trim().toUpperCase(),
           eartagNo: weights[r.rfidNo].eartagNo?.trim() || null,
           notes: weights[r.rfidNo].notes,
         })),
@@ -1278,7 +1265,6 @@ const ImportModal = ({ isOpen, onClose, warehouses, onSuccess }) => {
 
   if (!isOpen) return null;
 
-  // RESULT screen (sama seperti sebelumnya)
   if (result) return (
     <div className="fixed inset-0 z-[300] flex items-end sm:items-center justify-center p-0 sm:p-4">
       <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={handleClose} />
@@ -1291,9 +1277,7 @@ const ImportModal = ({ isOpen, onClose, warehouses, onSuccess }) => {
         <div className="bg-green-50 border border-green-200 rounded-[20px] p-5 text-center space-y-3">
           <CheckCircle2 size={40} className="text-green-500 mx-auto" />
           <p className="font-black text-green-800 uppercase italic text-sm">{result.message}</p>
-          {result.warning && (
-            <p className="text-[10px] text-amber-600 bg-amber-50 p-2 rounded-lg">{result.warning}</p>
-          )}
+          {result.warning && <p className="text-[10px] text-amber-600 bg-amber-50 p-2 rounded-lg">{result.warning}</p>}
           <div className="grid grid-cols-3 gap-2">
             {[{l:'Total',v:result.total},{l:'Baru',v:result.created},{l:'Update',v:result.updated}].map((s,i)=>(
               <div key={i} className="bg-white rounded-xl p-3 border border-green-100">
@@ -1323,7 +1307,6 @@ const ImportModal = ({ isOpen, onClose, warehouses, onSuccess }) => {
         ${step === 1 ? 'sm:max-w-lg rounded-t-[32px] sm:rounded-[32px]' : 'sm:max-w-4xl rounded-t-[32px] sm:rounded-[32px]'}
         max-h-[92vh]`}>
 
-        {/* Header */}
         <div className="p-5 border-b border-slate-100 flex items-center gap-3 shrink-0">
           {step === 2 && (
             <button onClick={() => setStep(1)} className="p-1.5 hover:bg-slate-100 rounded-xl mr-1">
@@ -1353,9 +1336,6 @@ const ImportModal = ({ isOpen, onClose, warehouses, onSuccess }) => {
           </button>
         </div>
 
-        {/* ══════════════════════════════════════════════════════
-            STEP 1: Upload + Pilih Kandang + Pilih PO
-        ══════════════════════════════════════════════════════ */}
         {step === 1 && (
           <div className="p-6 space-y-4 overflow-y-auto">
             <div
@@ -1386,7 +1366,6 @@ const ImportModal = ({ isOpen, onClose, warehouses, onSuccess }) => {
               )}
             </div>
 
-            {/* Warehouse */}
             <div className="relative">
               <select value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}
                 className="w-full appearance-none bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#8da070]/30">
@@ -1398,7 +1377,6 @@ const ImportModal = ({ isOpen, onClose, warehouses, onSuccess }) => {
               <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
             </div>
 
-            {/* Dropdown PO Sapi */}
             <div className="relative">
               <select value={purchasingId} onChange={(e) => setPurchasingId(e.target.value)}
                 className="w-full appearance-none bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#8da070]/30">
@@ -1443,12 +1421,8 @@ const ImportModal = ({ isOpen, onClose, warehouses, onSuccess }) => {
           </div>
         )}
 
-        {/* ══════════════════════════════════════════════════════
-            STEP 2: Input berat + breed per ekor
-        ══════════════════════════════════════════════════════ */}
         {step === 2 && (
           <>
-            {/* Toolbar dengan bulk actions */}
             <div className="px-5 py-3 border-b border-slate-100 flex flex-wrap items-center gap-2 shrink-0">
               <div className="flex-1 min-w-[120px]">
                 <div className="flex justify-between items-center mb-1">
@@ -1461,7 +1435,6 @@ const ImportModal = ({ isOpen, onClose, warehouses, onSuccess }) => {
                 </div>
               </div>
               
-              {/* Bulk Breed */}
               <div className="flex items-center gap-1">
                 <select 
                   value={fillAllBreed} 
@@ -1480,7 +1453,6 @@ const ImportModal = ({ isOpen, onClose, warehouses, onSuccess }) => {
                 </button>
               </div>
               
-              {/* Bulk Weight */}
               <div className="flex items-center gap-1">
                 <input type="number" value={fillAll} onChange={(e) => setFillAll(e.target.value)}
                   placeholder="kg semua"
@@ -1491,7 +1463,6 @@ const ImportModal = ({ isOpen, onClose, warehouses, onSuccess }) => {
                 </button>
               </div>
               
-              {/* Search */}
               <div className="relative ml-auto">
                 <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-300" />
                 <input value={searchQ} onChange={(e) => setSearchQ(e.target.value)}
@@ -1500,7 +1471,6 @@ const ImportModal = ({ isOpen, onClose, warehouses, onSuccess }) => {
               </div>
             </div>
 
-            {/* Info kuota */}
             {quotaInfo && (
               <div className={`mx-5 mt-3 p-3 rounded-xl text-[10px] font-bold flex items-start gap-2 ${
                 quotaInfo.isOver ? 'bg-red-50 text-red-700 border border-red-200' 
@@ -1523,7 +1493,6 @@ const ImportModal = ({ isOpen, onClose, warehouses, onSuccess }) => {
               </div>
             )}
 
-            {/* Tabel dengan kolom breed dropdown */}
             <div className="overflow-auto flex-1 min-h-0">
               <table className="w-full text-left border-collapse">
                 <thead className="sticky top-0 bg-slate-50 z-10">
@@ -1598,7 +1567,6 @@ const ImportModal = ({ isOpen, onClose, warehouses, onSuccess }) => {
               )}
             </div>
 
-            {/* Footer */}
             <div className="p-4 border-t border-slate-100 space-y-3 shrink-0">
               {saveErr && (
                 <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl p-3">

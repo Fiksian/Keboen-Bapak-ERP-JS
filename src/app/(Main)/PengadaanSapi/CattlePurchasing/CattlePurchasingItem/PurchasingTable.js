@@ -192,9 +192,6 @@ const CattlePurchasingTable = ({
                           <span className="truncate max-w-[130px]">{po.vendorName}</span>
                         </span>
                         <span className="flex items-center gap-1 text-[9px] text-gray-400 font-bold">
-                          <Globe size={9} /> {po.vendorCountry}
-                        </span>
-                        <span className="flex items-center gap-1 text-[9px] text-gray-400 font-bold">
                           <CalendarDays size={9} /> {dateCreated}
                         </span>
                       </div>

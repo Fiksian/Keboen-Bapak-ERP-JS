@@ -164,14 +164,29 @@ async function main() {
       // ──────────────────────────────────────────────────────────────────────
       console.log('🐄 Seeding Cattle Breeds...');
       const breeds = [
-        {name: 'LIMOUSIN', description: 'Sapi potong asal Prancis, kualitas daging premium' },
-        {name: 'SIMENTAL', description: 'Sapi asal Swiss, pertumbuhan cepat' },
-        {name: 'BRAHMAN', description: 'Sapi impor asal Amerika, tahan panas' },
-        {name: 'ANGUS', description: 'Sapi premium asal Skotlandia' },
-        {name: 'BX', description: 'Brahman Cross Australia, persilangan unggul' },
-        {name: 'WAGYU', description: 'Sapi premium Jepang, marbling tinggi' },
-        {name: 'ONGOLE', description: 'Sapi PO lokal' },
-        {name: 'CAMPURAN', description: 'Campuran berbagai jenis' },
+        {name: 'Feeder Steer' , /*description: Bila Perlu*/ },
+        {name: 'Feeder Heifer'},
+        {name: 'Feeder Bull'},
+        {name: 'Medium Steer'},
+        {name: 'Medium Heifer'},
+        {name: 'Medium Bull'},
+        {name: 'Heavy Bull'},
+        {name: 'Cows'},
+        {name: 'Breeding'},
+        {name: 'Pedet Jantan'},
+        {name: 'Pedet Betina'},
+        {name: 'Draught Master'},
+        {name: 'Short Horn'},
+        {name: 'Brangus'},
+        {name: 'Belgian Blue'},
+        {name: 'Peranakan Onggole'},
+        {name: 'Sapi Kupang'},
+        {name: 'Sapi Bali'},
+        {name: 'Sapi Madura'},
+        {name: 'Limousin'},
+        {name: 'Simmental'},
+        {name: 'Sumba Onggole'},
+        {name: 'Frisian Holstein'},      
       ];
 
       for (const breed of breeds) {

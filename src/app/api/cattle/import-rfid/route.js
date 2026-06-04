@@ -70,11 +70,21 @@ export async function GET(req) {
     const warehouseId = searchParams.get('warehouseId');
     const status = searchParams.get('status');
     const purchasingId = searchParams.get('purchasingId');
+    const getAllEartags = searchParams.get('getAllEartags') === 'true'; // ⭐ tambahan
 
     const where = {};
     if (warehouseId) where.warehouseId = warehouseId;
     if (status) where.status = status;
     if (purchasingId) where.purchasingId = purchasingId;
+
+    if (getAllEartags) {
+      const allCattle = await prisma.cattle.findMany({
+        where: { ...where, name: { not: null } },
+        select: { name: true, id: true, rfidNo: true },
+        orderBy: { name: 'asc' }
+      });
+      return NextResponse.json(allCattle);
+    }
 
     const cattle = await prisma.cattle.findMany({
       where,

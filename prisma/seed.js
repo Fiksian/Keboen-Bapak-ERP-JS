@@ -9,6 +9,7 @@ async function main() {
   const adminUsername = "Admin";
   const adminPassword = "123456";
 
+
   const testUsers = [
     {
       email: "staff1@test.com",
@@ -201,59 +202,88 @@ async function main() {
       // 6. SEED STOCKS (Barang)
       // ──────────────────────────────────────────────────────────────────────
       console.log('🌾 Seeding Stocks...');
-      
+      const warehouseIds = ['wh-a', 'wh-b'];
       const bahanBakuMakro = [
         "Dedak", "Polard", "Bungkil Kedelai", "Bungkil Kelapa", "Bungkil Sawit", 
         "Onggok", "Gaplek", "Menir Jagung", "Kulit Kopi", "Molases", "Kulit Coklat", 
         "CGF", "Biskuit", "Roti Giling", "Sekam Giling", "DDGS", "Ampas Kecap", 
         "Habbatussauda", "Bungkil Abede", "Millet Putih", "Dust Pollard", "CGF Lokal", 
         "Janggel Jagung Giling", "Jagung Pipil", "Homini Jagung", "Ampas Gandum", 
-        "Kulit Kacang Tanah", "Separator", "CSL"
+        "Kulit Kacang Tanah", "Separator", "CSL", "Bungkil Kelapa Meal", "Tepung Tapioka"
       ];
 
       const bahanBakuMikro = [
-        "CaCO3 (Kapur)", "Urea", "Garam", "PREMIX", "Sydpro", "Natura", "GAA", 
-        "BEC Premix Advance", "T-Fibre Premix", "Betafine", "ESS 40", "DCP", 
-        "FINISHER", "Calsea Powder", "Socalphost", "PREMIX AJO - 01", "LIPTOMOLD", 
-        "Nutrigromos", "Betaine Hydrocil", "FENANZA", "BEC Premix Base", 
-        "Organic Chrome", "Lagantor ZDI 2", "Sodium Bicarbonat", "Premix Rum CST FPT", 
-        "Premix XPC", "CMR Dufafeed", "Paragin", "Amonium Sulfate", 
-        "BEC MIX BEEF BASE PLUS", "PSE-300 BASEMIX RUMINANT-AG", "PERFORMAX STARTER", 
-        "PERFORMAX GROWER", "BIOZIM", "PERFORMAX FINISHER", "SELENOMETHIONIN", 
-        "suenzym"
+        "CaCO3 (Kapur)", "Urea", "Garam"
       ];
 
-      const pakan = ["Pakan A", "Pakan B"];
-      const bahanBakuHijauan = ["SILASE"];
+      const premix            = [
+        "Sydpro", "Natura", "T-Fibre Premix", "Betafine S4", "DCP", "Calsea Powder",
+        "Socalphost", "Liptomold", "Nutrigromos", "Betaine Hydrochl", "Sodium Bicarbonat",
+        "Premix XPC", "Premix CST", "Amonium Sulfate", "BEC Mix Beef Base Plus", "PSE-300 Basemix Ruminant-AG",
+        "Premix Hendro", "Performax Starter", "Performax Grower", "Biozim", "Premix VR", "Performax Finisher", 
+        "Premix Laba", "Premix SABA", "Selenomethionin", "Zeelmax", "ADGPRO", "Sunzyme", "Zilpanax",
+        "Premix Supria", "ADGMAX", "Premix Orex"
+      ];
 
-      const allBahanBaku = [
+      const jenisKonsentrat   = [
+        "CBX 36", "KRB CWT 24", "CBF 41 SILASE 10%", "CBF 43", "CBF 45 FINISHER VRX SILASE 10%", "CBX 37 SILASE 10%",
+        "CBX 37 FINISHER VRX120 SILASE 10%", "DC 4", "CBF 46 SM SILASE 10%", "PELLET CBX 36", "PELLET DC 5", "CBF 49 GROWER",
+        "CBF 50 FINISHER", "CBF 51 GROWER", "CBF 52 FINISHER", "CBF 53 GROWER", "CBF 54 FINISHER", "DC 6", "CBF 55 GROWER",
+        "CBG 56", "CBF 57 GROWER", "CBF 58 FINISHER", "CBF 59 GROWER SZ", "CBF 60 FINISHER SZ", "FORMULA CIL 1",
+        "CBF 53 TANPA SILASE", "FORMULA CIL 2"
+      ];
+
+      const bahanBakuHijauan  = [
+        "SILASE", "TEBON JAGUNG", "RUMPUT GAJAH",
+         "JERAMI", "RUMPUT PAKCONG", "INDIGOFERA"
+      ];
+
+      const obatDanVaksin = [
+        "Adepros", "Banixin", "Bio Energi", "Biodin", "Canimag 500ml", "Catosal", "Dexapros Inject", "Enroflox LA", "Hematodin",
+        "Hemostop K", "Imidox", "Implant Synovex Plus", "Intermectin", "Intracin", "Introvit B", "Introvit Plus", "Limoxin LA",
+        "Limoxin Spray", "Lutalyse", "Luteosyl", "Macrolan", "Nacl 500ml", "Neo Kotrimok", "Paragin", "Procaben", "Prodyl",
+        "Proxyvet LA", "Straw Semen Angus", "Straw Semen Belgian Blue", "Straw Semen Brahman", "Straw Semen Brangus", "Straw Semen Simental",
+        "Sulprodon", "TM VITA", "Tolfen", "Tylocare", "Tympanol", "Vaksin LSD", "Vaksin PMK", "Vaksin SE", "Vigantol", "Vitol-140",
+        "V-Tropin", "Wormectin Plus"
+      ];
+
+      const allInventory = [
         ...bahanBakuMakro.map(n => ({ name: n.toUpperCase(), cat: 'MAKRO' })),
         ...bahanBakuMikro.map(n => ({ name: n.toUpperCase(), cat: 'MIKRO' })),
         ...bahanBakuHijauan.map(n => ({ name: n.toUpperCase(), cat: 'HIJAUAN' })),
-        ...pakan.map(n => ({ name: n.toUpperCase(), cat: 'PAKAN' }))
+        ...jenisKonsentrat.map(n => ({ name: n.toUpperCase(), cat: 'JENIS KONSENTRAT' })),
+        ...obatDanVaksin.map(n => ({name: n.toUpperCase(), cat: 'OBAT DAN VAKSIN' })),
+        ...premix.map(n => ({ name: n.toUpperCase(), cat: 'PREMIX' })),
+
+        
       ];
 
-      for (const item of allBahanBaku) {
-        await tx.stock.upsert({
-          where: { 
-            name_warehouseId: { 
-              name: item.name, 
-              warehouseId: 'wh-a'
-            } 
-          },
-          update: {},
-          create: {
-            name: item.name,
-            category: item.cat,
-            stock: 0,
-            unit: 'KG',
-            type: 'STOCKS',
-            price: '0',
-            warehouseId: 'wh-a',
-          },
-        });
-      }
-
+        for (const item of allInventory) {
+          for (const warehouseId of warehouseIds) {
+            await tx.stock.upsert({
+              where: {
+                name_warehouseId: {
+                  name: item.name,
+                  warehouseId: warehouseId
+                }
+              },
+              update: {
+                category: item.cat,
+                price: item.price,
+                updatedAt: new Date()
+              },
+              create: {
+                name: item.name,
+                category: item.cat,
+                stock: 0,
+                unit: 'KG',
+                type: 'STOCKS',
+                price: item.price,
+                warehouseId: warehouseId // String, bukan array
+              },
+            });
+          }
+        }
       // ──────────────────────────────────────────────────────────────────────
       // 7. SEED TASKS
       // ──────────────────────────────────────────────────────────────────────

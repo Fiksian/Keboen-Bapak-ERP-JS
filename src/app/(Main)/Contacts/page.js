@@ -1,3 +1,5 @@
+// Contacts/page.js 
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -5,6 +7,7 @@ import { UserPlus, Loader2 } from 'lucide-react';
 import AddContact from './AddContact';
 import ContactFilter from './ContactFilter';
 import ContactCard from './ContactCard';
+import withPermission from '@/lib/withPermission';
 
 const ContactsPage = () => {
     const [activeTab, setActiveTab] = useState('all');
@@ -100,4 +103,4 @@ const ContactsPage = () => {
     );
 };
 
-export default ContactsPage;
+export default withPermission(ContactsPage, 'contacts');

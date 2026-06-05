@@ -1,10 +1,4 @@
-// /app/(Main)/Pakan/page.js — v2
-// Feeding & Ration Management
-// Bahan pakan langsung dari Stock per warehouse — tidak ada FeedIngredient model
-// Tab 1: Formulasi Ransum
-// Tab 2: Jadwal Pemberian Pakan
-// Tab 3: Log Konsumsi
-// ============================================================
+// /app/(Main)/Pakan/page.js
 
 'use client';
 
@@ -18,6 +12,7 @@ import {
   Check, Activity,
 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
+import withPermission from '@/lib/withPermission';
 
 // ─── Helpers ──────────────────────────────────────────────────
 const fmtKg   = (v) => v != null ? `${parseFloat(v).toLocaleString('id-ID', { maximumFractionDigits: 2 })} kg` : '-';
@@ -1151,4 +1146,4 @@ const FeedingPage = () => {
   );
 };
 
-export default FeedingPage;
+export default withPermission(FeedingPage, 'pakan');

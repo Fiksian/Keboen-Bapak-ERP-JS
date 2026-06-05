@@ -4,15 +4,19 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { 
   Package, RefreshCw, Plus, Edit3, 
-  Warehouse, LayoutGrid, ChevronDown 
+  Warehouse, LayoutGrid, ChevronDown, ShieldAlert, Loader2 
 } from 'lucide-react';
 import StockTable from './StockTable';
 import EditStock from './EditStock';
 import SearchInput from '@/app/(Main)/Components/SeachInput';
-import AddStockModal from './AddStock'; 
+import AddStockModal from './AddStock';
+import { usePermission } from '@/lib/usePermission';
+import withPermission from '@/lib/withPermission';
 
-const StockInventory = () => {
+const StockInventoryContent = () => {
   const { data: session } = useSession();
+  const { hasPermission, isSuperAdmin, loading: permissionLoading, userRole } = usePermission();
+  
   const [activeWarehouse, setActiveWarehouse] = useState('ALL');
   const [allData, setAllData] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
@@ -23,9 +27,16 @@ const StockInventory = () => {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
 
-  const isAdmin = session?.user?.role === 'Admin' || session?.user?.role === 'ADMIN';
+  const canAccessStock = isSuperAdmin || hasPermission('warehouse');
+  const canAddStock = isSuperAdmin || hasPermission('warehouse'); 
+  const canEditStock = isSuperAdmin || hasPermission('warehouse');
+  const canDeleteStock = isSuperAdmin || hasPermission('warehouse');
 
   const fetchData = useCallback(async () => {
+    if (!canAccessStock) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const [stockRes, warehouseRes] = await Promise.all([
@@ -47,13 +58,17 @@ const StockInventory = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [canAccessStock]);
 
   useEffect(() => { 
     fetchData(); 
   }, [fetchData]);
 
   const handleEdit = (item) => {
+    if (!canEditStock) {
+      alert("Anda tidak memiliki izin untuk mengedit stok");
+      return;
+    }
     setSelectedItem(item);
     setIsEditOpen(true);
   };
@@ -71,6 +86,40 @@ const StockInventory = () => {
     ? 'All Warehouses' 
     : warehouses.find(w => w.id === activeWarehouse)?.name || 'Unknown Warehouse';
 
+  if (permissionLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="animate-spin text-indigo-600" size={40} />
+      </div>
+    );
+  }
+
+  if (!canAccessStock) {
+    return (
+      <div className="min-h-screen bg-[#f8f9fa] flex items-center justify-center p-4">
+        <div className="bg-white rounded-[32px] p-8 text-center max-w-md shadow-xl">
+          <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <ShieldAlert size={40} className="text-red-500" />
+          </div>
+          <h2 className="text-xl font-black text-gray-900 uppercase italic mb-2">
+            Akses Ditolak
+          </h2>
+          <p className="text-sm text-gray-500">
+            Anda tidak memiliki izin untuk mengakses modul <span className="font-bold text-red-500">Stock Inventory</span>.
+          </p>
+          <div className="mt-4 p-3 bg-gray-50 rounded-xl">
+            <p className="text-xs text-gray-400">
+              Role Anda: <span className="font-mono font-bold text-gray-600">{userRole || 'Tidak terdeteksi'}</span>
+            </p>
+          </div>
+          <p className="text-xs text-gray-400 mt-3 italic">
+            Hubungi Administrator untuk mendapatkan akses.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 md:p-8 bg-[#f8f9fa] min-h-screen space-y-6 md:space-y-8 animate-in fade-in duration-500 pb-24 md:pb-8 text-left">
       
@@ -84,7 +133,7 @@ const StockInventory = () => {
         itemData={selectedItem}
       />
 
-      {isAdmin && (
+      {canAddStock && (
         <AddStockModal 
           isOpen={isAddOpen} 
           onClose={() => setIsAddOpen(false)} 
@@ -108,6 +157,21 @@ const StockInventory = () => {
                 <p className="text-gray-400 text-[10px] font-bold uppercase tracking-[0.2em] italic">
                   {filteredData.length} Records • {currentWarehouseName}
                 </p>
+              </div>
+              <div className="flex items-center gap-2 mt-2">
+                {isSuperAdmin && (
+                  <span className="text-[8px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">
+                     SUPERADMIN
+                  </span>
+                )}
+                {userRole === 'Admin' && !isSuperAdmin && (
+                  <span className="text-[8px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                     ADMIN
+                  </span>
+                )}
+                <span className="text-[8px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-600">
+                  Stock: {canEditStock ? 'Read/Write' : 'Read Only'}
+                </span>
               </div>
             </div>
           </div>
@@ -144,13 +208,20 @@ const StockInventory = () => {
           </div>
 
           <div className="flex gap-2 w-full sm:w-auto">
-            {isAdmin && (
+            {canAddStock && (
               <button 
                 onClick={() => setIsAddOpen(true)}
                 className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-4 rounded-[20px] text-[11px] font-black uppercase italic transition-all shadow-lg shadow-indigo-100 active:scale-95"
               >
                 <Plus size={16} strokeWidth={3} /> <span className="hidden md:inline">Add</span>
               </button>
+            )}
+            
+            {!canAddStock && canAccessStock && (
+              <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-[20px] text-[10px] font-bold text-gray-500">
+                <ShieldAlert size={14} />
+                Read Only
+              </div>
             )}
             
             <button 
@@ -178,9 +249,11 @@ const StockInventory = () => {
             <StockTable 
               data={filteredData} 
               warehouses={warehouses}
-              // onEdit={handleEdit}
+              onEdit={canEditStock ? handleEdit : undefined}
               onRefresh={fetchData} 
-              isAdmin={isAdmin} 
+              isAdmin={canEditStock || canDeleteStock}
+              canEdit={canEditStock}
+              canDelete={canDeleteStock}
             />
           </div>
         ) : (
@@ -198,4 +271,4 @@ const StockInventory = () => {
   );
 };
 
-export default StockInventory;
+export default withPermission(StockInventoryContent, 'warehouse');

@@ -12,6 +12,7 @@ import DeliveryOrderTable, {
   DODetailModal,
   CreatePOModal,
 } from './DeliveryOrder/DeliveryOrder';
+import withPermission from '@/lib/withPermission';
 
 const TABS = [
   { key: 'do', label: 'Delivery Orders', icon: FileText, color: 'blue'  },
@@ -366,4 +367,4 @@ const Purchasing = () => {
   );
 };
 
-export default Purchasing;
+export default withPermission(Purchasing,'purchasing');

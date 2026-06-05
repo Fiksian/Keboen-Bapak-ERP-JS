@@ -10,10 +10,10 @@ import {
 import AddSale    from '@/app/(Main)/Penjualan/AddSale';
 import SaleDetail from '@/app/(Main)/Penjualan/SaleDetail';
 import Pagination from '@/app/(Main)/Components/Pagination';
+import withPermission from '@/lib/withPermission';
 
 // ─── Status config — mencakup semua status (REGULAR + DIRECT + legacy) ─────
 const STATUS_CFG = {
-  // Legacy
   PENDING:            { label: 'Pending',         bg: 'bg-amber-50',  text: 'text-amber-600',  border: 'border-amber-200',  dot: 'bg-amber-400',  pulse: true  },
   // 4-stage approval
   PENDING_SALES:      { label: 'Menunggu Sales',  bg: 'bg-orange-50', text: 'text-orange-600', border: 'border-orange-200', dot: 'bg-orange-400', pulse: true  },
@@ -109,12 +109,6 @@ const SalesPage = () => {
     return () => document.removeEventListener('mousedown', h);
   }, []);
 
-  // ── In-place update setelah approval (TANPA full re-fetch) ────────────────
-  //
-  // Optimistic: dipanggil dua kali — sekali saat optimistic (isFinal=false),
-  // sekali saat server confirm (isFinal=true). Jika error, rollback dipanggil
-  // dari ApprovalModal secara otomatis.
-  //
   const handleSaleUpdated = useCallback((updatedSale, isFinal) => {
     setSalesData(prev =>
       prev.map(item => {
@@ -445,4 +439,4 @@ const SalesPage = () => {
   );
 };
 
-export default memo(SalesPage);
+export default withPermission(memo(SalesPage), 'penjualan');

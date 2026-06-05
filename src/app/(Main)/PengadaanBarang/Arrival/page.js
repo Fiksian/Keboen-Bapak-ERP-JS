@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { History, Package, Clock, CheckCircle2, Loader2, Truck, RefreshCw } from 'lucide-react';
 import ArrivalMonitor from '@/app/(Main)/PengadaanBarang/Arrival/ArrivalMonitor';
 import ArrivalHistory from '@/app/(Main)/PengadaanBarang/Arrival/ArrivalHistory';
+import withPermission from '@/lib/withPermission';
 
 const ItemArrival = () => {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
@@ -168,4 +169,4 @@ const ItemArrival = () => {
   );
 };
 
-export default ItemArrival;
+export default withPermission(ItemArrival, 'arrival');

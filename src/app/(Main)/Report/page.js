@@ -12,6 +12,7 @@ import InventoryAlert from './InventoryAlert';
 import ProductionChart from './ProductionChart';
 import ActivityLogsTable from './ActivityLogsTable';
 import { exportToExcel, exportToCSV } from './ExportUtils';
+import withPermission from '@/lib/withPermission';
 
 const Report = () => {
   const [data,           setData]           = useState(null);
@@ -243,4 +244,4 @@ const Report = () => {
   );
 };
 
-export default Report;
+export default withPermission(Report, 'report');

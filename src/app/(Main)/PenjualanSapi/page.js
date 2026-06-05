@@ -1,10 +1,4 @@
 // /app/(Main)/PenjualanSapi/page.js
-// Sales & Distribution — Penjualan Sapi Gemuk
-// Tab 1: Sales Orders
-// Tab 2: Invoice & Faktur (with print)
-// Tab 3: Pengiriman / Delivery
-// Tab 4: Riwayat Harga Jual (price trend)
-// ============================================================
 
 'use client';
 
@@ -20,8 +14,8 @@ import {
   Activity, Calendar,
 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
+import withPermission from '@/lib/withPermission';
 
-// ─── Helpers ──────────────────────────────────────────────────
 const fmtRp = (v) =>
   `Rp ${(parseFloat(v) || 0).toLocaleString('id-ID', { maximumFractionDigits: 0 })}`;
 const fmtKg = (v) =>
@@ -1381,4 +1375,4 @@ const CattleSalesPage = () => {
   );
 };
 
-export default CattleSalesPage;
+export default withPermission(CattleSalesPage,'penjualan_sapi');

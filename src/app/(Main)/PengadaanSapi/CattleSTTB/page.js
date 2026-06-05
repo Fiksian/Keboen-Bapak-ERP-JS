@@ -9,6 +9,7 @@ import {
   TrendingDown, Plus, Info, Globe, ChevronDown,
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
+import withPermission from '@/lib/withPermission';
 
 const PrintSTTB = dynamic(() => import('@/app/(Main)/Components/Arrival/PrintSTTB'), {
   ssr: false,
@@ -802,7 +803,7 @@ const STTBCard = ({ sttb, onView }) => {
 };
 
 // ─── Main Page ─────────────────────────────────────────────────────────────────
-const STTBApprovalPage = () => {
+const CattleSTTBApprovalPage = () => {
   const { data: session } = useSession();
   const [sttbs, setSttbs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1002,4 +1003,4 @@ const STTBApprovalPage = () => {
   );
 };
 
-export default STTBApprovalPage;
+export default withPermission(CattleSTTBApprovalPage,'cattle_sttb');

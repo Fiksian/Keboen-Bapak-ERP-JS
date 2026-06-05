@@ -7,26 +7,39 @@ import SearchInput from '@/app/(Main)/Components/SeachInput';
 import Pagination from '@/app/(Main)/Components/Pagination';
 import {
   Plus, Loader2, Users, RefreshCw, UserCircle,
-  Shield, ChevronRight, Trash2, IdCard
+  Shield, ChevronRight, Trash2, IdCard, ShieldAlert
 } from 'lucide-react';
 import { useSession } from "next-auth/react";
+import { usePermission } from '@/lib/usePermission';
+import withPermission from '@/lib/withPermission';
 
-const StaffManager = () => {
+const StaffManagerContent = () => {
   const { data: session, status } = useSession();
-  const [staffData, setStaffData]   = useState([]);
+  const { hasPermission, isSuperAdmin, loading: permissionLoading, userRole } = usePermission();
+  
+  const [staffData, setStaffData] = useState([]);
   const [userProfile, setUserProfile] = useState(null);
-  const [loading, setLoading]         = useState(true);
+  const [loading, setLoading] = useState(true);
 
-  const [isModalOpen, setIsModalOpen]   = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState(null);
-  const [viewState, setViewState]         = useState('LIST');
+  const [viewState, setViewState] = useState('LIST');
 
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
+  const canAccessStaff = isSuperAdmin || hasPermission('staff');
+  const canAddStaff = isSuperAdmin || hasPermission('staff');
+  const canEditStaff = isSuperAdmin || hasPermission('staff');
+  const canDeleteStaff = isSuperAdmin || hasPermission('staff');
+
   const fetchData = useCallback(async () => {
     if (status !== "authenticated") return;
+    if (!canAccessStaff) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const resMe = await fetch('/api/staff/me');
@@ -35,12 +48,12 @@ const StaffManager = () => {
       if (resMe.ok) {
         setUserProfile(profile);
 
-        if (profile.role !== 'SuperAdmin') {
+        if (!isSuperAdmin && profile.role !== 'SuperAdmin') {
           setSelectedStaff(profile);
           setViewState('DETAILS');
         } else {
           const resStaff = await fetch('/api/staff');
-          const data     = await resStaff.json();
+          const data = await resStaff.json();
           if (resStaff.ok) {
             setStaffData(Array.isArray(data) ? data : data.data || []);
           }
@@ -51,11 +64,15 @@ const StaffManager = () => {
     } finally {
       setLoading(false);
     }
-  }, [status]);
+  }, [status, canAccessStaff, isSuperAdmin]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const handleDelete = async (id, name) => {
+    if (!canDeleteStaff) {
+      alert("Anda tidak memiliki izin untuk menghapus staff");
+      return;
+    }
     if (!window.confirm(`Are you sure you want to delete ${name}? This action cannot be undone.`)) return;
     try {
       const res = await fetch(`/api/staff/${id}`, { method: 'DELETE' });
@@ -77,9 +94,9 @@ const StaffManager = () => {
   const filteredStaff = useMemo(() =>
     staffData.filter(s => {
       const fullName = `${s.firstName} ${s.lastName}`.toLowerCase();
-      const staffId  = s.staffId?.toLowerCase() || '';
+      const staffId = s.staffId?.toLowerCase() || '';
       const identity = s.identityNo?.toLowerCase() || '';
-      const q        = searchQuery.toLowerCase();
+      const q = searchQuery.toLowerCase();
       return fullName.includes(q) || staffId.includes(q) || identity.includes(q);
     }),
     [staffData, searchQuery]
@@ -95,11 +112,16 @@ const StaffManager = () => {
   useEffect(() => { setCurrentPage(1); }, [searchQuery]);
 
   const handleViewDetails = (staff) => {
+    if (!canEditStaff && !isSuperAdmin && staff.id !== userProfile?.id) {
+      alert("Anda hanya dapat melihat profile Anda sendiri");
+      return;
+    }
     setSelectedStaff(staff);
     setViewState('DETAILS');
   };
 
-  if (status === "loading" || loading) {
+  // Loading state untuk permission
+  if (permissionLoading || status === "loading") {
     return (
       <div className="flex flex-col items-center justify-center min-h-[500px] bg-[#f8fafc]">
         <div className="relative">
@@ -113,16 +135,44 @@ const StaffManager = () => {
     );
   }
 
+  // Access denied state
+  if (!canAccessStaff) {
+    return (
+      <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center p-4">
+        <div className="bg-white rounded-[32px] p-8 text-center max-w-md shadow-xl">
+          <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <ShieldAlert size={40} className="text-red-500" />
+          </div>
+          <h2 className="text-xl font-black text-gray-900 uppercase italic mb-2">
+            Akses Ditolak
+          </h2>
+          <p className="text-sm text-gray-500">
+            Anda tidak memiliki izin untuk mengakses modul <span className="font-bold text-red-500">Staff Directory</span>.
+          </p>
+          <div className="mt-4 p-3 bg-gray-50 rounded-xl">
+            <p className="text-xs text-gray-400">
+              Role Anda: <span className="font-mono font-bold text-gray-600">{userRole || 'Tidak terdeteksi'}</span>
+            </p>
+          </div>
+          <p className="text-xs text-gray-400 mt-3 italic">
+            Hubungi Administrator untuk mendapatkan akses.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   if (viewState === 'DETAILS' && selectedStaff) {
     return (
       <StaffProfile
         staff={selectedStaff}
         currentUserRole={userProfile?.role}
-        onBack={userProfile?.role === 'SuperAdmin' ? () => {
+        onBack={(isSuperAdmin || canEditStaff) ? () => {
           setViewState('LIST');
           setSelectedStaff(null);
         } : null}
         onUpdate={fetchData}
+        canEdit={canEditStaff || isSuperAdmin}
       />
     );
   }
@@ -131,7 +181,6 @@ const StaffManager = () => {
     <div className="bg-[#f8fafc] min-h-screen p-4 md:p-8">
       <div className="max-w-[1600px] mx-auto">
 
-        {/* ── Header ──────────────────────────────────────────────────────── */}
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-8 md:mb-12">
           <div className="w-full lg:w-auto">
             <div className="flex items-center gap-3 mb-2">
@@ -142,11 +191,24 @@ const StaffManager = () => {
                 Staff <span className="text-blue-600">Directory</span>
               </h1>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <Shield size={12} className="text-green-500" />
               <p className="text-gray-400 font-bold uppercase text-[10px] tracking-widest italic">
-                Admin: {filteredStaff.length} Employees Active
+                {filteredStaff.length} Employees Active
               </p>
+              {isSuperAdmin && (
+                <span className="text-[8px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">
+                   SUPERADMIN
+                </span>
+              )}
+              {userRole === 'Admin' && !isSuperAdmin && (
+                <span className="text-[8px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                   ADMIN
+                </span>
+              )}
+              <span className="text-[8px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                Staff: {canEditStaff ? 'Full Access' : 'Read Only'}
+              </span>
             </div>
           </div>
 
@@ -159,25 +221,34 @@ const StaffManager = () => {
             <div className="flex items-center gap-2">
               <button
                 onClick={fetchData}
-                className="p-4 bg-white border border-gray-200 text-gray-400 rounded-2xl hover:text-blue-600 hover:border-blue-100 transition-all active:rotate-180 duration-500 shadow-sm"
+                disabled={loading}
+                className="p-4 bg-white border border-gray-200 text-gray-400 rounded-2xl hover:text-blue-600 hover:border-blue-100 transition-all active:rotate-180 duration-500 shadow-sm disabled:opacity-50"
               >
-                <RefreshCw size={20} />
+                <RefreshCw size={20} className={loading ? 'animate-spin' : ''} />
               </button>
-              <button
-                onClick={() => setIsModalOpen(true)}
-                className="flex-1 lg:flex-none flex items-center justify-center gap-3 bg-gray-900 hover:bg-blue-600 text-white px-8 py-4 rounded-2xl shadow-xl transition-all active:scale-95 group"
-              >
-                <Plus size={18} strokeWidth={4} className="group-hover:rotate-90 transition-transform" />
-                <span className="font-black uppercase italic text-xs tracking-widest">Add Staff</span>
-              </button>
+              
+              {canAddStaff && (
+                <button
+                  onClick={() => setIsModalOpen(true)}
+                  className="flex-1 lg:flex-none flex items-center justify-center gap-3 bg-gray-900 hover:bg-blue-600 text-white px-8 py-4 rounded-2xl shadow-xl transition-all active:scale-95 group"
+                >
+                  <Plus size={18} strokeWidth={4} className="group-hover:rotate-90 transition-transform" />
+                  <span className="font-black uppercase italic text-xs tracking-widest">Add Staff</span>
+                </button>
+              )}
+              
+              {!canAddStaff && canAccessStaff && (
+                <div className="flex items-center gap-2 px-4 py-3 bg-gray-100 rounded-2xl text-[10px] font-bold text-gray-500">
+                  <ShieldAlert size={14} />
+                  Read Only
+                </div>
+              )}
             </div>
           </div>
         </div>
 
-        {/* ── Table ───────────────────────────────────────────────────────── */}
         <div className="bg-white rounded-[32px] md:rounded-[40px] shadow-2xl shadow-gray-200/50 border border-gray-100 overflow-hidden">
 
-          {/* Desktop */}
           <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left">
               <thead>
@@ -206,7 +277,6 @@ const StaffManager = () => {
                         </span>
                       </div>
                     </td>
-                    {/* ── BARU: kolom No. KTP ────────────────────────── */}
                     <td className="px-8 py-6">
                       <div className="flex items-center gap-2">
                         <IdCard size={12} className="text-gray-300" />
@@ -240,7 +310,7 @@ const StaffManager = () => {
                         >
                           MANAGE
                         </button>
-                        {userProfile?.role === 'SuperAdmin' && (
+                        {canDeleteStaff && (
                           <button
                             onClick={() => handleDelete(staff.id, `${staff.firstName} ${staff.lastName}`)}
                             className="p-2.5 text-gray-300 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all active:scale-90"
@@ -291,7 +361,7 @@ const StaffManager = () => {
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  {userProfile?.role === 'SuperAdmin' && (
+                  {canDeleteStaff && (
                     <button
                       onClick={e => { e.stopPropagation(); handleDelete(staff.id, `${staff.firstName} ${staff.lastName}`); }}
                       className="p-2 text-gray-300 active:text-red-600"
@@ -330,4 +400,4 @@ const StaffManager = () => {
   );
 };
 
-export default StaffManager;
+export default withPermission(StaffManagerContent, 'staff');

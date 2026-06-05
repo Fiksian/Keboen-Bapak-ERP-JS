@@ -8,6 +8,7 @@ import {
   Eye, Printer, Search,
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
+import withPermission from '@/lib/withPermission';
 
 const PrintSTTB = dynamic(() => import('@/app/(Main)/Components/Arrival/PrintSTTB'), {
   ssr: false,
@@ -680,4 +681,4 @@ const STTBApprovalPage = () => {
   );
 };
 
-export default STTBApprovalPage;
+export default withPermission(STTBApprovalPage, 'sttb');

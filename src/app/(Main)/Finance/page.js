@@ -3,14 +3,17 @@
 import React, { useState, useEffect, useRef, memo } from 'react';
 import { 
     Plus, Search, FileText, Loader2, RefreshCw, 
-    ArrowUpCircle, ArrowDownCircle, Receipt, Eye, Trash2 
+    ArrowUpCircle, ArrowDownCircle, Receipt, Eye, Trash2, ShieldAlert
 } from 'lucide-react';
 import AddFinance from '@/app/(Main)/Finance/AddFinance';
 import FinanceDetail from '@/app/(Main)/Finance/FinanceDetail';
 import FinanceStats from './FinanceStats';
 import Pagination from '@/app/(Main)/Components/Pagination';
+import { usePermission } from '@/lib/usePermission';
+import withPermission from '@/lib/withPermission';
 
-const FinancePage = () => {
+const FinancePageContent = () => {
+    const { hasPermission, isSuperAdmin, loading: permissionLoading, userRole } = usePermission();
     const [data, setData] = useState({ transactions: [], summary: {} });
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -24,7 +27,16 @@ const FinancePage = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 10;
 
+    const canAccessFinance = isSuperAdmin || hasPermission('finance');
+    const canAddFinance = isSuperAdmin || hasPermission('finance');
+    const canDeleteFinance = isSuperAdmin || hasPermission('finance');
+    const canViewFinance = isSuperAdmin || hasPermission('finance');
+
     const fetchFinanceData = async () => {
+        if (!canAccessFinance) {
+            setLoading(false);
+            return;
+        }
         setLoading(true);
         try {
             const res = await fetch('/api/finance');
@@ -49,6 +61,10 @@ const FinancePage = () => {
     }, []);
 
     const handleDelete = async (id) => {
+        if (!canDeleteFinance) {
+            alert("Anda tidak memiliki izin untuk menghapus transaksi");
+            return;
+        }
         if (!confirm('Hapus transaksi secara permanen?')) return;
         try {
             const res = await fetch(`/api/finance?id=${id}`, { method: 'DELETE' });
@@ -72,20 +88,83 @@ const FinancePage = () => {
         setCurrentPage(1);
     };
 
+    if (permissionLoading) {
+        return (
+            <div className="flex items-center justify-center min-h-[60vh]">
+                <Loader2 className="animate-spin text-[#8da070]" size={40} />
+            </div>
+        );
+    }
+
+    if (!canAccessFinance) {
+        return (
+            <div className="min-h-screen bg-gray-50/50 flex items-center justify-center p-4">
+                <div className="bg-white rounded-[32px] p-8 text-center max-w-md shadow-xl">
+                    <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <ShieldAlert size={40} className="text-red-500" />
+                    </div>
+                    <h2 className="text-xl font-black text-gray-900 uppercase italic mb-2">
+                        Akses Ditolak
+                    </h2>
+                    <p className="text-sm text-gray-500">
+                        Anda tidak memiliki izin untuk mengakses modul <span className="font-bold text-red-500">Keuangan & Kas</span>.
+                    </p>
+                    <div className="mt-4 p-3 bg-gray-50 rounded-xl">
+                        <p className="text-xs text-gray-400">
+                            Role Anda: <span className="font-mono font-bold text-gray-600">{userRole || 'Tidak terdeteksi'}</span>
+                        </p>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-3 italic">
+                        Hubungi Administrator untuk mendapatkan akses.
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="min-h-screen bg-gray-50/50 p-4 md:p-8 font-sans">
             <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
                 <div className="text-left">
-                    <h1 className="text-2xl font-black text-gray-900 tracking-tight uppercase italic">Keuangan & Kas</h1>
-                    <p className="text-sm text-gray-500 font-medium italic">Pantau arus kas masuk dan keluar operasional</p>
+                    <div className="flex items-center gap-3 flex-wrap">
+                        <h1 className="text-2xl font-black text-gray-900 tracking-tight uppercase italic">Keuangan & Kas</h1>
+                        {/* Badge role untuk info */}
+                        {isSuperAdmin && (
+                            <span className="text-[8px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">
+                                 SUPERADMIN
+                            </span>
+                        )}
+                        {userRole === 'Admin' && !isSuperAdmin && (
+                            <span className="text-[8px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                                 ADMIN
+                            </span>
+                        )}
+                        <span className="text-[8px] font-bold px-2 py-0.5 rounded-full bg-[#8da070]/10 text-[#8da070]">
+                            Finance: {canAddFinance ? 'Read/Write' : 'Read Only'}
+                        </span>
+                    </div>
+                    <p className="text-sm text-gray-500 font-medium italic mt-1">Pantau arus kas masuk dan keluar operasional</p>
                 </div>
                 <div className="flex flex-col xs:flex-row gap-3">
                     <button className="flex-1 flex items-center justify-center gap-2 bg-white border border-gray-200 text-gray-700 px-4 py-3 rounded-2xl font-black hover:bg-gray-50 transition-all text-[10px] uppercase tracking-widest">
                         <FileText size={16} /> Laporan PDF
                     </button>
-                    <button onClick={() => setIsModalOpen(true)} className="flex-1 flex items-center justify-center gap-2 bg-[#8da070] text-white px-6 py-3 rounded-2xl font-black hover:bg-[#7a8c61] transition-all shadow-lg shadow-[#8da070]/20 text-[10px] uppercase tracking-widest">
-                        <Plus size={18} strokeWidth={3} /> Catat Trx
-                    </button>
+                    
+                    {canAddFinance && (
+                        <button 
+                            onClick={() => setIsModalOpen(true)} 
+                            className="flex-1 flex items-center justify-center gap-2 bg-[#8da070] text-white px-6 py-3 rounded-2xl font-black hover:bg-[#7a8c61] transition-all shadow-lg shadow-[#8da070]/20 text-[10px] uppercase tracking-widest"
+                        >
+                            <Plus size={18} strokeWidth={3} /> Catat Trx
+                        </button>
+                    )}
+
+                    {!canAddFinance && canAccessFinance && (
+                        <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-2xl text-[10px] font-bold text-gray-500">
+                            <ShieldAlert size={14} />
+                            Read Only
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -183,12 +262,15 @@ const FinancePage = () => {
                                                                 >
                                                                     <Eye size={16} className="text-blue-500" /> Detail
                                                                 </button>
-                                                                <button 
-                                                                    onClick={() => handleDelete(trx.id)} 
-                                                                    className="w-full text-left px-4 py-2.5 text-[11px] font-black text-red-500 hover:bg-red-50 flex items-center gap-3 uppercase tracking-wider"
-                                                                >
-                                                                    <Trash2 size={16} /> Hapus
-                                                                </button>
+                                                                {/* Conditional Delete button - hanya jika punya permission delete */}
+                                                                {canDeleteFinance && (
+                                                                    <button 
+                                                                        onClick={() => handleDelete(trx.id)} 
+                                                                        className="w-full text-left px-4 py-2.5 text-[11px] font-black text-red-500 hover:bg-red-50 flex items-center gap-3 uppercase tracking-wider"
+                                                                    >
+                                                                        <Trash2 size={16} /> Hapus
+                                                                    </button>
+                                                                )}
                                                             </div>
                                                         )}
                                                     </div>
@@ -223,10 +305,12 @@ const FinancePage = () => {
                 )}
             </div>
 
-            <AddFinance isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSuccess={fetchFinanceData} />
+            {canAddFinance && (
+                <AddFinance isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSuccess={fetchFinanceData} />
+            )}
             <FinanceDetail isOpen={isDetailOpen} onClose={() => setIsDetailOpen(false)} trx={selectedTrx} />
         </div>
     );
 };
 
-export default memo(FinancePage);
+export default withPermission(memo(FinancePageContent), 'finance');

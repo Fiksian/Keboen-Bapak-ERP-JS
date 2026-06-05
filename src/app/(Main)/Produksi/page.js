@@ -6,8 +6,8 @@ import {
   Calendar, Hash, Target, ShieldCheck, X, RefreshCw, Warehouse,
   TrendingDown, DollarSign, BarChart3, Clock
 } from 'lucide-react';
-import { useSession } from 'next-auth/react';
 import AddProduction from './AddProduction';
+import withPermission from '@/lib/withPermission';
 
 // ─── Status config ─────────────────────────────────────────────────────────────
 const STATUS_CFG = {
@@ -82,14 +82,11 @@ const ProductionStepper = ({ status, order }) => {
 
 // ─── Approval modal ────────────────────────────────────────────────────────────
 const ApprovalModal = ({ order, onClose, onDone }) => {
-  const { data: session } = useSession();
   const [notes,      setNotes]      = useState('');
   const [warehouseId, setWH]        = useState('');
   const [warehouses, setWarehouses] = useState([]);
   const [loading,    setLoading]    = useState('');
   const [rejectMode, setRejectMode] = useState(false);
-
-  const role = session?.user?.role;
 
   useEffect(() => {
     fetch('/api/warehouse').then(r => r.ok ? r.json() : []).then(setWarehouses);
@@ -287,7 +284,6 @@ const ApprovalModal = ({ order, onClose, onDone }) => {
 // Main Page
 // =============================================================================
 const ProductionModule = () => {
-  const { data: session } = useSession();
   const [isAddOpen,   setIsAddOpen]   = useState(false);
   const [orders,      setOrders]      = useState([]);
   const [loading,     setLoading]     = useState(true);
@@ -484,4 +480,4 @@ const ProductionModule = () => {
   );
 };
 
-export default ProductionModule;
+export default withPermission(ProductionModule, "produksi");

@@ -12,13 +12,14 @@ import CattleDeliveryOrderTable, {
   DODetailModal,
   CreatePOFromDOModal,
 } from './CattleDeliveryOrder/DeliveryOrder';
+import withPermission from '@/lib/withPermission';
 
 const TABS = [
   { key: 'do', label: 'Delivery Orders', icon: FileText, color: 'blue'  },
   { key: 'po', label: 'Purchase Orders', icon: BookOpen, color: 'green' },
 ];
 
-const Purchasing = () => {
+const CattlePurchasing = () => {
   // ── PO state ─────────────────────────────────────────────────────────────────
   const [requests,      setRequests]      = useState([]);
   const [poLoading,     setPoLoading]     = useState(true);
@@ -389,4 +390,4 @@ const Purchasing = () => {
   );
 };
 
-export default Purchasing;
+export default withPermission(CattlePurchasing, 'cattle_purchasing');

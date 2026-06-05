@@ -7,6 +7,7 @@ import WeatherHero from './WeatherHero';
 import WeatherChart from './WeatherChart';
 import WeatherForecast from './WeatherForecast';
 import EnvironmentMetrics from './EnvironmentMetrics';
+import withPermission from '@/lib/withPermission';
 
 const Cuaca = () => {
   const { weather, loading } = useWeather();
@@ -101,4 +102,4 @@ const Cuaca = () => {
   );
 };
 
-export default Cuaca;
+export default withPermission(Cuaca, 'cuaca');

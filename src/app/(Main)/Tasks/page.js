@@ -6,6 +6,7 @@ import {
   Calendar, Trash2, Edit3, Loader2 
 } from 'lucide-react';
 import AddTask from './AddTasks';
+import withPermission from '@/lib/withPermission';
 
 const UpcomingTasks = () => {
   const [taskList, setTaskList] = useState([]);
@@ -180,4 +181,4 @@ const UpcomingTasks = () => {
   );
 };
 
-export default UpcomingTasks;
+export default withPermission(UpcomingTasks, 'tasks');

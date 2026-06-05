@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import CattleArrivalMonitor from '@/app/(Main)/PengadaanSapi/CattleArrival/ArrivalMonitor';
 import CattleArrivalHistory from '@/app/(Main)/PengadaanSapi/CattleArrival/ArrivalHistory';
+import withPermission from '@/lib/withPermission';
 
 const fmtRp = (v) => `Rp ${(parseFloat(v) || 0).toLocaleString('id-ID')}`;
 
@@ -115,4 +116,4 @@ const CattleArrivalPage = () => {
   );
 };
 
-export default CattleArrivalPage;
+export default withPermission(CattleArrivalPage,'cattle_arrival');

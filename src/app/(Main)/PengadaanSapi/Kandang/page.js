@@ -14,6 +14,7 @@ import {
   Link, FileCheck,
 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
+import withPermission from '@/lib/withPermission';
 
 // ─── Helpers ──────────────────────────────────────────────────
 const fmtKg  = (v) => v != null ? `${parseFloat(v).toLocaleString('id-ID', { maximumFractionDigits: 1 })} kg` : '-';
@@ -1897,4 +1898,4 @@ const KandangPage = () => {
   );
 };
 
-export default KandangPage;
+export default withPermission(KandangPage,'kandang');

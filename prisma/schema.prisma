@@ -57,6 +57,7 @@ model User {
   password  String
   phone     String?
   role      String          @default("Staff")
+  image     String?
   createdAt DateTime        @default(now())
   roleData  RolePermission? @relation("UserToRole", fields: [role], references: [roleName])
   staffs    staffs?
@@ -65,7 +66,7 @@ model User {
 model RolePermission {
   id          String   @id @default(cuid())
   roleName    String   @unique
-  permissions String[]
+  permissions String[] // contoh: ["dashboard","staff","purchasing"] atau ["*"] untuk akses penuh
   updatedAt   DateTime @updatedAt
   users       User[]   @relation("UserToRole")
 }
@@ -1312,6 +1313,9 @@ model staffs {
   role        String
   designation String
   image       String?
+  identityNo  String?  // No. KTP / Identitas
+  address     String?  // Alamat lengkap
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   User        User     @relation(fields: [id], references: [id], onDelete: Cascade)

@@ -3,23 +3,23 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import AddStaff from './AddStaff';
 import StaffProfile from './StaffProfile';
-import SearchInput from '@/app/(Main)/Components/SeachInput'; 
-import Pagination from '@/app/(Main)/Components/Pagination';   
-import { 
-  Plus, Loader2, Users, RefreshCw, UserCircle, 
-  Shield, ChevronRight, Trash2 
+import SearchInput from '@/app/(Main)/Components/SeachInput';
+import Pagination from '@/app/(Main)/Components/Pagination';
+import {
+  Plus, Loader2, Users, RefreshCw, UserCircle,
+  Shield, ChevronRight, Trash2, IdCard
 } from 'lucide-react';
 import { useSession } from "next-auth/react";
 
 const StaffManager = () => {
   const { data: session, status } = useSession();
-  const [staffData, setStaffData] = useState([]);
+  const [staffData, setStaffData]   = useState([]);
   const [userProfile, setUserProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
-  
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [loading, setLoading]         = useState(true);
+
+  const [isModalOpen, setIsModalOpen]   = useState(false);
   const [selectedStaff, setSelectedStaff] = useState(null);
-  const [viewState, setViewState] = useState('LIST');
+  const [viewState, setViewState]         = useState('LIST');
 
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -27,12 +27,11 @@ const StaffManager = () => {
 
   const fetchData = useCallback(async () => {
     if (status !== "authenticated") return;
-    
     setLoading(true);
     try {
       const resMe = await fetch('/api/staff/me');
       const profile = await resMe.json();
-      
+
       if (resMe.ok) {
         setUserProfile(profile);
 
@@ -41,8 +40,7 @@ const StaffManager = () => {
           setViewState('DETAILS');
         } else {
           const resStaff = await fetch('/api/staff');
-          const data = await resStaff.json();
-          
+          const data     = await resStaff.json();
           if (resStaff.ok) {
             setStaffData(Array.isArray(data) ? data : data.data || []);
           }
@@ -55,51 +53,46 @@ const StaffManager = () => {
     }
   }, [status]);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   const handleDelete = async (id, name) => {
-    if (window.confirm(`Are you sure you want to delete ${name}? This action cannot be undone.`)) {
-      try {
-        const res = await fetch(`/api/staff/${id}`, {
-          method: 'DELETE',
-        });
-
-        if (res.ok) {
-          setStaffData(prev => prev.filter(staff => staff.id !== id));
-          if (currentStaffTableData.length === 1 && currentPage > 1) {
-            setCurrentPage(currentPage - 1);
-          }
-        } else {
-          const errorData = await res.json();
-          alert(errorData.message || "Failed to delete staff.");
+    if (!window.confirm(`Are you sure you want to delete ${name}? This action cannot be undone.`)) return;
+    try {
+      const res = await fetch(`/api/staff/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setStaffData(prev => prev.filter(s => s.id !== id));
+        if (currentStaffTableData.length === 1 && currentPage > 1) {
+          setCurrentPage(currentPage - 1);
         }
-      } catch (error) {
-        console.error("Delete Error:", error);
-        alert("An error occurred while deleting staff.");
+      } else {
+        const errorData = await res.json();
+        alert(errorData.message || "Failed to delete staff.");
       }
+    } catch (error) {
+      console.error("Delete Error:", error);
+      alert("An error occurred while deleting staff.");
     }
   };
 
-  const filteredStaff = useMemo(() => {
-    return staffData.filter(staff => {
-      const fullName = `${staff.firstName} ${staff.lastName}`.toLowerCase();
-      const staffId = staff.staffId?.toLowerCase() || '';
-      return fullName.includes(searchQuery.toLowerCase()) || staffId.includes(searchQuery.toLowerCase());
-    });
-  }, [staffData, searchQuery]);
+  const filteredStaff = useMemo(() =>
+    staffData.filter(s => {
+      const fullName = `${s.firstName} ${s.lastName}`.toLowerCase();
+      const staffId  = s.staffId?.toLowerCase() || '';
+      const identity = s.identityNo?.toLowerCase() || '';
+      const q        = searchQuery.toLowerCase();
+      return fullName.includes(q) || staffId.includes(q) || identity.includes(q);
+    }),
+    [staffData, searchQuery]
+  );
 
   const totalPages = Math.ceil(filteredStaff.length / itemsPerPage);
-  
+
   const currentStaffTableData = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    return filteredStaff.slice(startIndex, startIndex + itemsPerPage);
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredStaff.slice(start, start + itemsPerPage);
   }, [filteredStaff, currentPage]);
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery]);
+  useEffect(() => { setCurrentPage(1); }, [searchQuery]);
 
   const handleViewDetails = (staff) => {
     setSelectedStaff(staff);
@@ -122,14 +115,14 @@ const StaffManager = () => {
 
   if (viewState === 'DETAILS' && selectedStaff) {
     return (
-      <StaffProfile 
-        staff={selectedStaff} 
+      <StaffProfile
+        staff={selectedStaff}
         currentUserRole={userProfile?.role}
         onBack={userProfile?.role === 'SuperAdmin' ? () => {
           setViewState('LIST');
           setSelectedStaff(null);
-        } : null} 
-        onUpdate={fetchData} 
+        } : null}
+        onUpdate={fetchData}
       />
     );
   }
@@ -137,7 +130,8 @@ const StaffManager = () => {
   return (
     <div className="bg-[#f8fafc] min-h-screen p-4 md:p-8">
       <div className="max-w-[1600px] mx-auto">
-        
+
+        {/* ── Header ──────────────────────────────────────────────────────── */}
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-8 md:mb-12">
           <div className="w-full lg:w-auto">
             <div className="flex items-center gap-3 mb-2">
@@ -149,28 +143,26 @@ const StaffManager = () => {
               </h1>
             </div>
             <div className="flex items-center gap-2">
-               <Shield size={12} className="text-green-500" />
-               <p className="text-gray-400 font-bold uppercase text-[10px] tracking-widest italic">
-                 Admin: {filteredStaff.length} Employees Active
-               </p>
+              <Shield size={12} className="text-green-500" />
+              <p className="text-gray-400 font-bold uppercase text-[10px] tracking-widest italic">
+                Admin: {filteredStaff.length} Employees Active
+              </p>
             </div>
           </div>
-          
-          <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 w-full lg:w-auto">
-            <SearchInput 
-              value={searchQuery} 
-              onChange={setSearchQuery} 
-              placeholder="Find by name/ID..."
-            />
 
+          <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 w-full lg:w-auto">
+            <SearchInput
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder="Find by name / ID / KTP..."
+            />
             <div className="flex items-center gap-2">
-              <button 
+              <button
                 onClick={fetchData}
                 className="p-4 bg-white border border-gray-200 text-gray-400 rounded-2xl hover:text-blue-600 hover:border-blue-100 transition-all active:rotate-180 duration-500 shadow-sm"
               >
                 <RefreshCw size={20} />
               </button>
-              
               <button
                 onClick={() => setIsModalOpen(true)}
                 className="flex-1 lg:flex-none flex items-center justify-center gap-3 bg-gray-900 hover:bg-blue-600 text-white px-8 py-4 rounded-2xl shadow-xl transition-all active:scale-95 group"
@@ -182,13 +174,17 @@ const StaffManager = () => {
           </div>
         </div>
 
+        {/* ── Table ───────────────────────────────────────────────────────── */}
         <div className="bg-white rounded-[32px] md:rounded-[40px] shadow-2xl shadow-gray-200/50 border border-gray-100 overflow-hidden">
+
+          {/* Desktop */}
           <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left">
               <thead>
                 <tr className="bg-gray-50/50 border-b border-gray-100">
                   <th className="px-8 py-6 text-[10px] font-black uppercase text-gray-400 tracking-widest">No</th>
                   <th className="px-8 py-6 text-[10px] font-black uppercase text-gray-400 tracking-widest">Employee Identity</th>
+                  <th className="px-8 py-6 text-[10px] font-black uppercase text-gray-400 tracking-widest">No. KTP</th>
                   <th className="px-8 py-6 text-[10px] font-black uppercase text-gray-400 tracking-widest text-center">Gender</th>
                   <th className="px-8 py-6 text-[10px] font-black uppercase text-gray-400 tracking-widest">Position & Role</th>
                   <th className="px-8 py-6 text-[10px] font-black uppercase text-gray-400 tracking-widest text-right">Management</th>
@@ -210,9 +206,20 @@ const StaffManager = () => {
                         </span>
                       </div>
                     </td>
+                    {/* ── BARU: kolom No. KTP ────────────────────────── */}
+                    <td className="px-8 py-6">
+                      <div className="flex items-center gap-2">
+                        <IdCard size={12} className="text-gray-300" />
+                        <span className="font-mono text-[11px] text-gray-500">
+                          {staff.identityNo || <span className="text-gray-300 italic">—</span>}
+                        </span>
+                      </div>
+                    </td>
                     <td className="px-8 py-6 text-center">
                       <span className={`inline-block px-3 py-1 rounded-lg text-[9px] font-black uppercase ${
-                        staff.gender === 'Male' ? 'bg-blue-50 text-blue-500 border border-blue-100' : 'bg-pink-50 text-pink-500 border border-pink-100'
+                        staff.gender === 'Male'
+                          ? 'bg-blue-50 text-blue-500 border border-blue-100'
+                          : 'bg-pink-50 text-pink-500 border border-pink-100'
                       }`}>
                         {staff.gender}
                       </span>
@@ -227,14 +234,14 @@ const StaffManager = () => {
                     </td>
                     <td className="px-8 py-6 text-right">
                       <div className="flex justify-end items-center gap-2">
-                        <button 
+                        <button
                           onClick={() => handleViewDetails(staff)}
                           className="px-5 py-2 bg-white border border-gray-200 text-gray-900 rounded-xl text-[10px] font-black uppercase italic hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all shadow-sm active:scale-90"
                         >
                           MANAGE
                         </button>
                         {userProfile?.role === 'SuperAdmin' && (
-                          <button 
+                          <button
                             onClick={() => handleDelete(staff.id, `${staff.firstName} ${staff.lastName}`)}
                             className="p-2.5 text-gray-300 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all active:scale-90"
                             title="Delete Staff"
@@ -246,20 +253,23 @@ const StaffManager = () => {
                     </td>
                   </tr>
                 ))}
+
+                {currentStaffTableData.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="px-8 py-16 text-center text-gray-300 text-sm font-bold italic uppercase tracking-widest">
+                      No staff found
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
 
+          {/* Mobile */}
           <div className="md:hidden divide-y divide-gray-50">
             {currentStaffTableData.map((staff, index) => (
-              <div 
-                key={staff.id} 
-                className="p-5 active:bg-blue-50 transition-colors flex items-center justify-between group"
-              >
-                <div 
-                  className="flex items-center gap-4 flex-1"
-                  onClick={() => handleViewDetails(staff)}
-                >
+              <div key={staff.id} className="p-5 active:bg-blue-50 transition-colors flex items-center justify-between group">
+                <div className="flex items-center gap-4 flex-1" onClick={() => handleViewDetails(staff)}>
                   <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center font-black text-gray-400 text-xs">
                     {(currentPage - 1) * itemsPerPage + index + 1}
                   </div>
@@ -275,24 +285,23 @@ const StaffManager = () => {
                         {staff.designation}
                       </span>
                     </div>
+                    {staff.identityNo && (
+                      <span className="text-[9px] font-mono text-gray-400 mt-0.5">KTP: {staff.identityNo}</span>
+                    )}
                   </div>
                 </div>
-                
                 <div className="flex items-center gap-3">
                   {userProfile?.role === 'SuperAdmin' && (
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDelete(staff.id, `${staff.firstName} ${staff.lastName}`);
-                      }}
+                    <button
+                      onClick={e => { e.stopPropagation(); handleDelete(staff.id, `${staff.firstName} ${staff.lastName}`); }}
                       className="p-2 text-gray-300 active:text-red-600"
                     >
                       <Trash2 size={18} />
                     </button>
                   )}
-                  <ChevronRight 
-                    size={18} 
-                    className="text-gray-300 group-hover:text-blue-500 transition-colors" 
+                  <ChevronRight
+                    size={18}
+                    className="text-gray-300 group-hover:text-blue-500 transition-colors"
                     onClick={() => handleViewDetails(staff)}
                   />
                 </div>
@@ -301,7 +310,7 @@ const StaffManager = () => {
           </div>
 
           <div className="bg-gray-50/30 border-t border-gray-100 p-4">
-            <Pagination 
+            <Pagination
               currentPage={currentPage}
               totalPages={totalPages}
               onPageChange={setCurrentPage}
@@ -310,15 +319,15 @@ const StaffManager = () => {
         </div>
       </div>
 
-      <AddStaff 
-        isOpen={isModalOpen} 
+      <AddStaff
+        isOpen={isModalOpen}
         onClose={() => {
           setIsModalOpen(false);
-          fetchData(); 
-        }} 
+          fetchData();
+        }}
       />
     </div>
-  )
-}
+  );
+};
 
-export default StaffManager
+export default StaffManager;

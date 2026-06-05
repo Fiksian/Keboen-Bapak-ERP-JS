@@ -121,7 +121,7 @@ const ProfileModal = ({ isOpen, onClose }) => {
                                     <div className="flex flex-col">
                                         <span className="text-[10px] font-black text-gray-400 uppercase">Access Level</span>
                                         <span className="text-sm text-gray-700 font-bold">
-                                            {profile?.role || "Staff"} Administrator
+                                            {profile?.role || "Staff"}
                                         </span>
                                     </div>
                                 </div>

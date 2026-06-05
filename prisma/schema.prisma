@@ -508,6 +508,8 @@ model CattleBreed {
   id          String         @id @default(cuid())
   name        String         @unique
   description String?
+  // ── BARU: ADG default per breed ───────────────────────────────────────────
+  defaultADG  Float?         // kg/hari — Average Daily Gain basis breed ini
   createdAt   DateTime       @default(now())
   doItems     CattleDOItem[]
   poItems     CattlePOItem[]
@@ -898,6 +900,11 @@ model Cattle {
   rfidNo         String       @unique
   name           String?
   breed          String?
+  // ── BARU: Gender Type untuk ADG ──────────────────────────────────────────
+  genderType     GenderType   @default(UNKNOWN)
+  // ── BARU: Arrival Date untuk kalkulasi hari ─────────────────────────────
+  arrivalDate    DateTime?    // Tanggal tiba di kandang — basis perhitungan hari untuk ADG
+  
   weight         Float        @default(0)
   status         CattleStatus @default(ARRIVAL)
   lastWeightDate DateTime?
@@ -959,7 +966,8 @@ model Cattle {
   @@index([warehouseId])
   @@index([status])
   @@index([arrivalId])
-  @@index([purchasingId])   // ── BARU: index untuk FK purchasingId
+  @@index([purchasingId])
+  @@index([genderType])   // ← index untuk filter berdasarkan gender
 }
 
 // ─── Riwayat Berat Badan (Legacy) ──────────────────────────────────────────
@@ -1125,6 +1133,14 @@ model SalesOrder {
   createdBy        String?
   isCattleReleased Boolean        @default(false)  // true = status Cattle sudah SOLD
 
+  // ── BARU: Shipment performance snapshot ───────────────────────────────────
+  remainingStock   Int?           // Sisa ekor IN_KANDANG di warehouse ini setelah order ini
+  avgWeightShipped Float?         // Rata-rata bobot keluar semua item di order ini (kg)
+  countSteer       Int?           // Jumlah STEER yang dijual di order ini
+  countHeifer      Int?           // Jumlah HEIFER yang dijual di order ini
+  countBull        Int?           // Jumlah BULL yang dijual di order ini
+  // ─────────────────────────────────────────────────────────────────────────
+
   items            SalesOrderItem[]
   delivery         DeliveryTracking?
 
@@ -1157,6 +1173,11 @@ model SalesOrderItem {
   // Info tambahan
   breed         String?    // Jenis sapi
   notes         String?
+
+  // ── BARU: Gender + ADG audit trail ───────────────────────────────────────
+  genderType    GenderType? // snapshot gender saat dijual
+  adgEstWeight  Float?      // Estimasi bobot dari kalkulasi ADG (kg) — audit trail
+  // ─────────────────────────────────────────────────────────────────────────
 
   // Relasi ke Cattle
   cattle        Cattle?    @relation(fields: [cattleId], references: [id])
@@ -1464,4 +1485,14 @@ enum DeliveryStatus {
   ON_DELIVERY   // Dalam perjalanan
   DELIVERED     // Sudah diterima
   CANCELLED
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ENUM BARU: GenderType untuk ADG (Average Daily Gain)
+// ═══════════════════════════════════════════════════════════════════════════
+enum GenderType {
+  STEER    // Sapi jantan kastrasi — ADG tertinggi
+  HEIFER   // Sapi betina muda
+  BULL     // Sapi jantan utuh
+  UNKNOWN  // Belum diketahui (default aman)
 }

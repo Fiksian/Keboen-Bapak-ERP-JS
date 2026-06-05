@@ -17,7 +17,7 @@ import {
   AlertTriangle, Beef, Scale, Search, ChevronDown, Printer,
   Tag, Package, MapPin, ArrowRight, BarChart3, Layers,
   Clock, Warehouse, Phone, Hash, Check, Eye, ChevronRight,
-  Activity, Calendar,
+  Activity, Calendar, Zap, Info, ChevronUp,
 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 
@@ -30,6 +30,38 @@ const fmtDate = (dt) =>
   dt ? new Date(dt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
 const fmtDateTime = (dt) =>
   dt ? new Date(dt).toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '-';
+
+// ─── ADG Helpers ──────────────────────────────────────────────
+const ADG_DEFAULTS = { STEER: 1.2, HEIFER: 0.9, BULL: 1.0, UNKNOWN: 1.0 };
+
+const GENDER_CFG = {
+  STEER  : { label: '♂ Steer',   bg: 'bg-blue-50',   text: 'text-blue-700',  border: 'border-blue-200'  },
+  HEIFER : { label: '♀ Heifer',  bg: 'bg-pink-50',   text: 'text-pink-700',  border: 'border-pink-200'  },
+  BULL   : { label: '♂ Bull',    bg: 'bg-purple-50', text: 'text-purple-700',border: 'border-purple-200'},
+  UNKNOWN: { label: '? Unknown', bg: 'bg-slate-50',  text: 'text-slate-500', border: 'border-slate-200' },
+};
+
+const GenderBadge = ({ type }) => {
+  const c = GENDER_CFG[type] || GENDER_CFG.UNKNOWN;
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-lg text-[8px] font-black uppercase border ${c.bg} ${c.text} ${c.border}`}>
+      {c.label}
+    </span>
+  );
+};
+
+// Kalkulasi ADG di sisi klien (untuk live preview)
+const calcADGClient = (cattle, plannedDate) => {
+  const adg       = ADG_DEFAULTS[cattle.genderType ?? 'UNKNOWN'];
+  const baseDate  = cattle.lastWeightDate ?? cattle.arrivalDate ?? cattle.createdAt;
+  if (!baseDate) return null;
+  const sale      = plannedDate ? new Date(plannedDate) : new Date();
+  const days      = Math.max(0, Math.floor((sale - new Date(baseDate)) / 86400000));
+  const base      = parseFloat(cattle.weight || cattle.weightTerima || 0);
+  return parseFloat((base + days * adg).toFixed(1));
+};
+
+
 
 // ─── Status configs ───────────────────────────────────────────
 const ORDER_STATUS = {
@@ -119,6 +151,7 @@ const AddSaleModal = ({ isOpen, onClose, onSuccess, warehouses }) => {
   const [shippingCost,    setShippingCost]    = useState('');
   const [items,           setItems]           = useState([]);
 
+  const [plannedSaleDate, setPlannedSaleDate] = useState('');
   const [customers,       setCustomers]       = useState([]);
   const [availableCattle, setAvailableCattle] = useState([]);
   const [loadingCattle,   setLoadingCattle]   = useState(false);
@@ -149,21 +182,27 @@ const AddSaleModal = ({ isOpen, onClose, onSuccess, warehouses }) => {
     setCustomerId(''); setWarehouseId(''); setItems([]);
     setNotes(''); setDeliveryAddress(''); setMsg(null);
     setDiscountPct(''); setTaxPct('0'); setShippingCost('');
+    setPlannedSaleDate('');
   };
   const handleClose = () => { reset(); onClose(); };
 
   const addCattle = (cattle) => {
     if (items.find((i) => i.rfidNo === cattle.rfidNo || i.rfidNo === cattle.id)) return;
-    const hpp = cattle.hppPerEkor || 0;
-    const weight = cattle.weightPanen || cattle.weightTerima || cattle.weight || 0;
+    const hpp       = cattle.hppPerEkor || 0;
+    const weight    = cattle.weightPanen || cattle.weightTerima || cattle.weight || 0;
+    const adgEst    = calcADGClient(cattle, plannedSaleDate || null);
     setItems((prev) => [...prev, {
       rfidNo       : cattle.rfidNo || cattle.id,
       cattleId     : cattle.id,
       finalWeightKg: weight,
+      adgEstWeight : adgEst,           // estimasi ADG — ditampilkan di UI
       pricePerKg   : '',
       hppPerEkor   : hpp,
       breed        : cattle.breed || '',
+      genderType   : cattle.genderType || 'UNKNOWN',
       notes        : '',
+      // Simpan data cattle untuk re-kalkulasi ADG saat date berubah
+      _cattle      : cattle,
     }]);
   };
 
@@ -173,14 +212,16 @@ const AddSaleModal = ({ isOpen, onClose, onSuccess, warehouses }) => {
     setItems((prev) => prev.map((i) => i.rfidNo === rfidNo ? { ...i, [field]: value } : i));
   };
 
-  // Live calculations
+  // Live calculations — re-compute ADG when plannedSaleDate changes
   const enriched = useMemo(() => items.map((i) => {
-    const w = parseFloat(i.finalWeightKg) || 0;
-    const p = parseFloat(i.pricePerKg)    || 0;
+    const w   = parseFloat(i.finalWeightKg) || 0;
+    const p   = parseFloat(i.pricePerKg)    || 0;
     const sub = parseFloat((w * p).toFixed(0));
     const margin = parseFloat((sub - (i.hppPerEkor || 0)).toFixed(0));
-    return { ...i, subTotal: sub, margin };
-  }), [items]);
+    // Re-kalkulasi ADG live jika _cattle tersedia
+    const adgLive = i._cattle ? calcADGClient(i._cattle, plannedSaleDate || null) : i.adgEstWeight;
+    return { ...i, subTotal: sub, margin, adgEstWeight: adgLive };
+  }), [items, plannedSaleDate]);
 
   const subtotal     = enriched.reduce((s, i) => s + i.subTotal, 0);
   const discAmt      = subtotal * (parseFloat(discountPct) || 0) / 100;
@@ -189,6 +230,18 @@ const AddSaleModal = ({ isOpen, onClose, onSuccess, warehouses }) => {
   const totalAmount  = subtotal - discAmt + taxAmt + shipping;
   const totalWeight  = enriched.reduce((s, i) => s + (parseFloat(i.finalWeightKg) || 0), 0);
   const totalMargin  = enriched.reduce((s, i) => s + i.margin, 0);
+
+  // ── Shipment performance live stats ──────────────────────────
+  const countSteer   = enriched.filter((i) => i.genderType === 'STEER').length;
+  const countHeifer  = enriched.filter((i) => i.genderType === 'HEIFER').length;
+  const countBull    = enriched.filter((i) => i.genderType === 'BULL').length;
+  const countUnknown = enriched.filter((i) => !['STEER','HEIFER','BULL'].includes(i.genderType)).length;
+  const avgWeight    = enriched.length > 0
+    ? parseFloat((totalWeight / enriched.length).toFixed(1)) : 0;
+  // Sisa stok di kandang (dari data availableCattle yang belum dipilih)
+  const remainingStock = availableCattle.filter(
+    (c) => !enriched.find((i) => i.rfidNo === (c.rfidNo || c.id))
+  ).length;
 
   const handleSubmit = async () => {
     if (!items.length) { setMsg({ type: 'err', text: 'Tambahkan minimal 1 sapi.' }); return; }
@@ -211,6 +264,7 @@ const AddSaleModal = ({ isOpen, onClose, onSuccess, warehouses }) => {
           discountPct  : parseFloat(discountPct) || 0,
           taxPct       : parseFloat(taxPct) || 0,
           shippingCost : parseFloat(shippingCost) || 0,
+          plannedSaleDate,
           items        : enriched.map((i) => ({
             rfidNo       : i.rfidNo,
             cattleId     : i.cattleId,
@@ -218,6 +272,8 @@ const AddSaleModal = ({ isOpen, onClose, onSuccess, warehouses }) => {
             pricePerKg   : parseFloat(i.pricePerKg),
             hppPerEkor   : i.hppPerEkor || 0,
             breed        : i.breed,
+            genderType   : i.genderType || 'UNKNOWN',
+            adgEstWeight : i.adgEstWeight || null,
             notes        : i.notes,
           })),
         }),
@@ -298,6 +354,26 @@ const AddSaleModal = ({ isOpen, onClose, onSuccess, warehouses }) => {
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#8da070]/30" />
               </div>
               <div>
+                <label className="text-[8px] font-black text-[#8da070] uppercase block mb-1 flex items-center gap-1">
+                  <Zap size={9} /> Tgl Rencana Jual (ADG)
+                </label>
+                <input type="date" value={plannedSaleDate}
+                  onChange={(e) => {
+                    setPlannedSaleDate(e.target.value);
+                    // Re-kalkulasi ADG untuk semua item yang sudah dipilih
+                    setItems((prev) => prev.map((i) => ({
+                      ...i,
+                      adgEstWeight: i._cattle ? calcADGClient(i._cattle, e.target.value) : i.adgEstWeight,
+                    })));
+                  }}
+                  className="w-full bg-[#8da070]/5 border border-[#8da070]/30 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#8da070]/30" />
+                {plannedSaleDate && (
+                  <p className="text-[8px] text-[#8da070] font-bold mt-1 ml-1">
+                    ADG akan dihitung berdasarkan tanggal ini
+                  </p>
+                )}
+              </div>
+              <div>
                 <label className="text-[8px] font-black text-slate-400 uppercase block mb-1">Ongkos Kirim (Rp)</label>
                 <input type="number" min="0" value={shippingCost} onChange={(e) => setShippingCost(e.target.value)}
                   placeholder="0"
@@ -361,9 +437,40 @@ const AddSaleModal = ({ isOpen, onClose, onSuccess, warehouses }) => {
                         <X size={12} />
                       </button>
                     </div>
+                    {/* Header: breed + gender badge */}
+                    <div className="flex items-center gap-2 mb-2">
+                      {i.breed && <span className="text-[8px] text-slate-500 font-bold uppercase bg-slate-100 px-2 py-0.5 rounded-lg">{i.breed}</span>}
+                      <GenderBadge type={i.genderType} />
+                      {/* Gender picker */}
+                      <select value={i.genderType || 'UNKNOWN'}
+                        onChange={(e) => updateItem(i.rfidNo, 'genderType', e.target.value)}
+                        className="ml-auto text-[8px] font-bold bg-transparent border-0 text-slate-400 focus:outline-none cursor-pointer">
+                        {['STEER','HEIFER','BULL','UNKNOWN'].map((g) => (
+                          <option key={g} value={g}>{g}</option>
+                        ))}
+                      </select>
+                    </div>
+
                     <div className="grid grid-cols-2 gap-2">
+                      {/* ADG Estimate — read-only live preview */}
+                      {i.adgEstWeight > 0 && (
+                        <div className="col-span-2 flex items-center justify-between px-2.5 py-1.5 bg-[#8da070]/5 border border-[#8da070]/20 rounded-lg">
+                          <span className="text-[8px] font-black text-[#8da070] uppercase flex items-center gap-1">
+                            <Zap size={9} /> Est. ADG ({ADG_DEFAULTS[i.genderType ?? 'UNKNOWN']} kg/hr)
+                          </span>
+                          <span className="text-[10px] font-black text-[#8da070]">{i.adgEstWeight} kg</span>
+                        </div>
+                      )}
                       <div>
-                        <label className="text-[8px] font-black text-slate-400 uppercase block mb-0.5">Bobot Timbang (kg) *</label>
+                        <label className="text-[8px] font-black text-slate-400 uppercase block mb-0.5">
+                          Bobot Riil Keluar (kg) *
+                          {i.adgEstWeight > 0 && parseFloat(i.finalWeightKg) > 0 && (
+                            <span className={`ml-1 font-bold ${Math.abs(parseFloat(i.finalWeightKg) - i.adgEstWeight) > 30 ? 'text-amber-500' : 'text-green-500'}`}>
+                              {parseFloat(i.finalWeightKg) >= i.adgEstWeight ? '▲' : '▼'}
+                              {Math.abs(parseFloat(i.finalWeightKg) - i.adgEstWeight).toFixed(1)} kg
+                            </span>
+                          )}
+                        </label>
                         <input type="number" min="0" step="0.1" value={i.finalWeightKg}
                           onChange={(e) => updateItem(i.rfidNo, 'finalWeightKg', e.target.value)}
                           className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#8da070]/30" />
@@ -393,38 +500,94 @@ const AddSaleModal = ({ isOpen, onClose, onSuccess, warehouses }) => {
             </div>
           )}
 
-          {/* Total summary */}
+          {/* ── Shipment Manifest & Financial Summary ───────────────── */}
           {items.length > 0 && (
-            <div className="bg-slate-900 rounded-[20px] p-4 space-y-2">
-              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Ringkasan Invoice</p>
-              <div className="space-y-1.5">
-                {[
-                  { l: 'Subtotal',       v: fmtRp(subtotal)    },
-                  ...(discAmt > 0     ? [{ l: `Diskon ${discountPct}%`, v: `-${fmtRp(discAmt)}` }] : []),
-                  ...(taxAmt > 0      ? [{ l: `PPN ${taxPct}%`,         v: fmtRp(taxAmt)         }] : []),
-                  ...(shipping > 0    ? [{ l: 'Ongkos Kirim',           v: fmtRp(shipping)       }] : []),
-                ].map((r, i) => (
-                  <div key={i} className="flex items-center justify-between">
-                    <span className="text-[10px] text-slate-400">{r.l}</span>
-                    <span className="text-[11px] font-bold text-slate-300">{r.v}</span>
-                  </div>
-                ))}
-                <div className="flex items-center justify-between pt-2 border-t border-slate-700">
-                  <span className="text-[11px] font-black text-white uppercase">Total</span>
-                  <span className="text-lg font-black text-[#8da070]">{fmtRp(totalAmount)}</span>
+            <div className="space-y-3">
+
+              {/* Shipment Performance Widget */}
+              <div className="bg-slate-800 rounded-[20px] p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Activity size={13} className="text-[#8da070]" />
+                  <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Manifest Pengiriman — Live Preview</p>
                 </div>
-              </div>
-              <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-800">
-                {[
-                  { l: 'Ekor',    v: items.length            },
-                  { l: 'Berat',   v: fmtKg(totalWeight)      },
-                  { l: 'Margin',  v: fmtRp(totalMargin), color: totalMargin >= 0 ? 'text-green-400' : 'text-red-400' },
-                ].map((s, i) => (
-                  <div key={i}>
-                    <p className="text-[7px] text-slate-500 uppercase">{s.l}</p>
-                    <p className={`text-[11px] font-black ${s.color || 'text-slate-300'}`}>{s.v}</p>
+
+                {/* Gender breakdown */}
+                <div className="grid grid-cols-4 gap-1.5">
+                  {[
+                    { l: 'Steer',   v: countSteer,   bg: 'bg-blue-900/40',   text: 'text-blue-300'   },
+                    { l: 'Heifer',  v: countHeifer,  bg: 'bg-pink-900/40',   text: 'text-pink-300'   },
+                    { l: 'Bull',    v: countBull,    bg: 'bg-purple-900/40', text: 'text-purple-300' },
+                    { l: 'Unknown', v: countUnknown, bg: 'bg-slate-700/60',  text: 'text-slate-400'  },
+                  ].map((g) => (
+                    <div key={g.l} className={`${g.bg} rounded-xl px-2 py-2 text-center`}>
+                      <p className="text-[7px] font-black text-slate-500 uppercase">{g.l}</p>
+                      <p className={`text-lg font-black ${g.text}`}>{g.v}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Avg weight + remaining stock */}
+                <div className="grid grid-cols-3 gap-1.5">
+                  <div className="bg-slate-700/50 rounded-xl px-2 py-2">
+                    <p className="text-[7px] font-black text-slate-500 uppercase">Total Ekor</p>
+                    <p className="text-sm font-black text-white">{enriched.length}</p>
                   </div>
-                ))}
+                  <div className="bg-slate-700/50 rounded-xl px-2 py-2">
+                    <p className="text-[7px] font-black text-slate-500 uppercase flex items-center gap-0.5">
+                      <Scale size={7} /> Avg Bobot
+                    </p>
+                    <p className="text-sm font-black text-amber-300">{avgWeight} kg</p>
+                  </div>
+                  <div className={`rounded-xl px-2 py-2 ${remainingStock === 0 ? 'bg-red-900/30' : 'bg-green-900/20'}`}>
+                    <p className="text-[7px] font-black text-slate-500 uppercase flex items-center gap-0.5">
+                      <Warehouse size={7} /> Sisa Kandang
+                    </p>
+                    <p className={`text-sm font-black ${remainingStock === 0 ? 'text-red-400' : 'text-green-400'}`}>
+                      {remainingStock} ekor
+                    </p>
+                  </div>
+                </div>
+
+                {remainingStock === 0 && enriched.length > 0 && (
+                  <div className="flex items-center gap-2 px-3 py-2 bg-amber-900/30 border border-amber-700/40 rounded-xl">
+                    <AlertTriangle size={11} className="text-amber-400 shrink-0" />
+                    <p className="text-[9px] text-amber-300 font-bold">Kandang akan kosong setelah transaksi ini</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Financial summary */}
+              <div className="bg-slate-900 rounded-[20px] p-4 space-y-2">
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Ringkasan Invoice</p>
+                <div className="space-y-1.5">
+                  {[
+                    { l: 'Subtotal',       v: fmtRp(subtotal)    },
+                    ...(discAmt > 0     ? [{ l: `Diskon ${discountPct}%`, v: `-${fmtRp(discAmt)}` }] : []),
+                    ...(taxAmt > 0      ? [{ l: `PPN ${taxPct}%`,         v: fmtRp(taxAmt)         }] : []),
+                    ...(shipping > 0    ? [{ l: 'Ongkos Kirim',           v: fmtRp(shipping)       }] : []),
+                  ].map((r, i) => (
+                    <div key={i} className="flex items-center justify-between">
+                      <span className="text-[10px] text-slate-400">{r.l}</span>
+                      <span className="text-[11px] font-bold text-slate-300">{r.v}</span>
+                    </div>
+                  ))}
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-700">
+                    <span className="text-[11px] font-black text-white uppercase">Total</span>
+                    <span className="text-lg font-black text-[#8da070]">{fmtRp(totalAmount)}</span>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-800">
+                  {[
+                    { l: 'Ekor',   v: items.length            },
+                    { l: 'Berat',  v: fmtKg(totalWeight)      },
+                    { l: 'Margin', v: fmtRp(totalMargin), color: totalMargin >= 0 ? 'text-green-400' : 'text-red-400' },
+                  ].map((s, i) => (
+                    <div key={i}>
+                      <p className="text-[7px] text-slate-500 uppercase">{s.l}</p>
+                      <p className={`text-[11px] font-black ${s.color || 'text-slate-300'}`}>{s.v}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           )}
@@ -563,13 +726,36 @@ const OrderDetailModal = ({ order, isOpen, onClose, onRefresh }) => {
           {/* Items */}
           <div className="bg-white rounded-[18px] p-4 border border-slate-100">
             <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">{order._count?.items || order.items?.length || 0} Ekor Sapi</p>
+
+            {/* Shipment performance snapshot dari order */}
+            {(order.countSteer != null || order.countHeifer != null) && (
+              <div className="mb-3 grid grid-cols-3 gap-1.5">
+                {[
+                  { l: 'Avg Bobot',      v: order.avgWeightShipped ? `${order.avgWeightShipped} kg` : '-', color: 'text-amber-600' },
+                  { l: 'Steer/Heifer/Bull', v: `${order.countSteer ?? 0}/${order.countHeifer ?? 0}/${order.countBull ?? 0}`, color: 'text-blue-600' },
+                  { l: 'Sisa Kandang',   v: order.remainingStock != null ? `${order.remainingStock} ekor` : '-', color: order.remainingStock === 0 ? 'text-red-500' : 'text-green-600' },
+                ].map((s, i) => (
+                  <div key={i} className="bg-slate-50 rounded-xl p-2 text-center">
+                    <p className="text-[7px] font-black text-slate-400 uppercase">{s.l}</p>
+                    <p className={`text-[10px] font-black ${s.color}`}>{s.v}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
             <div className="space-y-2">
               {(order.items || []).map((it) => (
                 <div key={it.id} className="flex items-center justify-between px-3 py-2 bg-slate-50 rounded-xl border border-slate-100">
                   <div>
-                    <p className="text-[11px] font-black text-slate-800 font-mono">{it.rfidNo}</p>
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <p className="text-[11px] font-black text-slate-800 font-mono">{it.rfidNo}</p>
+                      {it.genderType && it.genderType !== 'UNKNOWN' && <GenderBadge type={it.genderType} />}
+                    </div>
                     <p className="text-[8px] text-slate-400">
                       {fmtKg(it.finalWeightKg)} × {fmtRp(it.pricePerKg)}/kg
+                      {it.adgEstWeight > 0 && (
+                        <span className="ml-1 text-[#8da070] font-bold">ADG≈{it.adgEstWeight}kg</span>
+                      )}
                     </p>
                   </div>
                   <div className="text-right">

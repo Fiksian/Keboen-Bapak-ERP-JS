@@ -1,4 +1,4 @@
-# Keboen Bapak ERP (JavaScript Version) 🌿
+# Keboen Bapak ERP
 
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D%2014.0.0-brightgreen)](https://nodejs.org/)
 [![Docker Support](https://img.shields.io/badge/docker-ready-blue)](https://www.docker.com/)
@@ -20,7 +20,7 @@
 
 - **Runtime**: Node.js
 - **Frontend**: [Next.js]
-- **Backend**: [Masih Pengembangan]
+- **Backend**: [Next.js]
 - **Database ORM**: [Prisma](https://www.prisma.io/)
 - **Database Engine**: [PostgreSQL 15](https://www.postgresql.org/)
 - **Styling**: [Tailwind CSS] (https://tailwindcss.com/) & [Lucide React](https://lucide.dev/)
@@ -44,6 +44,9 @@
 
 - Purchasing
   ![Purchasing](public/Referensi_Images/Purchasing.png)
+
+- Penjualan
+  ![Penjualan] ([text](https://drive.google.com/file/d/1zwxcPH_ao4yDk5kTVrE46bBJSWmvoo9c/view?usp=drive_link))
 
 - Cuaca
   ![Cuaca](public/Referensi_Images/Cuaca.png)

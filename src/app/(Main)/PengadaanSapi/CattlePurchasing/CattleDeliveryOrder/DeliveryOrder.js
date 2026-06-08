@@ -471,7 +471,7 @@ export const CreatePOFromDOModal = ({ isOpen, onClose, doData, onSuccess }) => {
                               <div key={c.id}
                                 onClick={() => { updateForm(item.id, 'vendorName', c.name); setVendorDropdown(d => ({ ...d, [item.id]: false })); }}
                                 className="px-4 py-2.5 border-b border-gray-50 hover:bg-[#8da070] hover:text-white cursor-pointer flex justify-between items-center transition-colors group">
-                                <p className="text-[10px] font-black uppercase">{c.name}</p>
+                                <p className="text-[10px] text-slate-500 font-black uppercase">{c.name}</p>
                                 <CheckCircle2 size={12} className="opacity-0 group-hover:opacity-100" />
                               </div>
                             ))}

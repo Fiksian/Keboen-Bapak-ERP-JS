@@ -920,10 +920,11 @@ model Cattle {
   hppPerEkor      Float?     // IDR total HPP per ekor
   hppPerKg        Float?     // IDR HPP per kg (basis weightTerima)
 
-  // Kesehatan & Vaksin
-  healthStatus    HealthStatus @default(SEHAT)
-  vaccinated      Boolean      @default(false)
-  lastVaccineDate DateTime?
+  // Kesehatan, Vaksin & Obat
+  healthStatus       HealthStatus @default(SEHAT)
+  vaccinated         Boolean      @default(false)
+  lastVaccineDate    DateTime?
+  lastMedicationDate DateTime?    // tanggal pemberian obat/vaksin terakhir
 
   // Catatan bebas
   notes           String?
@@ -944,7 +945,7 @@ model Cattle {
 
   // Relasi baru
   weightRecords   CattleWeightRecord[]
-  vaccines        CattleVaccine[]
+  medications     CattleMedication[]
   healthRecords   CattleHealthRecord[]
   transfers       CattleTransfer[]
   hppComponents   CattleHPPComponent[]
@@ -994,21 +995,31 @@ model CattleWeightRecord {
   @@index([cattleId, weightType])
 }
 
-// ─── Model: Vaksinasi ──────────────────────────────────────────────────────
-model CattleVaccine {
+// ─── Model: Medikasi (Vaksin & Obat-obatan) ───────────────────────────────
+model CattleMedication {
   id             String    @id @default(cuid())
-  vaccineType    String                      // "ANTHRAX", "JEMBRANA", "SE", dll.
-  vaccineDate    DateTime
+  medicationType String    @default("VAKSIN")  // "VAKSIN" | "OBAT"
+  productName    String                         // nama vaksin atau obat (dari master list)
+  // ── field lama (tetap ada untuk kompatibilitas vaksin) ─────────────────
+  vaccineType    String?                        // legacy: "ANTHRAX", "JEMBRANA", dll.
   doseNumber     Int       @default(1)
   nextDueDate    DateTime?
+  // ── field baru untuk obat ──────────────────────────────────────────────
+  quantity       Float     @default(1)
+  unit           String    @default("ml")       // ml, cc, tablet, sachet, dll.
+  indication     String?                        // indikasi / alasan pemberian
+  // ── field umum ────────────────────────────────────────────────────────
+  givenDate      DateTime                       // tanggal pemberian (pengganti vaccineDate)
   administeredBy String?
-  batchNo        String?                     // nomor batch vaksin
+  batchNo        String?
   note           String?
 
   cattleId       String
   cattle         Cattle    @relation(fields: [cattleId], references: [id], onDelete: Cascade)
 
   @@index([cattleId])
+  @@index([medicationType])
+  @@index([givenDate])
 }
 
 // ─── Model: Catatan Kesehatan ──────────────────────────────────────────────

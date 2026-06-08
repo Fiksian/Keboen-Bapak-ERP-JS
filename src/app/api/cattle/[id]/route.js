@@ -1,5 +1,5 @@
 // /app/api/cattle/[id]/route.js
-// GET    — Detail sapi tunggal + riwayat berat lengkap
+// GET    — Detail sapi tunggal + riwayat berat lengkap + medikasi + kesehatan + transfer + hpp
 // PATCH  — Update status sapi (mis: IN_KANDANG → SOLD, pindah kandang)
 // DELETE — Hapus sapi (SuperAdmin only)
 // ============================================================
@@ -26,13 +26,31 @@ export async function GET(req, { params }) {
       include: {
         warehouse    : { select: { id: true, name: true, code: true } },
         arrival      : { select: { id: true, arrivalNo: true, createdAt: true } },
+        purchasing   : { select: { id: true, noPO: true, vendorName: true, hppPerEkor: true } },
+        // Riwayat berat versi lama (weightHistory) – untuk backward compat
         weightHistory: { orderBy: { recordedAt: 'desc' } },
-        purchasing   : { select: { id: true, noPO: true, vendorName: true, hppPerEkor: true } }, // ✅ TAMBAHKAN
+        // Riwayat berat versi baru (weightRecords)
+        weightRecords: { orderBy: { recordedAt: 'desc' } },
+        // Riwayat kesehatan
+        healthRecords: { orderBy: { recordedAt: 'desc' } },
+        // Riwayat medikasi (vaksin + obat)
+        medications  : { orderBy: { givenDate: 'desc' } },
+        // Riwayat transfer kandang
+        transfers    : {
+          include: {
+            fromWarehouse: { select: { id: true, name: true } },
+            toWarehouse  : { select: { id: true, name: true } },
+          },
+          orderBy: { transferredAt: 'desc' },
+        },
+        // Komponen HPP
+        hppComponents: { orderBy: { date: 'desc' } },
       },
     });
 
     if (!cattle) return NextResponse.json({ message: 'Sapi tidak ditemukan.' }, { status: 404 });
 
+    // Hitung weight gain dari weightHistory (atau dari weightRecords jika perlu)
     const history = cattle.weightHistory;
     const gain    = history.length >= 2 ? history[0].weight - history[history.length - 1].weight : null;
 
@@ -52,9 +70,7 @@ export async function PATCH(req, { params }) {
       return NextResponse.json({ message: 'Tidak diizinkan.' }, { status: 403 });
     }
 
-    // ✅ AWALI params
     const { id } = await params;
-
     if (!id) {
       return NextResponse.json({ message: 'ID tidak valid' }, { status: 400 });
     }
@@ -62,8 +78,8 @@ export async function PATCH(req, { params }) {
     const body         = await req.json();
     const { status, warehouseId, weight, name } = body;
 
-    // Validasi status enum
-    const VALID_STATUS = ['ARRIVAL', 'IN_KANDANG', 'SOLD'];
+    // Validasi status enum (gunakan CattleStatus enum dari schema)
+    const VALID_STATUS = ['ARRIVAL', 'IN_KANDANG', 'GRADING', 'KARANTINA', 'PENDING_SALE', 'SOLD'];
     if (status && !VALID_STATUS.includes(status)) {
       return NextResponse.json({ message: `Status tidak valid. Pilihan: ${VALID_STATUS.join(', ')}` }, { status: 400 });
     }
@@ -72,17 +88,27 @@ export async function PATCH(req, { params }) {
     const existing = await prisma.cattle.findUnique({ where: { id: id } });
     if (!existing) return NextResponse.json({ message: 'Sapi tidak ditemukan.' }, { status: 404 });
 
-    // Jika ada update berat, tambahkan ke history
+    // Jika ada update berat, tambahkan ke weightRecords dan weightHistory
     const updateData = {};
     if (status)      updateData.status      = status;
     if (name)        updateData.name        = name;
-    if (warehouseId) updateData.warehouseId = warehouseId; // Jangan parseInt karena ID string
+    if (warehouseId) updateData.warehouseId = warehouseId;
 
     if (weight !== undefined && weight !== null) {
       const newWeight = parseFloat(weight);
       updateData.weight         = newWeight;
       updateData.lastWeightDate = new Date();
-      updateData.weightHistory  = {
+      // Tambahkan ke weightRecords (model baru)
+      updateData.weightRecords = {
+        create: {
+          weight    : newWeight,
+          recordedBy: session.user.name || session.user.email,
+          note      : `Manual update via dashboard`,
+          weightType: 'TERIMA', // default, bisa disesuaikan
+        },
+      };
+      // Juga tambahkan ke weightHistory (legacy) jika diperlukan
+      updateData.weightHistory = {
         create: {
           weight    : newWeight,
           recordedBy: session.user.name || session.user.email,
@@ -116,9 +142,7 @@ export async function DELETE(req, { params }) {
       return NextResponse.json({ message: 'Hanya SuperAdmin yang dapat menghapus data sapi.' }, { status: 403 });
     }
 
-    // ✅ AWALI params
     const { id } = await params;
-
     if (!id) {
       return NextResponse.json({ message: 'ID tidak valid' }, { status: 400 });
     }
@@ -126,7 +150,7 @@ export async function DELETE(req, { params }) {
     const existing = await prisma.cattle.findUnique({ where: { id: id } });
     if (!existing) return NextResponse.json({ message: 'Sapi tidak ditemukan.' }, { status: 404 });
 
-    // Cascade delete via Prisma (CattleWeightHistory otomatis ikut terhapus)
+    // Hapus sapi (cascade akan menghapus relasi seperti CattleWeightHistory, CattleMedication, dll karena onDelete: Cascade)
     await prisma.cattle.delete({ where: { id: id } });
 
     return NextResponse.json({ message: `Sapi ${id} berhasil dihapus.` });

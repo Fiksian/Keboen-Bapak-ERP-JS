@@ -1,4 +1,4 @@
-// /app/(Main)/PengadaanSapi/Kandang/page.js — v6 (Medikasi + Vaksin + Obat)
+// /app/(Main)/PengadaanSapi/Kandang/page.js — v7 (Dengan TabAnalisisBobot terintegrasi)
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -11,7 +11,8 @@ import {
   DollarSign, Plus, ChevronLeft, BarChart3,
   ShieldCheck, Thermometer, Package, Truck,
   Zap, Users, MoreHorizontal, ArrowRight, Check,
-  Link, FileCheck, Pill, // Pill ditambahkan untuk ikon obat
+  Link, FileCheck, Pill,
+  Target, Calculator, Info, Layers, ArrowUpRight, ArrowDownRight, LineChart,
 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import withPermission from '@/lib/withPermission';
@@ -27,8 +28,18 @@ const fmtDateTime = (dt) => dt
   ? `${fmtDate(dt)} ${new Date(dt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}`
   : '-';
 
+// Hitung jumlah hari antara dua tanggal
+const daysBetween = (dateA, dateB) => {
+  const a = new Date(dateA);
+  const b = new Date(dateB);
+  return Math.max(0, Math.floor((b - a) / (1000 * 60 * 60 * 24)));
+};
+
 const resolveWeight = (c) => parseFloat(c?.weight ?? 0);
 const resolveDate   = (c) => c?.lastScanAt ?? c?.lastWeightDate ?? null;
+
+// Brand color
+const BRAND = '#8da070';
 
 // ─── Configs ──────────────────────────────────────────────────
 const STATUS_CFG = {
@@ -98,6 +109,51 @@ const SusutBadge = ({ pct }) => {
       {isCrit || isWarn ? <AlertTriangle size={8} /> : <CheckCircle2 size={8} />}
       Susut {fmtPct(pct)}{isCrit ? ' ⚠' : ''}
     </span>
+  );
+};
+
+// ─── Indikator tren bobot harian ─────────────────────────────────────────────
+const TrendIndicator = ({ current, previous }) => {
+  if (current == null || previous == null || previous === 0) return null;
+  const delta = current - previous;
+  const isUp = delta >= 0;
+  return (
+    <span className={`inline-flex items-center gap-0.5 text-[8px] font-black ${isUp ? 'text-emerald-600' : 'text-red-500'}`}>
+      {isUp ? <ArrowUpRight size={9} /> : <ArrowDownRight size={9} />}
+      {isUp ? '+' : ''}{delta.toFixed(1)}
+    </span>
+  );
+};
+
+// ─── Mini progress bar ────────────────────────────────────────────────────────
+const MiniBar = ({ value, max, colorClass = 'bg-[#8da070]' }) => (
+  <div className="h-1 bg-slate-100 rounded-full overflow-hidden mt-1">
+    <div
+      className={`h-full rounded-full transition-all duration-500 ${colorClass}`}
+      style={{ width: `${Math.min(100, max > 0 ? (value / max) * 100 : 0)}%` }}
+    />
+  </div>
+);
+
+// ─── Metric card kecil ────────────────────────────────────────────────────────
+const MetricCard = ({ label, value, sub, icon, accent = 'green', alert = false }) => {
+  const accents = {
+    green  : 'bg-[#8da070]/10 border-[#8da070]/20 text-[#8da070]',
+    slate  : 'bg-slate-50 border-slate-200 text-slate-700',
+    amber  : 'bg-amber-50 border-amber-200 text-amber-700',
+    red    : 'bg-red-50 border-red-200 text-red-600',
+    blue   : 'bg-blue-50 border-blue-200 text-blue-700',
+  };
+  const ring = accents[alert ? 'red' : accent];
+  return (
+    <div className={`rounded-[16px] p-3.5 border ${ring} flex flex-col gap-1`}>
+      <div className="flex items-center justify-between">
+        <span className="text-[7px] font-black uppercase tracking-widest opacity-70">{label}</span>
+        {icon && <span className="opacity-60">{icon}</span>}
+      </div>
+      <p className="text-[15px] font-black leading-none">{value}</p>
+      {sub && <p className="text-[9px] opacity-60 font-bold">{sub}</p>}
+    </div>
   );
 };
 
@@ -238,11 +294,10 @@ const MedicationCard = ({ rec, today }) => {
 // ══════════════════════════════════════════
 const TabMedikasi = ({ data, onPost, saving, isAuthorized }) => {
   const [form, setForm]         = useState(emptyForm());
-  const [activeTab, setActiveTab] = useState('SEMUA'); // 'SEMUA' | 'VAKSIN' | 'OBAT'
+  const [activeTab, setActiveTab] = useState('SEMUA');
 
   const today = new Date();
 
-  // data.medications = gabungan dari GET /api/cattle/[id]/medication
   const allRecords = data.medications ?? [];
   const vaccines   = allRecords.filter((r) => r.medicationType === 'VAKSIN');
   const medicines  = allRecords.filter((r) => r.medicationType === 'OBAT');
@@ -252,7 +307,6 @@ const TabMedikasi = ({ data, onPost, saving, isAuthorized }) => {
 
   const overdue = vaccines.filter((v) => v.nextDueDate && new Date(v.nextDueDate) < today);
 
-  // Saat nama produk berubah, auto-set unit dan medicationType
   const handleProductChange = (name) => {
     setForm((f) => ({
       ...f,
@@ -262,7 +316,6 @@ const TabMedikasi = ({ data, onPost, saving, isAuthorized }) => {
     }));
   };
 
-  // Saat medicationType berubah, reset ke produk pertama dari tipe itu
   const handleTypeChange = (type) => {
     const first = type === 'VAKSIN' ? VACCINE_LIST[0] : MEDICINE_LIST[0];
     setForm((f) => ({
@@ -278,7 +331,6 @@ const TabMedikasi = ({ data, onPost, saving, isAuthorized }) => {
 
   return (
     <div className="space-y-5">
-      {/* ── Alert vaksin terlambat ── */}
       {overdue.length > 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-[18px] p-4 flex items-start gap-3">
           <AlertTriangle size={16} className="text-amber-600 shrink-0 mt-0.5" />
@@ -291,7 +343,6 @@ const TabMedikasi = ({ data, onPost, saving, isAuthorized }) => {
         </div>
       )}
 
-      {/* ── Stat cards ── */}
       <div className="grid grid-cols-3 gap-3">
         <div className={`rounded-[18px] p-4 border ${data.vaccinated ? 'bg-teal-50 border-teal-200' : 'bg-slate-50 border-dashed border-slate-200'}`}>
           <p className="text-[8px] font-black uppercase tracking-widest text-slate-400 mb-1">Status Vaksin</p>
@@ -314,7 +365,6 @@ const TabMedikasi = ({ data, onPost, saving, isAuthorized }) => {
         </div>
       </div>
 
-      {/* ── Filter tabs riwayat ── */}
       {allRecords.length > 0 && (
         <div>
           <div className="flex gap-1 mb-3">
@@ -337,12 +387,10 @@ const TabMedikasi = ({ data, onPost, saving, isAuthorized }) => {
         </div>
       )}
 
-      {/* ── Form input ── */}
       {isAuthorized && (
         <div className="bg-white rounded-[18px] p-4 border border-slate-100 space-y-3">
           <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Catat Pemberian</p>
 
-          {/* Pilih tipe */}
           <div className="flex gap-2">
             {['VAKSIN', 'OBAT'].map((t) => (
               <button key={t} onClick={() => handleTypeChange(t)}
@@ -358,7 +406,6 @@ const TabMedikasi = ({ data, onPost, saving, isAuthorized }) => {
             ))}
           </div>
 
-          {/* Nama produk */}
           <div>
             <label className="text-[8px] font-black text-slate-400 uppercase block mb-1">
               {isVaccineForm ? 'Jenis Vaksin *' : 'Nama Obat *'}
@@ -371,7 +418,6 @@ const TabMedikasi = ({ data, onPost, saving, isAuthorized }) => {
             </select>
           </div>
 
-          {/* Tanggal + kondisional (dosis untuk vaksin, qty+unit untuk obat) */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-[8px] font-black text-slate-400 uppercase block mb-1">Tanggal Pemberian *</label>
@@ -401,7 +447,6 @@ const TabMedikasi = ({ data, onPost, saving, isAuthorized }) => {
             )}
           </div>
 
-          {/* Jadwal vaksin berikutnya (hanya untuk vaksin) */}
           {isVaccineForm && (
             <div>
               <label className="text-[8px] font-black text-slate-400 uppercase block mb-1">Vaksin Berikutnya</label>
@@ -410,7 +455,6 @@ const TabMedikasi = ({ data, onPost, saving, isAuthorized }) => {
             </div>
           )}
 
-          {/* Indikasi (hanya untuk obat) */}
           {!isVaccineForm && (
             <div>
               <label className="text-[8px] font-black text-slate-400 uppercase block mb-1">Indikasi / Alasan</label>
@@ -421,7 +465,6 @@ const TabMedikasi = ({ data, onPost, saving, isAuthorized }) => {
             </div>
           )}
 
-          {/* Petugas + No. batch */}
           <div className="grid grid-cols-2 gap-3">
             <input type="text" value={form.administeredBy}
               onChange={(e) => setForm((f) => ({ ...f, administeredBy: e.target.value }))}
@@ -453,155 +496,878 @@ const TabMedikasi = ({ data, onPost, saving, isAuthorized }) => {
 };
 
 // ═══════════════════════════════════════════════════════════════
-// CattleProfileModal — per‑sapi full detail dengan tab (medikasi + PO)
+// SECTION 1 — Grading Week: Bobot Individu Hari 1–7
 // ═══════════════════════════════════════════════════════════════
-const CattleProfileModal = ({ cattleId, isOpen, onClose, warehouses }) => {
-  const { data: session }   = useSession();
-  const [data,    setData]  = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [tab,     setTab]   = useState('bobot');
-  const [saving,  setSaving] = useState(false);
-  const [msg,     setMsg]   = useState(null);
+const SectionGradingWeek = ({ data, onPost, saving, isAuthorized }) => {
+  const [inputDay, setInputDay]   = useState('1');
+  const [inputKg,  setInputKg]    = useState('');
+  const [inputNote,setInputNote]  = useState('');
+  const [expanded, setExpanded]   = useState(false);
 
-  const isAuthorized = ['SuperAdmin','Admin','Supervisor','Staff'].includes(session?.user?.role);
+  const gradingRecords = useMemo(() => {
+    const records = (data.weightRecords ?? []).filter((r) => r.weightType === 'GRADING');
+    return records.sort((a, b) => new Date(a.recordedAt) - new Date(b.recordedAt));
+  }, [data.weightRecords]);
 
-  const fetchDetail = useCallback(async () => {
-    if (!cattleId) return;
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/cattle/${cattleId}`);
-      if (res.ok) setData(await res.json());
-    } catch {}
-    finally { setLoading(false); }
-  }, [cattleId]);
+  const refDate = data.cattleInventory?.masukKandangAt ?? data.createdAt;
 
-  useEffect(() => {
-    if (isOpen && cattleId) { setTab('bobot'); setMsg(null); fetchDetail(); }
-  }, [isOpen, cattleId, fetchDetail]);
+  const dayMap = useMemo(() => {
+    const map = {};
+    gradingRecords.forEach((r) => {
+      const d = daysBetween(refDate, r.recordedAt);
+      const day = Math.max(1, Math.min(7, d || 1));
+      if (!map[day] || new Date(r.recordedAt) > new Date(map[day].recordedAt)) {
+        map[day] = r;
+      }
+    });
+    return map;
+  }, [gradingRecords, refDate]);
 
-  const post = async (url, body) => {
-    setSaving(true); setMsg(null);
-    try {
-      const res  = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-      const json = await res.json();
-      if (res.ok) { setMsg({ type: 'ok', text: json.message }); fetchDetail(); }
-      else        { setMsg({ type: 'err', text: json.message }); }
-    } catch { setMsg({ type: 'err', text: 'Gagal terhubung.' }); }
-    finally { setSaving(false); }
+  const days = Array.from({ length: 7 }, (_, i) => i + 1);
+  const weightInit = parseFloat(data.weightTerima ?? data.weight ?? 0);
+
+  const trendData = days.map((d) => ({
+    day  : d,
+    w    : dayMap[d] ? parseFloat(dayMap[d].weight) : null,
+    rec  : dayMap[d] ?? null,
+  }));
+
+  const maxW = Math.max(weightInit, ...trendData.map((x) => x.w ?? 0), 1);
+
+  const handleSaveGrading = () => {
+    if (!inputKg || isNaN(parseFloat(inputKg))) return;
+    const arrivalDateObj = refDate ? new Date(refDate) : new Date();
+    const recordDate = new Date(arrivalDateObj);
+    recordDate.setDate(recordDate.getDate() + parseInt(inputDay, 10));
+    onPost(`/api/cattle/${data.id}/weight`, {
+      weightType: 'GRADING',
+      weight    : parseFloat(inputKg),
+      location  : `Grading Hari ke-${inputDay}`,
+      note      : inputNote || `Pencatatan grading hari ke-${inputDay}`,
+    });
+    setInputKg('');
+    setInputNote('');
   };
 
-  if (!isOpen) return null;
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-[10px] font-black text-slate-700 uppercase tracking-widest">
+            Grading Week — Bobot Hari 1–7
+          </h3>
+          <p className="text-[8px] text-slate-400 mt-0.5">
+            Pantau adaptasi sapi selama 7 hari pertama pasca penerimaan
+          </p>
+        </div>
+        <button
+          onClick={() => setExpanded((v) => !v)}
+          className="p-1.5 rounded-lg bg-slate-100 text-slate-500 hover:bg-slate-200 transition-colors"
+        >
+          <ChevronDown
+            size={13}
+            className={`transition-transform ${expanded ? 'rotate-180' : ''}`}
+          />
+        </button>
+      </div>
 
-  const TABS = [
-    { key: 'bobot',     label: 'Bobot',      icon: <Scale size={13} />         },
-    { key: 'kesehatan', label: 'Kesehatan',   icon: <Heart size={13} />         },
-    { key: 'medikasi',  label: 'Medikasi',   icon: <Syringe size={13} />       }, // Diganti dari 'Vaksin' jadi 'Medikasi'
-    { key: 'hpp',       label: 'HPP',         icon: <DollarSign size={13} />    },
-    { key: 'transfer',  label: 'Transfer',    icon: <ArrowLeftRight size={13} />},
+      <div className="flex items-center gap-2 px-3 py-2 bg-[#8da070]/10 rounded-xl border border-[#8da070]/20">
+        <Scale size={12} className="text-[#8da070] shrink-0" />
+        <span className="text-[9px] font-black text-[#8da070] uppercase">Bobot Terima (Baseline)</span>
+        <span className="ml-auto text-[11px] font-black text-[#8da070]">{fmtKg(weightInit)}</span>
+      </div>
+
+      <div className="bg-white rounded-[16px] border border-slate-100 overflow-hidden">
+        <table className="w-full text-left">
+          <thead>
+            <tr className="bg-slate-50 border-b border-slate-100">
+              <th className="px-3 py-2 text-[7px] font-black text-slate-400 uppercase w-14">Hari</th>
+              <th className="px-3 py-2 text-[7px] font-black text-slate-400 uppercase">Bobot</th>
+              <th className="px-3 py-2 text-[7px] font-black text-slate-400 uppercase">Tren</th>
+              <th className="px-3 py-2 text-[7px] font-black text-slate-400 uppercase">Tanggal</th>
+             </tr>
+          </thead>
+          <tbody>
+            {trendData.map((row, idx) => {
+              const prevW = idx === 0 ? weightInit : trendData[idx - 1].w;
+              const isEmpty = row.w == null;
+              return (
+                <tr
+                  key={row.day}
+                  className={`border-t border-slate-50 ${isEmpty ? 'opacity-40' : ''}`}
+                >
+                  <td className="px-3 py-2">
+                    <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-slate-100 text-[8px] font-black text-slate-600">
+                      {row.day}
+                    </span>
+                   </td>
+                  <td className="px-3 py-2">
+                    {isEmpty ? (
+                      <span className="text-[9px] text-slate-300 italic">Belum dicatat</span>
+                    ) : (
+                      <div>
+                        <span className="text-[11px] font-black text-slate-800">
+                          {fmtKg(row.w)}
+                        </span>
+                        <MiniBar value={row.w} max={maxW} />
+                      </div>
+                    )}
+                   </td>
+                  <td className="px-3 py-2">
+                    {!isEmpty && prevW != null && (
+                      <TrendIndicator current={row.w} previous={prevW} />
+                    )}
+                   </td>
+                  <td className="px-3 py-2">
+                    <span className="text-[8px] text-slate-400">
+                      {row.rec ? fmtDate(row.rec.recordedAt) : '—'}
+                    </span>
+                   </td>
+                 </tr>
+              );
+            })}
+          </tbody>
+         </table>
+      </div>
+
+      {isAuthorized && expanded && (
+        <div className="bg-white rounded-[16px] p-4 border border-slate-100 space-y-3">
+          <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
+            Catat Bobot Grading
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-[8px] font-black text-slate-400 uppercase block mb-1">
+                Hari ke-
+              </label>
+              <select
+                value={inputDay}
+                onChange={(e) => setInputDay(e.target.value)}
+                className="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#8da070]/30"
+              >
+                {days.map((d) => (
+                  <option key={d} value={String(d)}>Hari ke-{d}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-[8px] font-black text-slate-400 uppercase block mb-1">
+                Bobot (kg) *
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="0.1"
+                value={inputKg}
+                onChange={(e) => setInputKg(e.target.value)}
+                placeholder="mis: 325.0"
+                className="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#8da070]/30 placeholder:text-slate-300"
+              />
+            </div>
+          </div>
+          <input
+            type="text"
+            value={inputNote}
+            onChange={(e) => setInputNote(e.target.value)}
+            placeholder="Catatan (opsional)"
+            className="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#8da070]/30 placeholder:text-slate-300"
+          />
+          <button
+            onClick={handleSaveGrading}
+            disabled={saving || !inputKg}
+            className="w-full py-3 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#8da070] transition-all disabled:opacity-40 flex items-center justify-center gap-2"
+          >
+            {saving ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
+            Simpan Bobot Hari ke-{inputDay}
+          </button>
+        </div>
+      )}
+
+      {isAuthorized && !expanded && (
+        <button
+          onClick={() => setExpanded(true)}
+          className="w-full py-2 border border-dashed border-slate-200 rounded-xl text-[9px] font-black text-slate-400 uppercase hover:border-[#8da070]/40 hover:text-[#8da070] transition-colors"
+        >
+          <Plus size={10} className="inline mr-1" />
+          Tambah Pencatatan Grading
+        </button>
+      )}
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════════
+// SECTION 2 — Analisis Susut (Per Mobil & Per Grading)
+// ═══════════════════════════════════════════════════════════════
+const SectionSusut = ({ data }) => {
+  const [trucks, setTrucks] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const arrivalId = data?.cattleInventory?.arrivalId ?? data?.arrivalId ?? null;
+
+  const fetchTrucks = useCallback(async () => {
+    if (!arrivalId) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/cattle/arrival/${arrivalId}/trucks`);
+      if (res.ok) {
+        const json = await res.json();
+        setTrucks(json.trucks ?? json ?? []);
+      }
+    } catch {}
+    finally { setLoading(false); }
+  }, [arrivalId]);
+
+  useEffect(() => { fetchTrucks(); }, [fetchTrucks]);
+
+  const susutKg  = (data.weightBeli ?? 0) - (data.weightTerima ?? 0);
+  const susutPct = data.weightBeli > 0 ? (susutKg / data.weightBeli) * 100 : null;
+  const isCrit   = susutPct != null && susutPct > 8.5;
+  const isWarn   = susutPct != null && susutPct > 8.0;
+
+  const susutGradingKg  = data.weightGrading
+    ? (data.weightTerima ?? 0) - (data.weightGrading ?? 0)
+    : null;
+  const susutGradingPct = data.weightGrading && data.weightTerima
+    ? (susutGradingKg / data.weightTerima) * 100
+    : null;
+
+  return (
+    <div className="space-y-4">
+      <h3 className="text-[10px] font-black text-slate-700 uppercase tracking-widest">
+        Analisis Susut Bobot
+      </h3>
+
+      <div className={`rounded-[16px] p-4 border ${
+        susutPct == null ? 'bg-slate-50 border-dashed border-slate-200'
+        : isCrit ? 'bg-red-50 border-red-200'
+        : isWarn ? 'bg-amber-50 border-amber-200'
+        : 'bg-emerald-50 border-emerald-200'
+      }`}>
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-[9px] font-black text-slate-600 uppercase">
+            Susut Transit (Beli → Terima)
+          </p>
+          {susutPct != null && (
+            <span className={`text-[8px] font-black px-2 py-0.5 rounded-lg border ${
+              isCrit ? 'bg-red-100 text-red-600 border-red-200'
+              : isWarn ? 'bg-amber-100 text-amber-700 border-amber-200'
+              : 'bg-emerald-100 text-emerald-700 border-emerald-200'
+            }`}>
+              {isCrit ? '⚠ KRITIS' : isWarn ? '! WARNING' : '✓ NORMAL'}
+            </span>
+          )}
+        </div>
+        {susutPct != null ? (
+          <div className="grid grid-cols-3 gap-3 mb-3">
+            {[
+              { l: 'Bobot Beli',   v: fmtKg(data.weightBeli) },
+              { l: 'Bobot Terima', v: fmtKg(data.weightTerima) },
+              { l: 'Selisih',      v: fmtKg(susutKg) },
+            ].map((s) => (
+              <div key={s.l}>
+                <p className="text-[7px] font-black text-slate-500 uppercase">{s.l}</p>
+                <p className="text-[13px] font-black text-slate-800">{s.v}</p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-[9px] text-slate-400 italic mb-3">
+            Isi Bobot Beli & Bobot Terima di tab Bobot untuk kalkulasi otomatis.
+          </p>
+        )}
+        {susutPct != null && (
+          <>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[8px] text-slate-500 font-bold">Susut</span>
+              <span className={`text-[11px] font-black ${isCrit ? 'text-red-600' : isWarn ? 'text-amber-600' : 'text-emerald-600'}`}>
+                {fmtPct(susutPct)}
+              </span>
+            </div>
+            <div className="h-2 bg-white/60 rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full ${isCrit ? 'bg-red-400' : isWarn ? 'bg-amber-400' : 'bg-emerald-400'}`}
+                style={{ width: `${Math.min(100, (susutPct / 12) * 100)}%` }}
+              />
+            </div>
+            <p className="text-[7px] text-slate-400 mt-1">
+              Toleransi: ≤8.0% normal · 8.0–8.5% warning · &gt;8.5% kritis
+            </p>
+          </>
+        )}
+      </div>
+
+      {(data.weightGrading != null && data.weightGrading > 0) && (
+        <div className={`rounded-[16px] p-4 border ${
+          susutGradingPct != null && susutGradingPct > 5
+            ? 'bg-amber-50 border-amber-200'
+            : 'bg-blue-50 border-blue-200'
+        }`}>
+          <p className="text-[9px] font-black text-slate-600 uppercase mb-3">
+            Susut Grading (Terima → Grading)
+          </p>
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { l: 'Bobot Terima',  v: fmtKg(data.weightTerima) },
+              { l: 'Bobot Grading', v: fmtKg(data.weightGrading) },
+              { l: 'Selisih',       v: fmtKg(susutGradingKg) },
+            ].map((s) => (
+              <div key={s.l}>
+                <p className="text-[7px] font-black text-slate-500 uppercase">{s.l}</p>
+                <p className="text-[13px] font-black text-slate-800">{s.v}</p>
+              </div>
+            ))}
+          </div>
+          {susutGradingPct != null && (
+            <div className="mt-2 flex items-center justify-between">
+              <span className="text-[8px] text-slate-500 font-bold">Penyusutan Grading</span>
+              <span className="text-[11px] font-black text-blue-700">{fmtPct(susutGradingPct)}</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
+            Susut Per Armada / Mobil
+          </p>
+          {arrivalId && (
+            <button
+              onClick={fetchTrucks}
+              className="p-1 rounded-lg bg-slate-100 hover:bg-slate-200 transition-colors"
+            >
+              <RefreshCw size={10} className={`text-slate-400 ${loading ? 'animate-spin' : ''}`} />
+            </button>
+          )}
+        </div>
+        {!arrivalId ? (
+          <div className="flex items-center gap-2 px-3 py-2.5 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+            <Info size={11} className="text-slate-300 shrink-0" />
+            <p className="text-[9px] text-slate-300 italic">
+              Data armada tidak tersedia (sapi ini tidak memiliki referensi arrival).
+            </p>
+          </div>
+        ) : loading ? (
+          <div className="flex items-center justify-center py-6">
+            <Loader2 size={18} className="animate-spin text-[#8da070]" />
+          </div>
+        ) : trucks.length === 0 ? (
+          <div className="flex items-center gap-2 px-3 py-2.5 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+            <Info size={11} className="text-slate-300 shrink-0" />
+            <p className="text-[9px] text-slate-300 italic">Belum ada data timbang armada.</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {trucks.map((t, idx) => {
+              const netW      = parseFloat(t.netWeight ?? 0);
+              const grossW    = parseFloat(t.grossWeight ?? 0);
+              const susutTruk = grossW > 0 ? ((grossW - netW) / grossW) * 100 : 0;
+              const isAlert   = susutTruk > 8.5;
+              return (
+                <div
+                  key={t.id ?? idx}
+                  className={`rounded-[14px] p-3 border ${isAlert ? 'bg-red-50 border-red-200' : 'bg-white border-slate-100'}`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <p className="text-[10px] font-black text-slate-800 uppercase">
+                        {t.noTruk ?? `Armada ${idx + 1}`}
+                      </p>
+                      <p className="text-[8px] text-slate-400">{t.headCount ?? '?'} ekor</p>
+                    </div>
+                    <span className={`text-[9px] font-black px-2 py-0.5 rounded-lg border ${
+                      isAlert
+                        ? 'bg-red-100 text-red-600 border-red-200'
+                        : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    }`}>
+                      Susut {fmtPct(susutTruk)}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { l: 'Gross', v: fmtKg(grossW) },
+                      { l: 'Tare',  v: fmtKg(t.tareWeight) },
+                      { l: 'Net',   v: fmtKg(netW) },
+                    ].map((s) => (
+                      <div key={s.l} className="bg-slate-50/80 rounded-lg p-1.5">
+                        <p className="text-[7px] font-black text-slate-400 uppercase">{s.l}</p>
+                        <p className="text-[10px] font-black text-slate-700">{s.v}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════════
+// SECTION 3 — Manajemen Stok & Rata-rata per Breed
+// ═══════════════════════════════════════════════════════════════
+const SectionStok = ({ warehouseId }) => {
+  const [summary, setSummary] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [filter,  setFilter]  = useState('');
+
+  const fetchSummary = useCallback(async () => {
+    if (!warehouseId) return;
+    setLoading(true);
+    try {
+      const res = await fetch(
+        `/api/cattle/batch/stock-summary?warehouseId=${warehouseId}`
+      );
+      if (res.ok) {
+        const json = await res.json();
+        setSummary(json.summary ?? json ?? []);
+      }
+    } catch {}
+    finally { setLoading(false); }
+  }, [warehouseId]);
+
+  useEffect(() => { fetchSummary(); }, [fetchSummary]);
+
+  const filtered = filter
+    ? summary.filter((s) =>
+        s.breed?.toLowerCase().includes(filter.toLowerCase())
+      )
+    : summary;
+
+  const totalRemaining = filtered.reduce((a, s) => a + (s.headRemaining ?? 0), 0);
+  const totalSold      = filtered.reduce((a, s) => a + (s.headSold ?? 0), 0);
+  const totalWeight    = filtered.reduce((a, s) => a + (s.totalWeightCurrent ?? 0), 0);
+  const avgWeight      = totalRemaining > 0 ? totalWeight / totalRemaining : 0;
+
+  if (!warehouseId) {
+    return (
+      <div className="flex items-center gap-2 px-3 py-3 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+        <Info size={11} className="text-slate-300 shrink-0" />
+        <p className="text-[9px] text-slate-300 italic">
+          Pilih kandang untuk melihat ringkasan stok.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-[10px] font-black text-slate-700 uppercase tracking-widest">
+          Stok &amp; Rata-rata Bobot
+        </h3>
+        <button onClick={fetchSummary} className="p-1 rounded-lg bg-slate-100 hover:bg-slate-200 transition-colors">
+          <RefreshCw size={10} className={`text-slate-400 ${loading ? 'animate-spin' : ''}`} />
+        </button>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <MetricCard
+          label="Sisa Stok"
+          value={`${totalRemaining} ekor`}
+          sub={`${fmtKg(totalWeight)} total`}
+          icon={<Package size={11} />}
+          accent="green"
+        />
+        <MetricCard
+          label="Terjual"
+          value={`${totalSold} ekor`}
+          sub="dari total batch aktif"
+          icon={<Beef size={11} />}
+          accent="slate"
+        />
+        <MetricCard
+          label="Rata-rata Bobot"
+          value={fmtKg(avgWeight)}
+          sub="sisa stok saat ini"
+          icon={<Scale size={11} />}
+          accent="blue"
+        />
+        <MetricCard
+          label="Jenis Sapi"
+          value={`${filtered.length} jenis`}
+          sub="dalam kandang ini"
+          icon={<Layers size={11} />}
+          accent="slate"
+        />
+      </div>
+
+      <div className="relative">
+        <input
+          type="text"
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          placeholder="Filter jenis sapi..."
+          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-[11px] font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#8da070]/30 placeholder:text-slate-300"
+        />
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-6">
+          <Loader2 size={18} className="animate-spin text-[#8da070]" />
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="py-6 text-center">
+          <p className="text-[9px] text-slate-300 font-bold uppercase italic">
+            {summary.length === 0 ? 'Belum ada data stok.' : 'Tidak ada hasil untuk filter ini.'}
+          </p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-[16px] border border-slate-100 overflow-hidden">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-100">
+                <th className="px-3 py-2 text-[7px] font-black text-slate-400 uppercase">Jenis</th>
+                <th className="px-3 py-2 text-[7px] font-black text-slate-400 uppercase text-right">Sisa</th>
+                <th className="px-3 py-2 text-[7px] font-black text-slate-400 uppercase text-right">Terjual</th>
+                <th className="px-3 py-2 text-[7px] font-black text-slate-400 uppercase text-right">Rata-rata</th>
+               </tr>
+            </thead>
+            <tbody>
+              {filtered.map((row, idx) => {
+                const avg = row.headRemaining > 0
+                  ? (row.totalWeightCurrent ?? 0) / row.headRemaining
+                  : 0;
+                return (
+                  <tr
+                    key={row.breed ?? idx}
+                    className="border-t border-slate-50 hover:bg-slate-50/50 transition-colors"
+                  >
+                    <td className="px-3 py-2.5">
+                      <p className="text-[10px] font-black text-slate-800 uppercase">
+                        {row.breed ?? 'Tidak Diketahui'}
+                      </p>
+                      <p className="text-[8px] text-slate-400">{row.gender ?? ''}</p>
+                     </td>
+                    <td className="px-3 py-2.5 text-right">
+                      <span className="text-[10px] font-black text-slate-800">
+                        {row.headRemaining ?? 0}
+                      </span>
+                      <span className="text-[8px] text-slate-400 ml-0.5">ekor</span>
+                     </td>
+                    <td className="px-3 py-2.5 text-right">
+                      <span className="text-[10px] font-black text-slate-500">
+                        {row.headSold ?? 0}
+                      </span>
+                      <span className="text-[8px] text-slate-400 ml-0.5">ekor</span>
+                     </td>
+                    <td className="px-3 py-2.5 text-right">
+                      <span className="text-[10px] font-black text-[#8da070]">
+                        {avg > 0 ? fmtKg(avg) : '-'}
+                      </span>
+                     </td>
+                   </tr>
+                );
+              })}
+            </tbody>
+           </table>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════════
+// SECTION 4 — Proyeksi Bobot Jual (ADG / DWG Calculator)
+// ═══════════════════════════════════════════════════════════════
+const SectionADG = ({ data }) => {
+  const DEFAULT_ADG_MAP = {
+    Limousin : 1.3,
+    Simental : 1.2,
+    PO       : 1.0,
+    Angus    : 1.1,
+    Brangus  : 1.1,
+    Brahman  : 0.9,
+    DEFAULT  : 1.1,
+  };
+
+  const breed = data.breed ?? 'DEFAULT';
+  const defaultAdg = DEFAULT_ADG_MAP[breed] ?? DEFAULT_ADG_MAP.DEFAULT;
+
+  const [adg, setAdg] = useState(String(defaultAdg));
+  const [targetDays, setTargetDays] = useState('30');
+
+  const lastWeight = parseFloat(
+    data.weightGrading || data.weightTerima || data.weight || 0
+  );
+
+  const lastWeightDate =
+    data.lastWeightDate ??
+    data.lastScanAt ??
+    (data.weightRecords?.length > 0
+      ? data.weightRecords.sort(
+          (a, b) => new Date(b.recordedAt) - new Date(a.recordedAt)
+        )[0]?.recordedAt
+      : null);
+
+  const today = new Date();
+  const daysSinceLast = lastWeightDate ? daysBetween(lastWeightDate, today) : 0;
+
+  const adgNum     = parseFloat(adg) || 0;
+  const targetNum  = parseInt(targetDays, 10) || 0;
+
+  const weightCurrent = lastWeight + daysSinceLast * adgNum;
+  const weightTarget  = weightCurrent + targetNum * adgNum;
+
+  const totalGainCurrent = weightCurrent - lastWeight;
+  const totalGainTarget  = weightTarget - lastWeight;
+
+  const adgPresets = [
+    { label: 'Limousin', adg: '1.3' },
+    { label: 'Simental', adg: '1.2' },
+    { label: 'PO',       adg: '1.0' },
+    { label: 'Angus',    adg: '1.1' },
+    { label: 'Brahman',  adg: '0.9' },
+    { label: 'Custom',   adg: null  },
   ];
 
   return (
-    <div className="fixed inset-0 z-[350] flex justify-end overflow-hidden">
-      <div className="absolute inset-0 bg-slate-900/70 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full sm:max-w-2xl bg-[#f8f9fa] h-full shadow-2xl animate-in slide-in-from-right duration-300 flex flex-col">
-        <div className="p-5 md:p-6 bg-white border-b border-slate-100 shrink-0">
-          <div className="flex items-start justify-between gap-3 mb-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className={`p-2.5 rounded-xl text-white shadow-lg shrink-0 ${
-                data?.healthStatus === 'SAKIT' ? 'bg-red-500 shadow-red-200'
-                : data?.healthStatus === 'KARANTINA' ? 'bg-purple-500 shadow-purple-200'
-                : 'bg-[#8da070] shadow-[#8da070]/20'
-              }`}>
-                <Wifi size={18} />
-              </div>
-              <div className="min-w-0">
-                <p className="font-black text-slate-800 text-[13px] font-mono uppercase truncate leading-none">
-                  {data?.id ?? cattleId}
-                </p>
-                {data?.name && <p className="text-[10px] text-slate-400 font-bold mt-0.5">{data.name}</p>}
-                <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                  {data && <StatusBadge status={data.status} />}
-                  {data && <HealthBadge status={data.healthStatus} />}
-                  {data?.vaccinated && (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[8px] font-black uppercase border bg-teal-50 text-teal-700 border-teal-200">
-                      <Syringe size={8} /> Vaksin ✓
-                    </span>
-                  )}
-                </div>
-                {data?.purchasing && (
-                  <div className="mt-1 flex items-center gap-1">
-                    <span className="text-[8px] font-black text-[#8da070] bg-[#8da070]/10 px-2 py-0.5 rounded border border-[#8da070]/20">
-                      PO: {data.purchasing.noPO} - {data.purchasing.vendorName}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-            <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-xl transition-all shrink-0">
-              <X size={20} className="text-slate-400" />
-            </button>
-          </div>
+    <div className="space-y-4">
+      <h3 className="text-[10px] font-black text-slate-700 uppercase tracking-widest">
+        Kalkulator Proyeksi Bobot Jual
+      </h3>
 
-          {data && (
-            <div className="grid grid-cols-3 gap-2 mt-2">
-              <div className="bg-slate-50 rounded-xl p-2.5">
-                <p className="text-[7px] font-black text-slate-400 uppercase">Kandang</p>
-                <p className="text-[11px] font-black text-slate-700 truncate">{data.warehouse?.name ?? '-'}</p>
-              </div>
-              <div className="bg-[#8da070]/10 rounded-xl p-2.5">
-                <p className="text-[7px] font-black text-[#8da070] uppercase">Bobot Terima</p>
-                <p className="text-[11px] font-black text-[#8da070]">{fmtKg(data.weightTerima ?? data.weight)}</p>
-              </div>
-              <div className="bg-slate-50 rounded-xl p-2.5">
-                <p className="text-[7px] font-black text-slate-400 uppercase">HPP/Ekor</p>
-                <p className="text-[11px] font-black text-slate-700">{data.hppPerEkor ? fmtRp(data.hppPerEkor) : '-'}</p>
-              </div>
-            </div>
-          )}
+      <div className="flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2.5">
+        <Calculator size={11} className="text-blue-500 mt-0.5 shrink-0" />
+        <div>
+          <p className="text-[8px] font-black text-blue-700 uppercase mb-0.5">Rumus ADG</p>
+          <p className="text-[9px] text-blue-600 font-mono">
+            Bobot Proyeksi = Bobot Terakhir + (Hari × ADG)
+          </p>
+        </div>
+      </div>
 
-          {msg && (
-            <div className={`mt-3 px-3 py-2 rounded-xl text-[10px] font-bold flex items-center gap-2 ${
-              msg.type === 'ok' ? 'bg-green-50 text-green-700 border border-green-200'
-              : 'bg-red-50 text-red-700 border border-red-200'
-            }`}>
-              {msg.type === 'ok' ? <CheckCircle2 size={12} /> : <AlertTriangle size={12} />}
-              {msg.text}
-            </div>
-          )}
-
-          <div className="flex gap-1 mt-3 bg-slate-50 p-1 rounded-xl">
-            {TABS.map((t) => (
-              <button key={t.key} onClick={() => { setTab(t.key); setMsg(null); }}
-                className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${
-                  tab === t.key
-                    ? 'bg-white text-slate-800 shadow-sm'
-                    : 'text-slate-400 hover:text-slate-600'
-                }`}>
-                {t.icon} <span className="hidden sm:inline">{t.label}</span>
+      <div className="bg-white rounded-[16px] p-4 border border-slate-100 space-y-3">
+        <div>
+          <label className="text-[8px] font-black text-slate-500 uppercase block mb-2">
+            Preset ADG per Jenis Sapi (kg/hari)
+          </label>
+          <div className="flex flex-wrap gap-1.5">
+            {adgPresets.filter((p) => p.adg != null).map((p) => (
+              <button
+                key={p.label}
+                onClick={() => setAdg(p.adg)}
+                className={`px-2.5 py-1 rounded-lg text-[8px] font-black uppercase border transition-all ${
+                  adg === p.adg
+                    ? 'bg-slate-900 text-white border-slate-900'
+                    : 'bg-slate-50 text-slate-500 border-slate-200 hover:border-[#8da070]/40'
+                }`}
+              >
+                {p.label} {p.adg}
               </button>
             ))}
           </div>
         </div>
-
-        <div className="flex-1 overflow-y-auto p-4 md:p-6 custom-scrollbar">
-          {loading ? (
-            <div className="flex flex-col items-center justify-center py-20">
-              <Loader2 size={32} className="animate-spin text-[#8da070] mb-3" />
-              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Memuat detail sapi...</p>
-            </div>
-          ) : !data ? (
-            <p className="text-center text-slate-400 text-sm mt-10">Data tidak tersedia</p>
-          ) : (
-            <>
-              {tab === 'bobot'     && <TabBobot     data={data} onPost={post} saving={saving} isAuthorized={isAuthorized} />}
-              {tab === 'kesehatan' && <TabKesehatan data={data} onPost={post} saving={saving} isAuthorized={isAuthorized} />}
-              {tab === 'medikasi'  && <TabMedikasi  data={data} onPost={post} saving={saving} isAuthorized={isAuthorized} />}
-              {tab === 'hpp'       && <TabHPP       data={data} onPost={post} saving={saving} isAuthorized={isAuthorized} />}
-              {tab === 'transfer'  && <TabTransfer  data={data} onPost={post} saving={saving} isAuthorized={isAuthorized} warehouses={warehouses} />}
-            </>
-          )}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-[8px] font-black text-slate-400 uppercase block mb-1">
+              ADG Target (kg/hari) *
+            </label>
+            <input
+              type="number"
+              min="0.1"
+              max="5"
+              step="0.1"
+              value={adg}
+              onChange={(e) => setAdg(e.target.value)}
+              className="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#8da070]/30"
+            />
+          </div>
+          <div>
+            <label className="text-[8px] font-black text-slate-400 uppercase block mb-1">
+              Proyeksi X Hari ke Depan
+            </label>
+            <input
+              type="number"
+              min="1"
+              max="365"
+              step="1"
+              value={targetDays}
+              onChange={(e) => setTargetDays(e.target.value)}
+              className="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#8da070]/30"
+            />
+          </div>
         </div>
       </div>
+
+      <div className="grid grid-cols-3 gap-2">
+        <MetricCard
+          label="Bobot Terakhir"
+          value={fmtKg(lastWeight)}
+          sub={lastWeightDate ? fmtDate(lastWeightDate) : 'Tanggal tidak diketahui'}
+          icon={<Scale size={11} />}
+          accent="slate"
+        />
+        <MetricCard
+          label="Hari Berlalu"
+          value={`${daysSinceLast} hari`}
+          sub="sejak timbang terakhir"
+          icon={<Activity size={11} />}
+          accent="slate"
+        />
+        <MetricCard
+          label="ADG Dipakai"
+          value={`${adg} kg/h`}
+          sub={`untuk ${breed}`}
+          icon={<TrendingUp size={11} />}
+          accent="green"
+        />
+      </div>
+
+      <div className="bg-[#8da070]/10 border border-[#8da070]/30 rounded-[18px] p-5">
+        <p className="text-[8px] font-black text-[#8da070] uppercase tracking-widest mb-1">
+          Estimasi Bobot Jual Saat Ini
+        </p>
+        <div className="flex items-end gap-3">
+          <p className="text-3xl font-black text-[#8da070] leading-none">
+            {fmtKg(weightCurrent)}
+          </p>
+          {totalGainCurrent > 0 && (
+            <span className="text-[10px] font-black text-emerald-600 flex items-center gap-0.5 mb-0.5">
+              <TrendingUp size={10} />
+              +{fmtKg(totalGainCurrent)} gain
+            </span>
+          )}
+        </div>
+        <p className="text-[9px] text-[#8da070]/70 mt-1">
+          {fmtKg(lastWeight)} + ({daysSinceLast} hari × {adg} kg/hari)
+        </p>
+      </div>
+
+      {targetNum > 0 && (
+        <div className="bg-slate-900 rounded-[18px] p-5">
+          <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">
+            Proyeksi Bobot dalam {targetNum} Hari Lagi
+          </p>
+          <div className="flex items-end gap-3">
+            <p className="text-3xl font-black text-white leading-none">
+              {fmtKg(weightTarget)}
+            </p>
+            <span className="text-[10px] font-black text-[#8da070] flex items-center gap-0.5 mb-0.5">
+              <TrendingUp size={10} />
+              +{fmtKg(targetNum * adgNum)} proyeksi
+            </span>
+          </div>
+          <p className="text-[9px] text-slate-500 mt-1">
+            {fmtKg(weightCurrent)} + ({targetNum} hari × {adg} kg/hari)
+          </p>
+          <div className="mt-3 h-1.5 bg-slate-700 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-[#8da070] rounded-full"
+              style={{ width: `${Math.min(100, (weightCurrent / weightTarget) * 100)}%` }}
+            />
+          </div>
+          <div className="flex justify-between mt-1">
+            <span className="text-[7px] text-slate-500">Sekarang</span>
+            <span className="text-[7px] text-slate-500">+{targetNum} hari</span>
+          </div>
+        </div>
+      )}
+
+      {(data.weightRecords?.length ?? 0) > 1 && (
+        <div>
+          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">
+            ADG Aktual Berdasarkan Riwayat
+          </p>
+          <div className="space-y-1.5">
+            {data.weightRecords
+              .slice()
+              .sort((a, b) => new Date(b.recordedAt) - new Date(a.recordedAt))
+              .slice(0, 5)
+              .map((r, idx, arr) => {
+                const next    = arr[idx + 1];
+                const days    = next ? daysBetween(next.recordedAt, r.recordedAt) : null;
+                const gain    = next ? parseFloat(r.weight) - parseFloat(next.weight) : null;
+                const adgActual = days && days > 0 ? gain / days : null;
+                return (
+                  <div
+                    key={r.id}
+                    className="bg-white rounded-xl px-3 py-2 border border-slate-100 flex items-center justify-between gap-2"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="px-1.5 py-0.5 rounded text-[7px] font-black uppercase bg-slate-100"
+                        style={{ color: '#8da070' }}
+                      >
+                        {r.weightType}
+                      </span>
+                      <span className="text-[9px] text-slate-400">{fmtDate(r.recordedAt)}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {adgActual != null && (
+                        <span className={`text-[8px] font-black flex items-center gap-0.5 ${
+                          adgActual >= 0 ? 'text-emerald-600' : 'text-red-500'
+                        }`}>
+                          {adgActual >= 0 ? <TrendingUp size={8} /> : <TrendingDown size={8} />}
+                          {adgActual.toFixed(2)} kg/h
+                        </span>
+                      )}
+                      <span className="font-black text-slate-800 text-[11px]">
+                        {fmtKg(r.weight)}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════════
+// TAB ANALISIS BOBOT — Pengganti Tab HPP
+// ═══════════════════════════════════════════════════════════════
+const TabAnalisisBobot = ({ data, onPost, saving, isAuthorized, warehouseId }) => {
+  const [activeSection, setActiveSection] = useState('grading');
+
+  const SECTIONS = [
+    { key: 'grading', label: 'Grading Week',   icon: <Scale size={11} />       },
+    { key: 'susut',   label: 'Susut',          icon: <TrendingDown size={11} /> },
+    { key: 'stok',    label: 'Stok',           icon: <BarChart3 size={11} />    },
+    { key: 'adg',     label: 'ADG/Proyeksi',   icon: <Calculator size={11} />   },
+  ];
+
+  return (
+    <div className="space-y-5">
+      <div className="flex gap-1 bg-slate-100 p-1 rounded-[14px]">
+        {SECTIONS.map((s) => (
+          <button
+            key={s.key}
+            onClick={() => setActiveSection(s.key)}
+            className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-[10px] text-[8px] font-black uppercase tracking-wider transition-all ${
+              activeSection === s.key
+                ? 'bg-white text-slate-800 shadow-sm'
+                : 'text-slate-400 hover:text-slate-600'
+            }`}
+          >
+            {s.icon}
+            <span className="hidden sm:inline">{s.label}</span>
+          </button>
+        ))}
+      </div>
+
+      {activeSection === 'grading' && (
+        <SectionGradingWeek
+          data={data}
+          onPost={onPost}
+          saving={saving}
+          isAuthorized={isAuthorized}
+        />
+      )}
+      {activeSection === 'susut' && (
+        <SectionSusut data={data} />
+      )}
+      {activeSection === 'stok' && (
+        <SectionStok warehouseId={warehouseId ?? data?.warehouseId} />
+      )}
+      {activeSection === 'adg' && (
+        <SectionADG data={data} />
+      )}
     </div>
   );
 };
@@ -1031,7 +1797,163 @@ const TabTransfer = ({ data, onPost, saving, isAuthorized, warehouses }) => {
 };
 
 // ═══════════════════════════════════════════════════════════════
-// CattleDetailModal — daftar sapi dalam satu kandang (ditambah badge PO)
+// CattleProfileModal — per‑sapi full detail dengan tab
+// ═══════════════════════════════════════════════════════════════
+const CattleProfileModal = ({ cattleId, isOpen, onClose, warehouses }) => {
+  const { data: session }   = useSession();
+  const [data,    setData]  = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [tab,     setTab]   = useState('bobot');
+  const [saving,  setSaving] = useState(false);
+  const [msg,     setMsg]   = useState(null);
+
+  const isAuthorized = ['SuperAdmin','Admin','Supervisor','Staff'].includes(session?.user?.role);
+
+  const fetchDetail = useCallback(async () => {
+    if (!cattleId) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/cattle/${cattleId}`);
+      if (res.ok) setData(await res.json());
+    } catch {}
+    finally { setLoading(false); }
+  }, [cattleId]);
+
+  useEffect(() => {
+    if (isOpen && cattleId) { setTab('bobot'); setMsg(null); fetchDetail(); }
+  }, [isOpen, cattleId, fetchDetail]);
+
+  const post = async (url, body) => {
+    setSaving(true); setMsg(null);
+    try {
+      const res  = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const json = await res.json();
+      if (res.ok) { setMsg({ type: 'ok', text: json.message }); fetchDetail(); }
+      else        { setMsg({ type: 'err', text: json.message }); }
+    } catch { setMsg({ type: 'err', text: 'Gagal terhubung.' }); }
+    finally { setSaving(false); }
+  };
+
+  if (!isOpen) return null;
+
+  const TABS = [
+    { key: 'bobot',     label: 'Bobot',      icon: <Scale size={13} />         },
+    { key: 'kesehatan', label: 'Kesehatan',   icon: <Heart size={13} />         },
+    { key: 'medikasi',  label: 'Medikasi',   icon: <Syringe size={13} />       },
+    { key: 'analisis',  label: 'Analisis',   icon: <BarChart3 size={13} />     },
+    { key: 'hpp',       label: 'HPP',        icon: <DollarSign size={13} />    },
+    { key: 'transfer',  label: 'Transfer',   icon: <ArrowLeftRight size={13} />},
+  ];
+
+  return (
+    <div className="fixed inset-0 z-[350] flex justify-end overflow-hidden">
+      <div className="absolute inset-0 bg-slate-900/70 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full sm:max-w-2xl bg-[#f8f9fa] h-full shadow-2xl animate-in slide-in-from-right duration-300 flex flex-col">
+        <div className="p-5 md:p-6 bg-white border-b border-slate-100 shrink-0">
+          <div className="flex items-start justify-between gap-3 mb-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className={`p-2.5 rounded-xl text-white shadow-lg shrink-0 ${
+                data?.healthStatus === 'SAKIT' ? 'bg-red-500 shadow-red-200'
+                : data?.healthStatus === 'KARANTINA' ? 'bg-purple-500 shadow-purple-200'
+                : 'bg-[#8da070] shadow-[#8da070]/20'
+              }`}>
+                <Wifi size={18} />
+              </div>
+              <div className="min-w-0">
+                <p className="font-black text-slate-800 text-[13px] font-mono uppercase truncate leading-none">
+                  {data?.id ?? cattleId}
+                </p>
+                {data?.name && <p className="text-[10px] text-slate-400 font-bold mt-0.5">{data.name}</p>}
+                <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                  {data && <StatusBadge status={data.status} />}
+                  {data && <HealthBadge status={data.healthStatus} />}
+                  {data?.vaccinated && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[8px] font-black uppercase border bg-teal-50 text-teal-700 border-teal-200">
+                      <Syringe size={8} /> Vaksin ✓
+                    </span>
+                  )}
+                </div>
+                {data?.purchasing && (
+                  <div className="mt-1 flex items-center gap-1">
+                    <span className="text-[8px] font-black text-[#8da070] bg-[#8da070]/10 px-2 py-0.5 rounded border border-[#8da070]/20">
+                      PO: {data.purchasing.noPO} - {data.purchasing.vendorName}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+            <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-xl transition-all shrink-0">
+              <X size={20} className="text-slate-400" />
+            </button>
+          </div>
+
+          {data && (
+            <div className="grid grid-cols-3 gap-2 mt-2">
+              <div className="bg-slate-50 rounded-xl p-2.5">
+                <p className="text-[7px] font-black text-slate-400 uppercase">Kandang</p>
+                <p className="text-[11px] font-black text-slate-700 truncate">{data.warehouse?.name ?? '-'}</p>
+              </div>
+              <div className="bg-[#8da070]/10 rounded-xl p-2.5">
+                <p className="text-[7px] font-black text-[#8da070] uppercase">Bobot Terima</p>
+                <p className="text-[11px] font-black text-[#8da070]">{fmtKg(data.weightTerima ?? data.weight)}</p>
+              </div>
+              <div className="bg-slate-50 rounded-xl p-2.5">
+                <p className="text-[7px] font-black text-slate-400 uppercase">HPP/Ekor</p>
+                <p className="text-[11px] font-black text-slate-700">{data.hppPerEkor ? fmtRp(data.hppPerEkor) : '-'}</p>
+              </div>
+            </div>
+          )}
+
+          {msg && (
+            <div className={`mt-3 px-3 py-2 rounded-xl text-[10px] font-bold flex items-center gap-2 ${
+              msg.type === 'ok' ? 'bg-green-50 text-green-700 border border-green-200'
+              : 'bg-red-50 text-red-700 border border-red-200'
+            }`}>
+              {msg.type === 'ok' ? <CheckCircle2 size={12} /> : <AlertTriangle size={12} />}
+              {msg.text}
+            </div>
+          )}
+
+          <div className="flex gap-1 mt-3 bg-slate-50 p-1 rounded-xl overflow-x-auto">
+            {TABS.map((t) => (
+              <button key={t.key} onClick={() => { setTab(t.key); setMsg(null); }}
+                className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all whitespace-nowrap ${
+                  tab === t.key
+                    ? 'bg-white text-slate-800 shadow-sm'
+                    : 'text-slate-400 hover:text-slate-600'
+                }`}>
+                {t.icon} <span className="hidden sm:inline">{t.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 custom-scrollbar">
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-20">
+              <Loader2 size={32} className="animate-spin text-[#8da070] mb-3" />
+              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Memuat detail sapi...</p>
+            </div>
+          ) : !data ? (
+            <p className="text-center text-slate-400 text-sm mt-10">Data tidak tersedia</p>
+          ) : (
+            <>
+              {tab === 'bobot'     && <TabBobot     data={data} onPost={post} saving={saving} isAuthorized={isAuthorized} />}
+              {tab === 'kesehatan' && <TabKesehatan data={data} onPost={post} saving={saving} isAuthorized={isAuthorized} />}
+              {tab === 'medikasi'  && <TabMedikasi  data={data} onPost={post} saving={saving} isAuthorized={isAuthorized} />}
+              {tab === 'analisis'  && <TabAnalisisBobot data={data} onPost={post} saving={saving} isAuthorized={isAuthorized} warehouseId={data?.warehouseId} />}
+              {tab === 'hpp'       && <TabHPP       data={data} onPost={post} saving={saving} isAuthorized={isAuthorized} />}
+              {tab === 'transfer'  && <TabTransfer  data={data} onPost={post} saving={saving} isAuthorized={isAuthorized} warehouses={warehouses} />}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════════
+// CattleDetailModal — daftar sapi dalam satu kandang
 // ═══════════════════════════════════════════════════════════════
 const CattleDetailModal = ({ warehouse, isOpen, onClose, warehouses }) => {
   const [cattle, setCattle] = useState([]);
@@ -1335,15 +2257,12 @@ const ImportModal = ({ isOpen, onClose, warehouses, onSuccess }) => {
   const [result, setResult] = useState(null);
   const [searchQ, setSearchQ] = useState('');
 
-  // ⭐ State untuk eartag
   const [eartagPrefix, setEartagPrefix] = useState('');
-  // ⭐ State untuk menyimpan nomor terakhir setiap prefix dari database
   const [lastEartagNumbers, setLastEartagNumbers] = useState({});
 
   const [breedsMaster, setBreedsMaster] = useState([]);
   const [breedsLoading, setBreedsLoading] = useState(false);
 
-  // Fetch daftar PO dan breeds saat modal terbuka
   useEffect(() => {
     if (!isOpen) return;
     setPurchasingId('');
@@ -1365,7 +2284,6 @@ const ImportModal = ({ isOpen, onClose, warehouses, onSuccess }) => {
     });
   }, [isOpen]);
 
-  // ⭐ Fetch existing eartags dari database untuk mendapatkan nomor terakhir per prefix
   const fetchExistingEartags = useCallback(async () => {
     if (!warehouseId) return;
     try {
@@ -1390,7 +2308,6 @@ const ImportModal = ({ isOpen, onClose, warehouses, onSuccess }) => {
     }
   }, [warehouseId]);
 
-  // Panggil fetch eartag saat warehouse berubah dan step 2
   useEffect(() => {
     if (warehouseId && step === 2) {
       fetchExistingEartags();
@@ -1470,7 +2387,6 @@ const ImportModal = ({ isOpen, onClose, warehouses, onSuccess }) => {
     });
   };
 
-  // Auto fill eartag untuk baris yang kosong (lanjut dari nomor terbesar di session)
   const autoFillEartag = () => {
     if (!eartagPrefix || eartagPrefix.trim() === '') {
       setSaveErr('Isi prefix Eartag terlebih dahulu.');
@@ -1478,7 +2394,6 @@ const ImportModal = ({ isOpen, onClose, warehouses, onSuccess }) => {
     }
     
     const prefix = eartagPrefix.trim();
-    // Cari nomor terbesar yang sudah ada di session untuk prefix ini
     let maxNumber = 0;
     Object.values(weights).forEach(w => {
       if (w.eartagNo && w.eartagNo.startsWith(`${prefix}-`)) {
@@ -1490,7 +2405,6 @@ const ImportModal = ({ isOpen, onClose, warehouses, onSuccess }) => {
     
     let nextNumber = maxNumber + 1;
     
-    // Gunakan rfidList untuk urutan (hanya isi yang kosong)
     setWeights((prev) => {
       const newWeights = { ...prev };
       rfidList.forEach((rfid) => {
@@ -1507,7 +2421,6 @@ const ImportModal = ({ isOpen, onClose, warehouses, onSuccess }) => {
     });
   };
 
-  // Reset semua eartag (paksa mulai dari 1)
   const resetAllEartag = () => {
     if (!eartagPrefix || eartagPrefix.trim() === '') {
       setSaveErr('Isi prefix Eartag terlebih dahulu.');
@@ -1515,7 +2428,6 @@ const ImportModal = ({ isOpen, onClose, warehouses, onSuccess }) => {
     }
     const prefix = eartagPrefix.trim();
     
-    // Gunakan rfidList sebagai sumber urutan (urutan sesuai file Excel)
     setWeights((prev) => {
       const newWeights = { ...prev };
       rfidList.forEach((rfid, index) => {
@@ -1530,7 +2442,6 @@ const ImportModal = ({ isOpen, onClose, warehouses, onSuccess }) => {
     });
   };
 
-  //Ketika prefix berubah: jika prefix sudah ada di database, lanjutkan nomor; jika baru, mulai dari 1
   const handlePrefixChange = (newPrefix) => {
     const trimmed = newPrefix.trim();
     setEartagPrefix(trimmed);
@@ -1546,11 +2457,9 @@ const ImportModal = ({ isOpen, onClose, warehouses, onSuccess }) => {
       return;
     }
     
-    // Cek apakah prefix sudah pernah ada di database
     const lastNumber = lastEartagNumbers[trimmed] || 0;
     let nextNumber = lastNumber + 1;
     
-    // Gunakan rfidList sebagai sumber urutan (urutan sesuai file Excel)
     setWeights((prev) => {
       const newWeights = { ...prev };
       rfidList.forEach((rfid) => {
@@ -1800,7 +2709,6 @@ const ImportModal = ({ isOpen, onClose, warehouses, onSuccess }) => {
                 </div>
               </div>
               
-              {/* Bulk Breed */}
               <div className="flex items-center gap-1">
                 <select 
                   value={fillAllBreed} 
@@ -1818,7 +2726,6 @@ const ImportModal = ({ isOpen, onClose, warehouses, onSuccess }) => {
                 </button>
               </div>
               
-              {/* Bulk Weight */}
               <div className="flex items-center gap-1">
                 <input type="number" value={fillAll} onChange={(e) => setFillAll(e.target.value)}
                   placeholder="kg semua"
@@ -1829,7 +2736,6 @@ const ImportModal = ({ isOpen, onClose, warehouses, onSuccess }) => {
                 </button>
               </div>
 
-              {/* ⭐ Bulk Eartag */}
               <div className="flex items-center gap-1 border-l border-slate-200 pl-2 ml-1">
                 <input
                   type="text"
@@ -1852,7 +2758,6 @@ const ImportModal = ({ isOpen, onClose, warehouses, onSuccess }) => {
                 </button>
               </div>
               
-              {/* Search */}
               <div className="relative ml-auto">
                 <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-300" />
                 <input value={searchQ} onChange={(e) => setSearchQ(e.target.value)}
@@ -1861,7 +2766,6 @@ const ImportModal = ({ isOpen, onClose, warehouses, onSuccess }) => {
               </div>
             </div>
 
-            {/* Info kuota */}
             {quotaInfo && (
               <div className={`mx-5 mt-3 p-3 rounded-xl text-[10px] font-bold flex items-start gap-2 ${
                 quotaInfo.isOver ? 'bg-red-50 text-red-700 border border-red-200' 
@@ -1884,7 +2788,6 @@ const ImportModal = ({ isOpen, onClose, warehouses, onSuccess }) => {
               </div>
             )}
 
-            {/* Tabel */}
             <div className="overflow-auto flex-1 min-h-0">
               <table className="w-full text-left border-collapse">
                 <thead className="sticky top-0 bg-slate-50 z-10">
@@ -1959,7 +2862,6 @@ const ImportModal = ({ isOpen, onClose, warehouses, onSuccess }) => {
               )}
             </div>
 
-            {/* Footer */}
             <div className="p-4 border-t border-slate-100 space-y-3 shrink-0">
               {saveErr && (
                 <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl p-3">

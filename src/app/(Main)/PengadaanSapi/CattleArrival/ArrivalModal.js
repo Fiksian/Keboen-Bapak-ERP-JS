@@ -122,16 +122,14 @@ const CattleArrivalModal = ({
   const [photoPreview, setPhotoPreview] = useState(null);
   const [form, setForm] = useState({
     namaKapal: '', noBl: '', namaPBM: '', namaMKL: '',
-    noSuratJalan: '', warehouseId: '', notes: '',
+    noSuratJalan: '', notes: '',
   });
-  const [warehouses, setWarehouses] = useState([]);
 
   useEffect(() => {
     if (arrival) {
       setTrucks([{ ...EMPTY_TRUK }]);
       setRfidFile(null); //setRfidPreview(null);
       setPhotoFile(null); setPhotoPreview(null);
-      fetch('/api/warehouse').then(r => r.ok ? r.json() : []).then(setWarehouses).catch(console.error);
     }
   }, [arrival]);
 
@@ -290,16 +288,6 @@ const CattleArrivalModal = ({
                 />
               </div>
             ))}
-
-            {/* Gudang */}
-            <div className="col-span-2">
-              <label className="text-[9px] font-black text-gray-400 uppercase block mb-1 ml-1">Gudang / Kandang *</label>
-              <select value={form.warehouseId} onChange={e => setForm(p => ({ ...p, warehouseId: e.target.value }))}
-                className="w-full bg-slate-50 border border-slate-100 rounded-xl px-3 py-3 text-[11px] font-black text-gray-700 outline-none appearance-none">
-                <option value="">-- Pilih Kandang --</option>
-                {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-              </select>
-            </div>
           </div>
 
           {/* ── Data Truk ─────────────────────────────────────────────────── */}
